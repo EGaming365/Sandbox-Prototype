@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://bdcevlaklnt2w"]
+
+[ext_resource type="Script" uid="uid://d4isltfjtratq" path="res://Scripts/forest.gd" id="1_uee5o"]
+
+[node name="Forest" type="Node2D" unique_id=163184935]
+scale = Vector2(45.298832, 41.85115)
+script = ExtResource("1_uee5o")

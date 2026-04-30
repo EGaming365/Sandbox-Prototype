@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bnfvmpu6ifph0"]
 
-[ext_resource type="Script" uid="uid://wldr75sm64lf" path="res://Scenes/hotbar.gd" id="1_oais3"]
+[ext_resource type="Script" uid="uid://wldr75sm64lf" path="res://Scripts/hotbar.gd" id="1_oais3"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ugwg4"]
 content_margin_left = 0.0
@@ -55,47 +55,47 @@ custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 2" type="Panel" parent="HBoxContainer" unique_id=559023265]
+[node name="Item2" type="Panel" parent="HBoxContainer" unique_id=559023265]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 3" type="Panel" parent="HBoxContainer" unique_id=743894226]
+[node name="Item3" type="Panel" parent="HBoxContainer" unique_id=743894226]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 4" type="Panel" parent="HBoxContainer" unique_id=482794601]
+[node name="Item4" type="Panel" parent="HBoxContainer" unique_id=482794601]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 5" type="Panel" parent="HBoxContainer" unique_id=1576554520]
+[node name="Item5" type="Panel" parent="HBoxContainer" unique_id=1576554520]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 6" type="Panel" parent="HBoxContainer" unique_id=1351595499]
+[node name="Item6" type="Panel" parent="HBoxContainer" unique_id=1351595499]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 7" type="Panel" parent="HBoxContainer" unique_id=1047116202]
+[node name="Item7" type="Panel" parent="HBoxContainer" unique_id=1047116202]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 8" type="Panel" parent="HBoxContainer" unique_id=224477238]
+[node name="Item8" type="Panel" parent="HBoxContainer" unique_id=224477238]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 9" type="Panel" parent="HBoxContainer" unique_id=1012121938]
+[node name="Item9" type="Panel" parent="HBoxContainer" unique_id=1012121938]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")
 
-[node name="Item 10" type="Panel" parent="HBoxContainer" unique_id=158145376]
+[node name="Item10" type="Panel" parent="HBoxContainer" unique_id=158145376]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_oais3")

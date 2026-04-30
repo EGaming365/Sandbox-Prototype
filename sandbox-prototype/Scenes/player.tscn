@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://c3whqkkb6ducr" path="res://Assets/Player-Walk.png" id="2_cvnsp"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v0iea"]
-size = Vector2(82, 72)
+size = Vector2(16.666653, 13.333339)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_x3wgy"]
 atlas = ExtResource("2_cvnsp")
@@ -54,15 +54,26 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_cvnsp"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+
 [node name="Player" type="CharacterBody2D" unique_id=1471033482]
+scale = Vector2(0.24000002, 0.24000002)
 script = ExtResource("1_v0iea")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=511479757]
+position = Vector2(2.483527e-07, -5.8333254)
+scale = Vector2(1.0000008, 1.0000008)
 shape = SubResource("RectangleShape2D_v0iea")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1406795872]
 texture_filter = 1
-position = Vector2(0, -1)
+position = Vector2(0, -29.333328)
 scale = Vector2(1.8125, 1.8125)
 sprite_frames = SubResource("SpriteFrames_3smsa")
 animation = &"idle"
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=822851407]
+replication_config = SubResource("SceneReplicationConfig_cvnsp")

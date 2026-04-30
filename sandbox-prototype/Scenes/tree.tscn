@@ -1,0 +1,45 @@
+[gd_scene format=3 uid="uid://bu6pd330sukqd"]
+
+[ext_resource type="Texture2D" uid="uid://udi686jmkyeo" path="res://Assets/Ninja Adventure - Asset Pack/Backgrounds/Tilesets/TilesetNature.png" id="1_0vwjc"]
+[ext_resource type="Script" uid="uid://bbcfuq62230li" path="res://Scripts/tree.gd" id="1_rsuno"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rsuno"]
+size = Vector2(30, 30)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_l7sa7"]
+radius = 43.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_l7sa7"]
+size = Vector2(30.454035, 8.517632)
+
+[node name="Tree" type="Node2D" unique_id=53906318]
+z_index = 1
+scale = Vector2(4.7999997, 4.7999997)
+script = ExtResource("1_rsuno")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1137885574]
+position = Vector2(0, -15.041668)
+texture = ExtResource("1_0vwjc")
+region_enabled = true
+region_rect = Rect2(32, 0, 32, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=162251713]
+position = Vector2(0, -15.041668)
+shape = SubResource("RectangleShape2D_rsuno")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=1267964822]
+position = Vector2(0, -15.041668)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1129072680]
+shape = SubResource("CircleShape2D_l7sa7")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=705878636]
+position = Vector2(0, -15.041668)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1155343725]
+position = Vector2(0.10416661, 10.875)
+scale = Vector2(0.92352295, -0.83160824)
+shape = SubResource("RectangleShape2D_l7sa7")
+
+[connection signal="body_entered" from="Area2D" to="." method="_on_area_2d_body_entered"]
+[connection signal="body_exited" from="Area2D" to="." method="_on_area_2d_body_exited"]

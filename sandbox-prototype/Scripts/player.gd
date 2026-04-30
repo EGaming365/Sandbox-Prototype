@@ -1,9 +1,12 @@
 extends CharacterBody2D
 
-@export var speed = 500
+@export var speed = 450
 @onready var anim = $AnimatedSprite2D
 
-func _physics_process(delta):
+func _enter_tree():
+	set_multiplayer_authority(name.to_int())
+
+func _physics_process(_delta):
 	var direction = Vector2.ZERO
 
 	if Input.is_action_pressed("move_left"):

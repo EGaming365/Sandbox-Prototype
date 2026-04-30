@@ -1,0 +1,43 @@
+extends Node2D
+
+@export var tree_scene = preload("res://Scenes/tree.tscn")
+@export var tree_count = 1000
+@export var min_distance = 200
+@export var forest_size = Vector2(1000, 1000)
+
+var spawned_positions = []
+var target_parent : Node
+
+func _ready():
+	target_parent = get_parent()
+	generate_forest()
+
+func generate_forest():
+	var top_left = global_position - forest_size / 2
+	var bottom_right = global_position + forest_size / 2
+
+	var attempts = 0
+	var max_attempts = tree_count * 10
+
+	while spawned_positions.size() < tree_count and attempts < max_attempts:
+		attempts += 1
+
+		var random_pos = Vector2(
+			randf_range(top_left.x, bottom_right.x),
+			randf_range(top_left.y, bottom_right.y)
+		)
+
+		if is_position_valid(random_pos):
+			spawned_positions.append(random_pos)
+			spawn_tree(random_pos)
+
+func is_position_valid(pos):
+	for existing in spawned_positions:
+		if pos.distance_to(existing) < min_distance:
+			return false
+	return true
+
+func spawn_tree(pos):
+	var tree = tree_scene.instantiate()
+	tree.position = pos
+	target_parent.call_deferred("add_child", tree)
