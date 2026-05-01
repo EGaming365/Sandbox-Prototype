@@ -10,6 +10,9 @@ func _ready():
 	add_to_group("players")
 	$Camera2D.enabled = false
 	call_deferred("_setup_camera")
+	if not is_multiplayer_authority():
+		collision_layer = 0
+		collision_mask = 0
 
 func _setup_camera():
 	if is_multiplayer_authority():
