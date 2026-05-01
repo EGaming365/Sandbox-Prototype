@@ -5,17 +5,18 @@ var wood_scene = preload("res://Scenes/wood.tscn")
 var player_in_range = false
 var max_hits = randi_range(4, 8)
 var hits = 0
-
 const CHOP_COOLDOWN = 0.1
-
 static var can_chop = true
 
+func _ready():
+	add_to_group("trees")
+
 func _on_area_2d_body_entered(body):
-	if body.name == "Player":
+	if body is CharacterBody2D:
 		player_in_range = true
 
 func _on_area_2d_body_exited(body):
-	if body.name == "Player":
+	if body is CharacterBody2D:
 		player_in_range = false
 
 func _input(event):
@@ -33,7 +34,6 @@ func drop_wood():
 		return
 	can_chop = false
 	hits += 1
-
 	var wood = wood_scene.instantiate()
 	var angle = randf_range(0, TAU)
 	var radius = randf_range(75, 95)
@@ -41,11 +41,9 @@ func drop_wood():
 	var offset = Vector2(cos(angle), sin(angle)) * radius
 	wood.position = position + offset + Vector2(0, -40)
 	get_parent().add_child(wood)
-
 	if hits >= max_hits:
 		can_chop = true
 		queue_free()
 		return
-
 	await get_tree().create_timer(CHOP_COOLDOWN).timeout
 	can_chop = true

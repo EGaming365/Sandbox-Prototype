@@ -94,3 +94,9 @@ func _on_join_button_pressed():
 
 func _process(_delta):
 	Steam.run_callbacks()
+	
+func _notification(what):
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if lobby_id != 0:
+			Steam.leaveLobby(lobby_id)
+		get_tree().quit()

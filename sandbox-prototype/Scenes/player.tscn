@@ -63,7 +63,8 @@ properties/1/spawn = true
 properties/1/replication_mode = 1
 
 [node name="Player" type="CharacterBody2D" unique_id=1471033482]
-scale = Vector2(0.24000002, 0.24000002)
+position = Vector2(0, 50.000004)
+scale = Vector2(2.2592921, 2.2592921)
 script = ExtResource("1_v0iea")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=511479757]
