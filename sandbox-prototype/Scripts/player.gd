@@ -6,9 +6,16 @@ extends CharacterBody2D
 func _enter_tree():
 	set_multiplayer_authority(name.to_int())
 
-func _physics_process(_delta):
-	var direction = Vector2.ZERO
+func _ready():
+	if not is_multiplayer_authority():
+		set_physics_process(false)
+		$Camera2D.enabled = false
 
+func _physics_process(_delta):
+	if not is_multiplayer_authority():
+		return
+
+	var direction = Vector2.ZERO
 	if Input.is_action_pressed("move_left"):
 		direction.x -= 1
 	if Input.is_action_pressed("move_right"):
