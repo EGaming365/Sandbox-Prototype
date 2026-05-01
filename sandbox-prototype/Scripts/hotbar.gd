@@ -18,6 +18,12 @@ func _ready():
 	Inventory.inventory_changed.connect(update_hotbar)
 	update_hotbar()
 
+func get_local_player():
+	for child in get_tree().root.get_node("Scene").get_children():
+		if child is CharacterBody2D and child.is_multiplayer_authority():
+			return child
+	return null
+
 func update_hotbar():
 	for i in range(10):
 		var slot = slots[i]
@@ -43,7 +49,6 @@ func update_hotbar():
 			label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 			label.offset_top = -20
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			# Shift left more for double digits
 			if data["count"] >= 10:
 				label.offset_left = -17
 			else:
@@ -73,22 +78,15 @@ func _get_hovered_slot():
 	return -1
 
 func _process(_delta: float) -> void:
-	
 	for i in range(1, 11):
 		var panel: Panel = $HBoxContainer.get_node("Item" + str(i))
-		
-		
-		
 		if i == current_slot:
 			panel.add_theme_stylebox_override("panel", hotbar_selected)
 			panel.z_index = 1
-			
-
 		else:
 			panel.add_theme_stylebox_override("panel", hotbar_default)
 			panel.z_index = 0
-			
-	
+
 	if Input.is_action_just_pressed("slot_1"):
 		current_slot = 1
 	if Input.is_action_just_pressed("slot_2"):
@@ -109,24 +107,24 @@ func _process(_delta: float) -> void:
 		current_slot = 9
 	if Input.is_action_just_pressed("slot_0"):
 		current_slot = 10
-	
+
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
-
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			var dropped_on = _get_hovered_slot()
 			if dropped_on != -1 and dropped_on != dragging_from:
 				Inventory.move_item(dragging_from, dropped_on)
 			elif dropped_on == -1:
-				var count = Inventory.slots[dragging_from]["count"]
-				for i in count:
-					var wood = wood_scene.instantiate()
-					var angle = randf_range(0, TAU)
-					var radius = randf_range(80, 120)
-					var player = get_tree().root.get_node("Scene/Player")
-					wood.global_position = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-					get_tree().root.get_node("Scene").call_deferred("add_child", wood)
-				Inventory.remove_item(dragging_from)
+				var player = get_local_player()
+				if player:
+					var count = Inventory.slots[dragging_from]["count"]
+					for i in count:
+						var wood = wood_scene.instantiate()
+						var angle = randf_range(0, TAU)
+						var radius = randf_range(80, 120)
+						wood.global_position = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+						get_tree().root.get_node("Scene").call_deferred("add_child", wood)
+					Inventory.remove_item(dragging_from)
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
