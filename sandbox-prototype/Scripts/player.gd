@@ -5,7 +5,10 @@ extends CharacterBody2D
 @onready var anim = $AnimatedSprite2D
 
 func _enter_tree():
-	set_multiplayer_authority(name.to_int())
+	if multiplayer.has_multiplayer_peer():
+		set_multiplayer_authority(name.to_int())
+	else:
+		set_multiplayer_authority(1)
 
 func _ready():
 	add_to_group("players")
