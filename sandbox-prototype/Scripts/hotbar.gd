@@ -112,6 +112,17 @@ func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("slot_0"):
 		current_slot = 10
 
+	if Input.is_action_just_pressed("slot_up"):
+		if current_slot == 10:
+			current_slot = 1
+		else:
+			current_slot = current_slot + 1
+	if Input.is_action_just_pressed("slot_down"):
+		if current_slot == 1:
+			current_slot = 10
+		else:
+			current_slot = current_slot - 1
+
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
