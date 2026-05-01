@@ -66,9 +66,11 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	is_joining = false
 	multiplayer.server_disconnected.connect(_on_host_disconnected)
 	multiplayer.peer_disconnected.connect(_remove_player)
-	# Rename existing player instead of deleting and respawning
+	# Rename and manually set authority since _enter_tree already ran
 	if has_node("1"):
-		get_node("1").name = str(multiplayer.get_unique_id())
+		var player = get_node("1")
+		player.name = str(multiplayer.get_unique_id())
+		player.set_multiplayer_authority(multiplayer.get_unique_id())
 
 func _on_host_disconnected():
 	print("Host disconnected, leaving lobby")
@@ -77,16 +79,16 @@ func _on_host_disconnected():
 	multiplayer.multiplayer_peer = null
 	is_host = false
 	is_joining = false
-	# Collect nodes to remove first, then remove them
 	var to_remove = []
 	for child in get_children():
+		print("Child found: ", child.name)
 		if child.name.is_valid_int():
 			to_remove.append(child)
+	print("Removing ", to_remove.size(), " players")
 	for child in to_remove:
 		child.queue_free()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	# Rename or spawn singleplayer node
 	_spawn_player(1)
 
 func _on_peer_connected(id: int):
