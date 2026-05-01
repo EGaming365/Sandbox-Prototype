@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 @export var speed = 450
+@export var synced_velocity : Vector2 = Vector2.ZERO  # add this to sync list
 @onready var anim = $AnimatedSprite2D
 
 func _enter_tree():
@@ -22,7 +23,7 @@ func _setup_camera():
 
 func _physics_process(_delta):
 	if not is_multiplayer_authority():
-		if velocity.length() > 0:
+		if synced_velocity.length() > 0:
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
@@ -44,6 +45,7 @@ func _physics_process(_delta):
 
 		direction = direction.normalized()
 		velocity = direction * speed
+		synced_velocity = velocity
 		move_and_slide()
 
 	# Z-index runs for ALL players regardless of authority
