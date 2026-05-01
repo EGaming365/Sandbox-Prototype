@@ -5,6 +5,7 @@ var peer : SteamMultiplayerPeer
 @export var player_scene : PackedScene
 var is_host : bool = false
 var is_joining : bool = false
+var signals_connected : bool = false
 
 @onready var host_button: Button = $CanvasLayer/Host_Button
 @onready var join_button: Button = $CanvasLayer/Join_Button
@@ -20,7 +21,9 @@ func _ready():
 	_spawn_player(1)
 
 func host_lobby():
+	await get_tree().create_timer(1.0).timeout
 	Steam.initRelayNetworkAccess()
+	# ✅ Wait for relay network to be ready before creating lobby
 	await get_tree().create_timer(1.0).timeout
 	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, 2)
 	is_host = true
@@ -36,12 +39,14 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	peer = SteamMultiplayerPeer.new()
 	peer.create_host()
 	multiplayer.multiplayer_peer = peer
-	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(_remove_player)
-	print("Lobby Created, Lobby id: ", lobby_id)
-	# ✅ Copy lobby ID to clipboard
+	# ✅ Only connect signals once
+	if not signals_connected:
+		multiplayer.peer_connected.connect(_on_peer_connected)
+		multiplayer.peer_disconnected.connect(_remove_player)
+		signals_connected = true
 	DisplayServer.clipboard_set(str(lobby_id))
-	print("Lobby ID copied to clipboard: ", lobby_id)
+	print("Lobby Created, Lobby id: ", lobby_id)
+	print("Lobby ID copied to clipboard!")
 	_spawn_player(multiplayer.get_unique_id())
 
 func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, response: int):
@@ -55,7 +60,6 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	peer.create_client(Steam.getLobbyOwner(lobby_id))
 	multiplayer.multiplayer_peer = peer
 	is_joining = false
-	# ✅ Client listens for host disconnecting
 	multiplayer.server_disconnected.connect(_on_host_disconnected)
 	multiplayer.peer_disconnected.connect(_remove_player)
 
@@ -63,7 +67,6 @@ func _on_host_disconnected():
 	print("Host disconnected, leaving lobby")
 	Steam.leaveLobby(lobby_id)
 	lobby_id = 0
-	# Remove all players
 	for child in get_children():
 		if child.name.is_valid_int():
 			child.queue_free()
