@@ -36,10 +36,12 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	if result != 1:
 		return
 	lobby_id = new_lobby_id
+	# Remove singleplayer placeholder
+	if has_node("1"):
+		get_node("1").queue_free()
 	peer = SteamMultiplayerPeer.new()
 	peer.create_host()
 	multiplayer.multiplayer_peer = peer
-	# ✅ Only connect signals once
 	if not signals_connected:
 		multiplayer.peer_connected.connect(_on_peer_connected)
 		multiplayer.peer_disconnected.connect(_remove_player)
@@ -54,6 +56,9 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	if !is_joining:
 		return
 	lobby_id = new_lobby_id
+	# Remove singleplayer placeholder
+	if has_node("1"):
+		get_node("1").queue_free()
 	await get_tree().create_timer(1.0).timeout
 	peer = SteamMultiplayerPeer.new()
 	peer.server_relay = true

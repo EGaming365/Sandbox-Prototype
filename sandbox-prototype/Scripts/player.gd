@@ -14,7 +14,6 @@ func _ready():
 		collision_layer = 0
 		collision_mask = 0
 		$CollisionShape2D.disabled = true
-		set_physics_process(false)
 
 func _setup_camera():
 	if is_multiplayer_authority():
@@ -22,7 +21,12 @@ func _setup_camera():
 		$Camera2D.make_current()
 
 func _physics_process(_delta):
+	# Non-authority just handles animations based on velocity from synchronizer
 	if not is_multiplayer_authority():
+		if velocity.length() > 0:
+			anim.play("walk_down")
+		else:
+			anim.play("idle")
 		return
 
 	var direction = Vector2.ZERO
