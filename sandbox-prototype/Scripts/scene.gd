@@ -20,25 +20,23 @@ func _ready():
 	print("My Steam ID: ", Steam.getSteamID())
 	_spawn_player(1)
 
-func host_lobby():
-	await get_tree().create_timer(1.0).timeout
-	Steam.initRelayNetworkAccess()
-	# ✅ Wait for relay network to be ready before creating lobby
-	await get_tree().create_timer(1.0).timeout
-	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, 2)
-	is_host = true
-
 func join_lobby(new_lobby_id : int):
 	is_joining = true
 	Steam.joinLobby(new_lobby_id)
 
+func host_lobby():
+	if is_host:
+		return
+	is_host = true
+	Steam.initRelayNetworkAccess()
+	await get_tree().create_timer(2.0).timeout
+	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, 2)
+
 func _on_lobby_created(result: int, new_lobby_id: int):
 	if result != 1:
+		is_host = false
 		return
 	lobby_id = new_lobby_id
-	# Remove singleplayer placeholder
-	if has_node("1"):
-		get_node("1").queue_free()
 	peer = SteamMultiplayerPeer.new()
 	peer.create_host()
 	multiplayer.multiplayer_peer = peer
@@ -49,14 +47,17 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	DisplayServer.clipboard_set(str(lobby_id))
 	print("Lobby Created, Lobby id: ", lobby_id)
 	print("Lobby ID copied to clipboard!")
-	_spawn_player(multiplayer.get_unique_id())
+	# Rename existing player instead of deleting and respawning
+	if has_node("1"):
+		get_node("1").name = str(multiplayer.get_unique_id())
+	else:
+		_spawn_player(multiplayer.get_unique_id())
 
 func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, response: int):
 	print("Lobby joined response: ", response)
 	if !is_joining:
 		return
 	lobby_id = new_lobby_id
-	# Remove singleplayer placeholder
 	if has_node("1"):
 		get_node("1").queue_free()
 	await get_tree().create_timer(1.0).timeout
@@ -72,17 +73,12 @@ func _on_host_disconnected():
 	print("Host disconnected, leaving lobby")
 	Steam.leaveLobby(lobby_id)
 	lobby_id = 0
-	# Remove all multiplayer players (keep singleplayer "1" node)
 	for child in get_children():
-		if child.name.is_valid_int() and child.name != "1":
+		if child.name.is_valid_int():
 			child.queue_free()
-	# Remove the local multiplayer player too and respawn as singleplayer
-	if has_node(str(multiplayer.get_unique_id())):
-		get_node(str(multiplayer.get_unique_id())).queue_free()
 	multiplayer.multiplayer_peer = null
 	is_host = false
 	is_joining = false
-	# Respawn as singleplayer
 	await get_tree().process_frame
 	_spawn_player(1)
 
