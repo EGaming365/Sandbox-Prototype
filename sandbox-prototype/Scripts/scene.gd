@@ -51,28 +51,23 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	multiplayer.multiplayer_peer = peer
 	is_joining = false
 
-# Called on host when a new client connects
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
-	# Spawn the new client's player on everyone
-	spawn_for_all.rpc(id)
-	# Also tell the new client to spawn all already-existing players
+	_spawn_player(id)
+	var ids_to_send : Array[int] = []
 	for child in get_children():
 		if child.name.is_valid_int():
-			tell_client_to_spawn.rpc_id(id, child.name.to_int())
+			ids_to_send.append(child.name.to_int())
+	sync_players_to_client.rpc_id(id, ids_to_send)
 
-# Runs on all peers - spawns a player for the given id
-@rpc("authority", "call_local", "reliable")
-func spawn_for_all(id: int):
-	_spawn_player(id)
-
-# Runs only on the target client - spawns an already-existing player
 @rpc("authority", "call_remote", "reliable")
-func tell_client_to_spawn(id: int):
-	_spawn_player(id)
+func sync_players_to_client(ids: Array[int]):
+	for id in ids:
+		_spawn_player(id)
 
 func _spawn_player(id: int):
 	if has_node(str(id)):
+		print("Player ", id, " already exists, skipping")
 		return
 	print("Spawning player with id: ", id)
 	var player = player_scene.instantiate()
