@@ -2,10 +2,10 @@ extends CharacterBody2D
 
 @export var speed = 450
 @export var synced_velocity : Vector2 = Vector2.ZERO
-@export var synced_position : Vector2 = Vector2.ZERO
 @onready var anim = $AnimatedSprite2D
 var nearest_tree = null
 var tree_check_timer : float = 0.0
+var remote_position : Vector2 = Vector2.ZERO
 
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
@@ -15,7 +15,7 @@ func _enter_tree():
 
 func _ready():
 	add_to_group("players")
-	synced_position = global_position
+	remote_position = global_position
 	$Camera2D.enabled = false
 	call_deferred("_setup_camera")
 	if not multiplayer.has_multiplayer_peer():
@@ -35,10 +35,14 @@ func _setup_camera():
 		$Camera2D.enabled = true
 		$Camera2D.make_current()
 
+func _on_multiplayer_synchronizer_synchronized():
+	# Called when synchronizer receives new data - update remote position
+	if not is_multiplayer_authority():
+		remote_position = global_position
+
 func _physics_process(delta):
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
-		# Smoothly interpolate to synced position
-		global_position = global_position.lerp(synced_position, 10.0 * delta)
+		global_position = global_position.lerp(remote_position, 15.0 * delta)
 		if synced_velocity.length() > 0:
 			anim.play("walk_down")
 		else:
@@ -63,7 +67,6 @@ func _physics_process(delta):
 	direction = direction.normalized()
 	velocity = direction * speed
 	synced_velocity = velocity
-	synced_position = global_position
 	move_and_slide()
 
 	tree_check_timer += delta
