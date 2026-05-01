@@ -7,12 +7,13 @@ func _enter_tree():
 	set_multiplayer_authority(name.to_int())
 
 func _ready():
-	print("Player name: ", name, " | authority: ", get_multiplayer_authority(), " | is_authority: ", is_multiplayer_authority())
+	$Camera2D.enabled = false
 	call_deferred("_setup_camera")
 
 func _setup_camera():
-	print("Setup camera - is_authority: ", is_multiplayer_authority())
-	$Camera2D.enabled = is_multiplayer_authority()
+	if is_multiplayer_authority():
+		$Camera2D.enabled = true
+		$Camera2D.make_current()
 
 func _physics_process(_delta):
 	if not is_multiplayer_authority():
