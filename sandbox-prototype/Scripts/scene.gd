@@ -39,7 +39,9 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	peer.create_client(Steam.getLobbyOwner(lobby_id))
 	multiplayer.multiplayer_peer = peer
 	is_joining = false
-	# ✅ Client requests the host to spawn a player for them
+
+	# Wait until actually connected before sending RPC
+	await multiplayer.connected_to_server
 	spawn_player.rpc_id(1, multiplayer.get_unique_id())
 
 func _on_lobby_created(result: int, new_lobby_id: int):
@@ -50,10 +52,8 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 		multiplayer.multiplayer_peer = peer
 		multiplayer.peer_disconnected.connect(_remove_player)
 		print("Lobby Created, Lobby id: ", lobby_id)
-		# ✅ Spawn host's own player
 		_spawn_player_local(multiplayer.get_unique_id())
 
-# ✅ Only the host runs this - spawns a player for the requesting peer
 @rpc("any_peer", "reliable")
 func spawn_player(id: int):
 	if not multiplayer.is_server():
