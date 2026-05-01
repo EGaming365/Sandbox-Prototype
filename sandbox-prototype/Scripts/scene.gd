@@ -39,6 +39,9 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_remove_player)
 	print("Lobby Created, Lobby id: ", lobby_id)
+	# ✅ Copy lobby ID to clipboard
+	DisplayServer.clipboard_set(str(lobby_id))
+	print("Lobby ID copied to clipboard: ", lobby_id)
 	_spawn_player(multiplayer.get_unique_id())
 
 func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, response: int):
