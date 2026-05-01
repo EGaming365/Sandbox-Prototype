@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 @export var speed = 450
 @export var synced_velocity : Vector2 = Vector2.ZERO
+@export var synced_position : Vector2 = Vector2.ZERO
 @onready var anim = $AnimatedSprite2D
 var nearest_tree = null
 var tree_check_timer : float = 0.0
@@ -16,7 +17,6 @@ func _ready():
 	add_to_group("players")
 	$Camera2D.enabled = false
 	call_deferred("_setup_camera")
-	# If no peer, we're singleplayer - enable everything
 	if not multiplayer.has_multiplayer_peer():
 		collision_layer = 1
 		collision_mask = 1
@@ -36,13 +36,14 @@ func _setup_camera():
 
 func _physics_process(delta):
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
+		# Smoothly interpolate to synced position
+		global_position = global_position.lerp(synced_position, 10.0 * delta)
 		if synced_velocity.length() > 0:
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
 		return
 
-	# Everything below runs for authority OR singleplayer
 	var direction = Vector2.ZERO
 	if Input.is_action_pressed("move_left"):
 		direction.x -= 1
@@ -61,6 +62,7 @@ func _physics_process(delta):
 	direction = direction.normalized()
 	velocity = direction * speed
 	synced_velocity = velocity
+	synced_position = global_position
 	move_and_slide()
 
 	tree_check_timer += delta
