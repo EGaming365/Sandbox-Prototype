@@ -1,8 +1,10 @@
 extends CharacterBody2D
 
 @export var speed = 450
-@export var synced_velocity : Vector2 = Vector2.ZERO  # add this to sync list
+@export var synced_velocity : Vector2 = Vector2.ZERO
 @onready var anim = $AnimatedSprite2D
+var nearest_tree = null
+var tree_check_timer : float = 0.0
 
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
@@ -14,17 +16,17 @@ func _ready():
 	add_to_group("players")
 	$Camera2D.enabled = false
 	call_deferred("_setup_camera")
-	if not is_multiplayer_authority():
+	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		collision_layer = 0
 		collision_mask = 0
 		$CollisionShape2D.disabled = true
 
 func _setup_camera():
-	if is_multiplayer_authority():
+	if multiplayer.has_multiplayer_peer() and is_multiplayer_authority():
 		$Camera2D.enabled = true
 		$Camera2D.make_current()
 
-func _physics_process(_delta):
+func _physics_process(delta):
 	if not multiplayer.has_multiplayer_peer():
 		anim.play("idle")
 		return
@@ -55,15 +57,19 @@ func _physics_process(_delta):
 		synced_velocity = velocity
 		move_and_slide()
 
-	var nearest_tree = null
-	var nearest_dist = INF
-	for tree in get_tree().get_nodes_in_group("trees"):
-		var dist = global_position.distance_to(tree.global_position)
-		if dist < nearest_dist:
-			nearest_dist = dist
-			nearest_tree = tree
+	# Only update nearest tree every 0.2 seconds instead of every frame
+	tree_check_timer += delta
+	if tree_check_timer >= 0.2:
+		tree_check_timer = 0.0
+		var nearest_dist = INF
+		nearest_tree = null
+		for tree in get_tree().get_nodes_in_group("trees"):
+			var dist = global_position.distance_to(tree.global_position)
+			if dist < nearest_dist:
+				nearest_dist = dist
+				nearest_tree = tree
 
-	if nearest_tree:
+	if nearest_tree and is_instance_valid(nearest_tree):
 		if global_position.y > nearest_tree.global_position.y:
 			z_index = nearest_tree.z_index + 1
 		else:
