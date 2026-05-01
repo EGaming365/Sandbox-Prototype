@@ -9,7 +9,6 @@ var is_joining : bool = false
 @onready var host_button: Button = $CanvasLayer/Host_Button
 @onready var join_button: Button = $CanvasLayer/Join_Button
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
-@onready var multiplayer_spawner: MultiplayerSpawner = $MultiplayerSpawner
 
 func _ready():
 	print("Steam initialised: ", Steam.steamInitEx(480))
@@ -28,11 +27,23 @@ func join_lobby(new_lobby_id : int):
 	is_joining = true
 	Steam.joinLobby(new_lobby_id)
 
+func _on_lobby_created(result: int, new_lobby_id: int):
+	if result != 1:
+		return
+	lobby_id = new_lobby_id
+	peer = SteamMultiplayerPeer.new()
+	peer.create_host()
+	multiplayer.multiplayer_peer = peer
+	multiplayer.peer_connected.connect(_on_peer_connected)
+	multiplayer.peer_disconnected.connect(_remove_player)
+	print("Lobby Created, Lobby id: ", lobby_id)
+	_spawn_player(multiplayer.get_unique_id())
+
 func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, response: int):
 	print("Lobby joined response: ", response)
 	if !is_joining:
 		return
-	self.lobby_id = new_lobby_id
+	lobby_id = new_lobby_id
 	await get_tree().create_timer(1.0).timeout
 	peer = SteamMultiplayerPeer.new()
 	peer.server_relay = true
@@ -40,29 +51,30 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	multiplayer.multiplayer_peer = peer
 	is_joining = false
 
-	# Wait until actually connected before sending RPC
-	await multiplayer.connected_to_server
-	spawn_player.rpc_id(1, multiplayer.get_unique_id())
+# Called on host when a new client connects
+func _on_peer_connected(id: int):
+	print("Peer connected on host: ", id)
+	# Spawn the new client's player on everyone
+	spawn_for_all.rpc(id)
+	# Also tell the new client to spawn all already-existing players
+	for child in get_children():
+		if child.name.is_valid_int():
+			tell_client_to_spawn.rpc_id(id, child.name.to_int())
 
-func _on_lobby_created(result: int, new_lobby_id: int):
-	if result == 1:
-		lobby_id = new_lobby_id
-		peer = SteamMultiplayerPeer.new()
-		peer.create_host()
-		multiplayer.multiplayer_peer = peer
-		multiplayer.peer_disconnected.connect(_remove_player)
-		print("Lobby Created, Lobby id: ", lobby_id)
-		_spawn_player_local(multiplayer.get_unique_id())
+# Runs on all peers - spawns a player for the given id
+@rpc("authority", "call_local", "reliable")
+func spawn_for_all(id: int):
+	_spawn_player(id)
 
-@rpc("any_peer", "reliable")
-func spawn_player(id: int):
-	if not multiplayer.is_server():
-		return
-	_spawn_player_local(id)
+# Runs only on the target client - spawns an already-existing player
+@rpc("authority", "call_remote", "reliable")
+func tell_client_to_spawn(id: int):
+	_spawn_player(id)
 
-func _spawn_player_local(id: int):
+func _spawn_player(id: int):
 	if has_node(str(id)):
 		return
+	print("Spawning player with id: ", id)
 	var player = player_scene.instantiate()
 	player.name = str(id)
 	add_child(player)
