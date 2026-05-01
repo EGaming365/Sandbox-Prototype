@@ -35,37 +35,34 @@ func _setup_camera():
 		$Camera2D.make_current()
 
 func _physics_process(delta):
-	if not multiplayer.has_multiplayer_peer():
-		anim.play("idle")
-		return
-
-	if not is_multiplayer_authority():
+	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		if synced_velocity.length() > 0:
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
+		return
+
+	# Everything below runs for authority OR singleplayer
+	var direction = Vector2.ZERO
+	if Input.is_action_pressed("move_left"):
+		direction.x -= 1
+	if Input.is_action_pressed("move_right"):
+		direction.x += 1
+	if Input.is_action_pressed("move_up"):
+		direction.y -= 1
+	if Input.is_action_pressed("move_down"):
+		direction.y += 1
+
+	if direction.length() > 0:
+		anim.play("walk_down")
 	else:
-		var direction = Vector2.ZERO
-		if Input.is_action_pressed("move_left"):
-			direction.x -= 1
-		if Input.is_action_pressed("move_right"):
-			direction.x += 1
-		if Input.is_action_pressed("move_up"):
-			direction.y -= 1
-		if Input.is_action_pressed("move_down"):
-			direction.y += 1
+		anim.play("idle")
 
-		if direction.length() > 0:
-			anim.play("walk_down")
-		else:
-			anim.play("idle")
+	direction = direction.normalized()
+	velocity = direction * speed
+	synced_velocity = velocity
+	move_and_slide()
 
-		direction = direction.normalized()
-		velocity = direction * speed
-		synced_velocity = velocity
-		move_and_slide()
-
-	# Only update nearest tree every 0.2 seconds instead of every frame
 	tree_check_timer += delta
 	if tree_check_timer >= 0.2:
 		tree_check_timer = 0.0
