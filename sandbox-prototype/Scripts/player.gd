@@ -5,8 +5,6 @@ extends CharacterBody2D
 
 func _enter_tree():
 	set_multiplayer_authority(name.to_int())
-
-func _ready():
 	$Camera2D.enabled = is_multiplayer_authority()
 
 func _physics_process(_delta):
