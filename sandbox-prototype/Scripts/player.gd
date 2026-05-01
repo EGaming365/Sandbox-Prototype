@@ -13,6 +13,8 @@ func _ready():
 	if not is_multiplayer_authority():
 		collision_layer = 0
 		collision_mask = 0
+		$CollisionShape2D.disabled = true
+		set_physics_process(false)
 
 func _setup_camera():
 	if is_multiplayer_authority():
