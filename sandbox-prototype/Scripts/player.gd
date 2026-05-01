@@ -15,6 +15,7 @@ func _enter_tree():
 
 func _ready():
 	add_to_group("players")
+	synced_position = global_position
 	$Camera2D.enabled = false
 	call_deferred("_setup_camera")
 	if not multiplayer.has_multiplayer_peer():
