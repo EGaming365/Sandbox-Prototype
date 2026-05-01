@@ -16,6 +16,8 @@ func _ready():
 	Steam.lobby_created.connect(_on_lobby_created)
 	Steam.lobby_joined.connect(_on_lobby_joined)
 	print("My Steam ID: ", Steam.getSteamID())
+	# Spawn a local player immediately for singleplayer
+	_spawn_player(1)
 
 func host_lobby():
 	Steam.initRelayNetworkAccess()
@@ -73,6 +75,8 @@ func _spawn_player(id: int):
 	var player = player_scene.instantiate()
 	player.name = str(id)
 	add_child(player)
+	player.name = str(id)  # force it again after add_child
+	print("Final player name: ", player.name)
 
 func _remove_player(id: int):
 	if not has_node(str(id)):

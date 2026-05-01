@@ -80,3 +80,5 @@ animation = &"idle"
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=822851407]
 replication_config = SubResource("SceneReplicationConfig_cvnsp")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1093320423]

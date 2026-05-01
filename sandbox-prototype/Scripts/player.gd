@@ -3,13 +3,12 @@ extends CharacterBody2D
 @export var speed = 450
 @onready var anim = $AnimatedSprite2D
 
+func _ready():
+	print("My name is: ", name, " authority is: ", get_multiplayer_authority())
+	print("Am I authority: ", is_multiplayer_authority())
+
 func _enter_tree():
 	set_multiplayer_authority(name.to_int())
-
-func _ready():
-	if not is_multiplayer_authority():
-		set_physics_process(false)
-		$Camera2D.enabled = false
 
 func _physics_process(_delta):
 	if not is_multiplayer_authority():
