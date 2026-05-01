@@ -7,6 +7,7 @@ func _enter_tree():
 	set_multiplayer_authority(name.to_int())
 
 func _ready():
+	add_to_group("players")
 	$Camera2D.enabled = false
 	call_deferred("_setup_camera")
 
@@ -38,6 +39,7 @@ func _physics_process(_delta):
 	velocity = direction * speed
 	move_and_slide()
 
+	# Z-index vs trees
 	var nearest_tree = null
 	var nearest_dist = INF
 	for tree in get_tree().get_nodes_in_group("trees"):
@@ -51,3 +53,12 @@ func _physics_process(_delta):
 			z_index = nearest_tree.z_index + 1
 		else:
 			z_index = nearest_tree.z_index - 1
+
+	# Z-index vs other players
+	for other in get_tree().get_nodes_in_group("players"):
+		if other == self:
+			continue
+		if global_position.y > other.global_position.y:
+			z_index = max(z_index, other.z_index + 1)
+		else:
+			z_index = min(z_index, other.z_index - 1)
