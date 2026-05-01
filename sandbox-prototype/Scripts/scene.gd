@@ -67,10 +67,19 @@ func _on_host_disconnected():
 	print("Host disconnected, leaving lobby")
 	Steam.leaveLobby(lobby_id)
 	lobby_id = 0
+	# Remove all multiplayer players (keep singleplayer "1" node)
 	for child in get_children():
-		if child.name.is_valid_int():
+		if child.name.is_valid_int() and child.name != "1":
 			child.queue_free()
+	# Remove the local multiplayer player too and respawn as singleplayer
+	if has_node(str(multiplayer.get_unique_id())):
+		get_node(str(multiplayer.get_unique_id())).queue_free()
 	multiplayer.multiplayer_peer = null
+	is_host = false
+	is_joining = false
+	# Respawn as singleplayer
+	await get_tree().process_frame
+	_spawn_player(1)
 
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
