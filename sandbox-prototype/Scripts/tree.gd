@@ -36,9 +36,10 @@ func drop_wood():
 
 	var wood = wood_scene.instantiate()
 	var angle = randf_range(0, TAU)
-	var radius = randf_range(95, 115)
+	var radius = randf_range(75, 95)
+	radius = radius + 40
 	var offset = Vector2(cos(angle), sin(angle)) * radius
-	wood.position = position + offset
+	wood.position = position + offset + Vector2(0, -40)
 	get_parent().add_child(wood)
 
 	if hits >= max_hits:

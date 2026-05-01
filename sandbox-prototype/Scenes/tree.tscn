@@ -14,6 +14,7 @@ size = Vector2(30.454035, 8.517632)
 
 [node name="Tree" type="Node2D" unique_id=53906318]
 z_index = 1
+position = Vector2(0, 72)
 scale = Vector2(4.7999997, 4.7999997)
 script = ExtResource("1_rsuno")
 

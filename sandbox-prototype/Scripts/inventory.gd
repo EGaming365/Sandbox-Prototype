@@ -4,10 +4,14 @@ signal inventory_changed
 
 var slots = []
 var max_slots = 10
+var wood_texture = preload("res://Assets/Ninja Adventure - Asset Pack/Items/Resource/Branch.png")
 
 func _ready():
 	for i in max_slots:
 		slots.append({"item": "", "count": 0, "texture": null})
+	
+	for i in 0:
+		add_item("wood", wood_texture)
 
 func add_item(item_name, texture):
 	for slot in slots:

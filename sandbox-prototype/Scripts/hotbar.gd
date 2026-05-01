@@ -7,6 +7,10 @@ var dragging_from = -1
 var drag_node : TextureRect = null
 var wood_scene = preload("res://Scenes/wood.tscn")
 
+var current_slot = 1
+var hotbar_default: StyleBox = preload("res://Resources/hotbar_default.tres")
+var hotbar_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
+
 func _ready():
 	for i in range(10):
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
@@ -69,6 +73,43 @@ func _get_hovered_slot():
 	return -1
 
 func _process(_delta: float) -> void:
+	
+	for i in range(1, 11):
+		var panel: Panel = $HBoxContainer.get_node("Item" + str(i))
+		
+		
+		
+		if i == current_slot:
+			panel.add_theme_stylebox_override("panel", hotbar_selected)
+			panel.z_index = 1
+			
+
+		else:
+			panel.add_theme_stylebox_override("panel", hotbar_default)
+			panel.z_index = 0
+			
+	
+	if Input.is_action_just_pressed("slot_1"):
+		current_slot = 1
+	if Input.is_action_just_pressed("slot_2"):
+		current_slot = 2
+	if Input.is_action_just_pressed("slot_3"):
+		current_slot = 3
+	if Input.is_action_just_pressed("slot_4"):
+		current_slot = 4
+	if Input.is_action_just_pressed("slot_5"):
+		current_slot = 5
+	if Input.is_action_just_pressed("slot_6"):
+		current_slot = 6
+	if Input.is_action_just_pressed("slot_7"):
+		current_slot = 7
+	if Input.is_action_just_pressed("slot_8"):
+		current_slot = 8
+	if Input.is_action_just_pressed("slot_9"):
+		current_slot = 9
+	if Input.is_action_just_pressed("slot_0"):
+		current_slot = 10
+	
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 
@@ -101,6 +142,6 @@ func _process(_delta: float) -> void:
 		can_toggle_ui = true
 
 	if toggle_ui == true:
-		$".".show()
+		self.show()
 	else:
-		$".".hide()
+		self.hide()
