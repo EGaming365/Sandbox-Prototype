@@ -25,6 +25,10 @@ func _setup_camera():
 		$Camera2D.make_current()
 
 func _physics_process(_delta):
+	if not multiplayer.has_multiplayer_peer():
+		anim.play("idle")
+		return
+
 	if not is_multiplayer_authority():
 		if synced_velocity.length() > 0:
 			anim.play("walk_down")
@@ -51,7 +55,6 @@ func _physics_process(_delta):
 		synced_velocity = velocity
 		move_and_slide()
 
-	# Z-index runs for ALL players regardless of authority
 	var nearest_tree = null
 	var nearest_dist = INF
 	for tree in get_tree().get_nodes_in_group("trees"):
