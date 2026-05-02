@@ -39,28 +39,28 @@ func _physics_process(delta):
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
-		return
+		# Don't return here — fall through to z_index calculation below
 
-	var direction = Vector2.ZERO
-	if Input.is_action_pressed("move_left"):
-		direction.x -= 1
-	if Input.is_action_pressed("move_right"):
-		direction.x += 1
-	if Input.is_action_pressed("move_up"):
-		direction.y -= 1
-	if Input.is_action_pressed("move_down"):
-		direction.y += 1
+	if not multiplayer.has_multiplayer_peer() or is_multiplayer_authority():
+		var direction = Vector2.ZERO
+		if Input.is_action_pressed("move_left"):
+			direction.x -= 1
+		if Input.is_action_pressed("move_right"):
+			direction.x += 1
+		if Input.is_action_pressed("move_up"):
+			direction.y -= 1
+		if Input.is_action_pressed("move_down"):
+			direction.y += 1
+		if direction.length() > 0:
+			anim.play("walk_down")
+		else:
+			anim.play("idle")
+		direction = direction.normalized()
+		velocity = direction * speed
+		synced_velocity = velocity
+		move_and_slide()
 
-	if direction.length() > 0:
-		anim.play("walk_down")
-	else:
-		anim.play("idle")
-
-	direction = direction.normalized()
-	velocity = direction * speed
-	synced_velocity = velocity
-	move_and_slide()
-
+	# Z-index runs for ALL players on ALL machines
 	tree_check_timer += delta
 	if tree_check_timer >= 0.2:
 		tree_check_timer = 0.0
