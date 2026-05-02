@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://dyt3sf1v3eg7p"]
+
+[ext_resource type="Script" uid="uid://dhfdwebaijcrf" path="res://Scripts/inventory_ui.gd" id="1_8su62"]
+
+[node name="Inventory_UI" type="Control" unique_id=804006947]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_8su62")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=970352836]
+custom_minimum_size = Vector2(700, 500)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer" unique_id=832462167]
+layout_mode = 2
+
+[node name="Inventory" type="VBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=1965094523]
+custom_minimum_size = Vector2(350, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Inventory" unique_id=1009314130]
+layout_mode = 2
+text = "Inventory"
+
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/HBoxContainer/Inventory" unique_id=1036793898]
+layout_mode = 2
+columns = 5
+
+[node name="Recipes" type="VBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=815163848]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Recipes" unique_id=661516627]
+layout_mode = 2
+text = "Recipes"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/HBoxContainer/Recipes" unique_id=871951979]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/HBoxContainer/Recipes/ScrollContainer" unique_id=638246253]
+layout_mode = 2

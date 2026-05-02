@@ -18,6 +18,7 @@ config/icon="res://Assets/icon.svg"
 [autoload]
 
 Inventory="*uid://ysbl5sgnspai"
+Crafting="*uid://cx7qqws6ginpx"
 
 [display]
 

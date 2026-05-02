@@ -11,6 +11,8 @@ var current_slot = 1
 var hotbar_default: StyleBox = preload("res://Resources/hotbar_default.tres")
 var hotbar_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
 
+@onready var crafting_menu = $"../Crafting_Menu"
+
 func _ready():
 	for i in range(10):
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
@@ -82,6 +84,12 @@ func _get_hovered_slot():
 	return -1
 
 func _process(_delta: float) -> void:
+	
+	if Input.is_action_just_pressed("inventory"):
+		var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/InventoryUI")
+		if inv_ui:
+			inv_ui.toggle()
+	
 	for i in range(1, 11):
 		var panel: Panel = $HBoxContainer.get_node("Item" + str(i))
 		if i == current_slot:
@@ -161,3 +169,9 @@ func _process(_delta: float) -> void:
 		self.show()
 	else:
 		self.hide()
+
+	if Input.is_action_just_pressed("inventory"):
+		if crafting_menu.visible:
+			crafting_menu.close()
+		else:
+			crafting_menu.open(false)

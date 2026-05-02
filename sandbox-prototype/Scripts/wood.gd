@@ -3,6 +3,9 @@ extends Node2D
 var wood_texture = preload("res://Assets/Ninja Adventure - Asset Pack/Items/Resource/Branch.png")
 @export var item_id: int = -1
 
+func _process(_delta):
+	z_index = int(global_position.y)
+
 func _on_area_2d_body_entered(body):
 	if body is CharacterBody2D:
 		if not multiplayer.has_multiplayer_peer() or body.is_multiplayer_authority():

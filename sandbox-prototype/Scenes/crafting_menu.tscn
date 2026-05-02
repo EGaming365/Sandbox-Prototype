@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://euarixd5132k"]
+
+[ext_resource type="Script" uid="uid://c0ayqq1olntwd" path="res://Scripts/crafting_menu.gd" id="1_3lr26"]
+
+[node name="Crafting_Menu" type="Control" unique_id=1623652309]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_3lr26")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=1193280001]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=1626002341]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="PanelContainer/VBoxContainer" unique_id=872766051]
+layout_mode = 2
+text = "Crafting"
