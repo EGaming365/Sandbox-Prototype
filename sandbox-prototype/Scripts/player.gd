@@ -3,7 +3,6 @@ extends CharacterBody2D
 @export var speed = 450
 @export var synced_velocity : Vector2 = Vector2.ZERO
 @onready var anim = $AnimatedSprite2D
-var nearest_tree = null
 var tree_check_timer : float = 0.0
 
 func _enter_tree():
@@ -59,20 +58,34 @@ func _physics_process(delta):
 		synced_velocity = velocity
 		move_and_slide()
 
-	# Z-index runs for ALL players on ALL machines, trees only
+	# Z-index update
 	tree_check_timer += delta
 	if tree_check_timer >= 0.2:
 		tree_check_timer = 0.0
-		var nearest_dist = INF
-		nearest_tree = null
-		for tree in get_tree().get_nodes_in_group("trees"):
-			var dist = global_position.distance_to(tree.global_position)
-			if dist < nearest_dist:
-				nearest_dist = dist
-				nearest_tree = tree
+		_update_z_index()
 
-	if nearest_tree and is_instance_valid(nearest_tree):
-		if global_position.y > nearest_tree.global_position.y:
-			z_index = nearest_tree.z_index + 1
+func _update_z_index():
+	# Base z on y position directly — simpler and more reliable
+	z_index = int(global_position.y / 10)
+
+	# Check all nearby trees within a reasonable radius
+	var check_radius = 300.0
+	for tree in get_tree().get_nodes_in_group("trees"):
+		if not is_instance_valid(tree):
+			continue
+		var dist = global_position.distance_to(tree.global_position)
+		if dist > check_radius:
+			continue
+		if global_position.y > tree.global_position.y:
+			z_index = max(z_index, tree.z_index + 1)
 		else:
-			z_index = max(1, nearest_tree.z_index - 1)
+			z_index = min(z_index, tree.z_index - 1)
+
+	# Player vs player — only adjust our own z_index upward, never downward
+	for other in get_tree().get_nodes_in_group("players"):
+		if other == self:
+			continue
+		if not is_instance_valid(other):
+			continue
+		if global_position.y > other.global_position.y:
+			z_index = max(z_index, other.z_index + 1)
