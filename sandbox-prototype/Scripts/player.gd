@@ -3,7 +3,6 @@ extends CharacterBody2D
 @export var speed = 450
 @export var synced_velocity : Vector2 = Vector2.ZERO
 @onready var anim = $AnimatedSprite2D
-var tree_check_timer : float = 0.0
 
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
@@ -32,60 +31,30 @@ func _setup_camera():
 		$Camera2D.enabled = true
 		$Camera2D.make_current()
 
-func _physics_process(delta):
+func _physics_process(_delta):
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		if synced_velocity.length() > 0:
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
+		z_index = int(global_position.y)
+		return
 
-	if not multiplayer.has_multiplayer_peer() or is_multiplayer_authority():
-		var direction = Vector2.ZERO
-		if Input.is_action_pressed("move_left"):
-			direction.x -= 1
-		if Input.is_action_pressed("move_right"):
-			direction.x += 1
-		if Input.is_action_pressed("move_up"):
-			direction.y -= 1
-		if Input.is_action_pressed("move_down"):
-			direction.y += 1
-		if direction.length() > 0:
-			anim.play("walk_down")
-		else:
-			anim.play("idle")
-		direction = direction.normalized()
-		velocity = direction * speed
-		synced_velocity = velocity
-		move_and_slide()
-
-	# Z-index update
-	tree_check_timer += delta
-	if tree_check_timer >= 0.2:
-		tree_check_timer = 0.0
-		_update_z_index()
-
-func _update_z_index():
-	# Base z on y position directly — simpler and more reliable
-	z_index = int(global_position.y / 10)
-
-	# Check all nearby trees within a reasonable radius
-	var check_radius = 300.0
-	for tree in get_tree().get_nodes_in_group("trees"):
-		if not is_instance_valid(tree):
-			continue
-		var dist = global_position.distance_to(tree.global_position)
-		if dist > check_radius:
-			continue
-		if global_position.y > tree.global_position.y:
-			z_index = max(z_index, tree.z_index + 1)
-		else:
-			z_index = min(z_index, tree.z_index - 1)
-
-	# Player vs player — only adjust our own z_index upward, never downward
-	for other in get_tree().get_nodes_in_group("players"):
-		if other == self:
-			continue
-		if not is_instance_valid(other):
-			continue
-		if global_position.y > other.global_position.y:
-			z_index = max(z_index, other.z_index + 1)
+	var direction = Vector2.ZERO
+	if Input.is_action_pressed("move_left"):
+		direction.x -= 1
+	if Input.is_action_pressed("move_right"):
+		direction.x += 1
+	if Input.is_action_pressed("move_up"):
+		direction.y -= 1
+	if Input.is_action_pressed("move_down"):
+		direction.y += 1
+	if direction.length() > 0:
+		anim.play("walk_down")
+	else:
+		anim.play("idle")
+	direction = direction.normalized()
+	velocity = direction * speed
+	synced_velocity = velocity
+	move_and_slide()
+	z_index = int(global_position.y)

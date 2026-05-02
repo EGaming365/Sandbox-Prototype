@@ -11,6 +11,9 @@ var tree_id: int = -1
 func _ready():
 	add_to_group("trees")
 
+func _process(_delta):
+	z_index = int(global_position.y)
+
 func _on_area_2d_body_entered(body):
 	if body is CharacterBody2D:
 		player_in_range = true
