@@ -63,6 +63,13 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 		return
 	lobby_id = new_lobby_id
 	await get_tree().create_timer(1.0).timeout
+	
+	# Clear all local trees before receiving host's trees
+	for tree_id in trees:
+		if is_instance_valid(trees[tree_id]):
+			trees[tree_id].queue_free()
+	trees.clear()
+	
 	peer = SteamMultiplayerPeer.new()
 	peer.server_relay = true
 	peer.create_client(Steam.getLobbyOwner(lobby_id))
