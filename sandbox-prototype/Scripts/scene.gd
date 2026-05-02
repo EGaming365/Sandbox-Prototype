@@ -109,6 +109,8 @@ func _on_peer_connected(id: int):
 			ids_to_send.append(child.name.to_int())
 	sync_players_to_client.rpc_id(id, ids_to_send)
 	sync_floor_items_to_peer(id)
+	# Small delay before sending 1000 trees
+	await get_tree().create_timer(1.0).timeout
 	sync_trees_to_peer(id)
 
 @rpc("authority", "call_remote", "reliable")
@@ -188,7 +190,7 @@ func host_spawn_floor_item(pos: Vector2) -> int:
 		_do_spawn_floor_item(id, pos.x, pos.y)
 	return id
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float):
 	_do_spawn_floor_item(item_id, pos_x, pos_y)
 

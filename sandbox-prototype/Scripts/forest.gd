@@ -8,6 +8,8 @@ var target_parent: Node
 
 func _ready():
 	target_parent = get_parent()
+	# Only generate if singleplayer OR we are already the host
+	# If we're a client or about to become one, do nothing — wait for sync
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		await get_tree().process_frame
 		await get_tree().process_frame
