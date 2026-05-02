@@ -9,8 +9,9 @@ var target_parent: Node
 func _ready():
 	target_parent = get_parent()
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
+		await get_tree().process_frame
+		await get_tree().process_frame
 		generate_forest()
-	# Clients do nothing — host sends trees via sync_trees_to_peer in scene.gd
 
 func generate_forest():
 	var top_left = global_position - forest_size / 2

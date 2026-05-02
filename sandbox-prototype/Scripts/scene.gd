@@ -222,7 +222,7 @@ func _do_spawn_tree(tree_id: int, pos_x: float, pos_y: float):
 	var tree = tree_scene.instantiate()
 	tree.position = Vector2(pos_x, pos_y)
 	tree.tree_id = tree_id
-	add_child(tree)
+	call_deferred("add_child", tree)
 	trees[tree_id] = tree
 
 func remove_tree(tree_id: int):
