@@ -10,6 +10,9 @@ var signals_connected : bool = false
 var floor_items: Dictionary = {}
 var next_item_id: int = 0
 
+var trees: Dictionary = {}  # { tree_id: Node }
+var next_tree_id: int = 0
+
 @onready var host_button: Button = $CanvasLayer/Host_Button
 @onready var join_button: Button = $CanvasLayer/Join_Button
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
@@ -105,10 +108,7 @@ func _on_peer_connected(id: int):
 			ids_to_send.append(child.name.to_int())
 	sync_players_to_client.rpc_id(id, ids_to_send)
 	sync_floor_items_to_peer(id)
-	# Sync forest to new joiner
-	var forest = get_tree().root.get_node_or_null("Scene/Forest")
-	if forest:
-		forest.sync_trees_to_client(id)
+	sync_trees_to_peer(id)
 
 @rpc("authority", "call_remote", "reliable")
 func sync_players_to_client(ids: Array[int]):
@@ -203,3 +203,47 @@ func _on_join_button_pressed():
 
 func _process(_delta):
 	Steam.run_callbacks()
+
+func spawn_tree_with_id(pos: Vector2) -> int:
+	var id = next_tree_id
+	next_tree_id += 1
+	if multiplayer.has_multiplayer_peer():
+		spawn_tree_rpc.rpc(id, pos.x, pos.y)
+	else:
+		_do_spawn_tree(id, pos.x, pos.y)
+	return id
+
+@rpc("authority", "call_local", "reliable")
+func spawn_tree_rpc(tree_id: int, pos_x: float, pos_y: float):
+	_do_spawn_tree(tree_id, pos_x, pos_y)
+
+func _do_spawn_tree(tree_id: int, pos_x: float, pos_y: float):
+	var tree_scene = preload("res://Scenes/tree.tscn")
+	var tree = tree_scene.instantiate()
+	tree.position = Vector2(pos_x, pos_y)
+	tree.tree_id = tree_id
+	add_child(tree)
+	trees[tree_id] = tree
+
+func remove_tree(tree_id: int):
+	if trees.has(tree_id):
+		if is_instance_valid(trees[tree_id]):
+			trees[tree_id].queue_free()
+		trees.erase(tree_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_remove_tree(tree_id: int):
+	remove_tree(tree_id)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_chop_tree(tree_id: int):
+	if not is_host:
+		return
+	if trees.has(tree_id):
+		trees[tree_id].do_chop()
+
+func sync_trees_to_peer(peer_id: int):
+	for tree_id in trees:
+		var tree = trees[tree_id]
+		if is_instance_valid(tree):
+			spawn_tree_rpc.rpc_id(peer_id, tree_id, tree.position.x, tree.position.y)

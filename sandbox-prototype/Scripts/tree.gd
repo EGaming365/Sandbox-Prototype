@@ -6,6 +6,7 @@ var max_hits = randi_range(4, 8)
 var hits = 0
 const CHOP_COOLDOWN = 0.1
 static var can_chop = true
+var tree_id: int = -1
 
 func _ready():
 	add_to_group("trees")
@@ -28,24 +29,13 @@ func _input(event):
 			if shape.get_rect().has_point(local_mouse):
 				if multiplayer.has_multiplayer_peer():
 					if multiplayer.is_server():
-						drop_wood()
+						do_chop()
 					else:
-						request_chop.rpc_id(1)
+						get_tree().root.get_node("Scene").request_chop_tree.rpc_id(1, tree_id)
 				else:
-					# No peer = singleplayer or host left, chop locally
-					drop_wood()
+					do_chop()
 
-@rpc("any_peer", "call_remote", "reliable")
-func request_chop():
-	if not can_chop:
-		return
-	drop_wood()
-
-@rpc("authority", "call_local", "reliable")
-func sync_tree_death():
-	queue_free()
-
-func drop_wood():
+func do_chop():
 	if not can_chop:
 		return
 	can_chop = false
@@ -53,20 +43,15 @@ func drop_wood():
 
 	var angle = randf_range(0, TAU)
 	var radius = randf_range(75, 95) + 40
-	var drop_pos = position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
-
-	var scene_node = get_tree().root.get_node("Scene")
-	if multiplayer.has_multiplayer_peer():
-		scene_node.host_spawn_floor_item(drop_pos)
-	else:
-		scene_node.host_spawn_floor_item(drop_pos)
+	var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
+	get_tree().root.get_node("Scene").host_spawn_floor_item(drop_pos)
 
 	if hits >= max_hits:
 		can_chop = true
 		if multiplayer.has_multiplayer_peer():
-			sync_tree_death.rpc()
+			get_tree().root.get_node("Scene").sync_remove_tree.rpc(tree_id)
 		else:
-			queue_free()
+			get_tree().root.get_node("Scene").remove_tree(tree_id)
 		return
 
 	await get_tree().create_timer(CHOP_COOLDOWN).timeout
