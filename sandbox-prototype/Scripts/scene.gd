@@ -83,29 +83,7 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 		player.set_multiplayer_authority(multiplayer.get_unique_id())
 
 func _on_host_disconnected():
-	print("Host disconnected, leaving lobby")
-	Steam.leaveLobby(lobby_id)
-	lobby_id = 0
-	multiplayer.multiplayer_peer = null
-	is_host = false
-	is_joining = false
-	for item_id in floor_items:
-		if is_instance_valid(floor_items[item_id]):
-			floor_items[item_id].queue_free()
-	floor_items.clear()
-	for tree_id in trees:
-		if is_instance_valid(trees[tree_id]):
-			trees[tree_id].queue_free()
-	trees.clear()
-	var to_remove = []
-	for child in get_children():
-		if child.name.is_valid_int():
-			to_remove.append(child)
-	for child in to_remove:
-		child.queue_free()
-	await get_tree().process_frame
-	await get_tree().process_frame
-	_spawn_player(1)
+	get_tree().quit()
 
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
