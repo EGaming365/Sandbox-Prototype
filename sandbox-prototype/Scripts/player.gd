@@ -39,7 +39,6 @@ func _physics_process(delta):
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
-		# Don't return here — fall through to z_index calculation below
 
 	if not multiplayer.has_multiplayer_peer() or is_multiplayer_authority():
 		var direction = Vector2.ZERO
@@ -60,7 +59,7 @@ func _physics_process(delta):
 		synced_velocity = velocity
 		move_and_slide()
 
-	# Z-index runs for ALL players on ALL machines
+	# Z-index runs for ALL players on ALL machines, trees only
 	tree_check_timer += delta
 	if tree_check_timer >= 0.2:
 		tree_check_timer = 0.0
@@ -77,11 +76,3 @@ func _physics_process(delta):
 			z_index = nearest_tree.z_index + 1
 		else:
 			z_index = max(1, nearest_tree.z_index - 1)
-
-	for other in get_tree().get_nodes_in_group("players"):
-		if other == self:
-			continue
-		if global_position.y > other.global_position.y:
-			z_index = max(z_index, other.z_index + 1)
-		else:
-			z_index = max(1, other.z_index - 1)
