@@ -133,12 +133,15 @@ func _process(_delta: float) -> void:
 				var player = get_local_player()
 				if player:
 					var count = Inventory.slots[dragging_from]["count"]
+					var scene_node = get_tree().root.get_node("Scene")
 					for i in count:
-						var wood = wood_scene.instantiate()
 						var angle = randf_range(0, TAU)
 						var radius = randf_range(80, 120)
-						wood.global_position = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-						get_tree().root.get_node("Scene").call_deferred("add_child", wood)
+						var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+						if multiplayer.has_multiplayer_peer():
+							scene_node.host_spawn_floor_item(drop_pos)
+						else:
+							scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y)
 					Inventory.remove_item(dragging_from)
 			drag_node.queue_free()
 			drag_node = null

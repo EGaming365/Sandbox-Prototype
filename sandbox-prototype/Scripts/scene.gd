@@ -7,6 +7,9 @@ var is_host : bool = false
 var is_joining : bool = false
 var signals_connected : bool = false
 
+var floor_items: Dictionary = {}  # { item_id: Node }
+var next_item_id: int = 0
+
 @onready var host_button: Button = $CanvasLayer/Host_Button
 @onready var join_button: Button = $CanvasLayer/Join_Button
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
@@ -47,7 +50,6 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	DisplayServer.clipboard_set(str(lobby_id))
 	print("Lobby Created, Lobby id: ", lobby_id)
 	print("Lobby ID copied to clipboard!")
-	# Rename existing player instead of deleting and respawning
 	if has_node("1"):
 		get_node("1").name = str(multiplayer.get_unique_id())
 	else:
@@ -66,7 +68,6 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	is_joining = false
 	multiplayer.server_disconnected.connect(_on_host_disconnected)
 	multiplayer.peer_disconnected.connect(_remove_player)
-	# Rename and manually set authority since _enter_tree already ran
 	if has_node("1"):
 		var player = get_node("1")
 		player.name = str(multiplayer.get_unique_id())
@@ -79,6 +80,11 @@ func _on_host_disconnected():
 	multiplayer.multiplayer_peer = null
 	is_host = false
 	is_joining = false
+	# Clear all floor items
+	for item_id in floor_items:
+		if is_instance_valid(floor_items[item_id]):
+			floor_items[item_id].queue_free()
+	floor_items.clear()
 	var to_remove = []
 	for child in get_children():
 		print("Child found: ", child.name)
@@ -99,6 +105,7 @@ func _on_peer_connected(id: int):
 		if child.name.is_valid_int():
 			ids_to_send.append(child.name.to_int())
 	sync_players_to_client.rpc_id(id, ids_to_send)
+	sync_floor_items_to_peer(id)
 
 @rpc("authority", "call_remote", "reliable")
 func sync_players_to_client(ids: Array[int]):
@@ -119,6 +126,51 @@ func _remove_player(id: int):
 	if not has_node(str(id)):
 		return
 	get_node(str(id)).queue_free()
+
+# ── Floor Item Networking ──────────────────────────────────────────────────────
+
+func host_spawn_floor_item(pos: Vector2) -> int:
+	var id = next_item_id
+	next_item_id += 1
+	if multiplayer.has_multiplayer_peer():
+		spawn_floor_item_rpc.rpc(id, pos.x, pos.y)
+	else:
+		# Singleplayer: spawn directly, no RPC
+		_do_spawn_floor_item(id, pos.x, pos.y)
+	return id
+
+@rpc("authority", "call_local", "reliable")
+func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float):
+	_do_spawn_floor_item(item_id, pos_x, pos_y)
+
+func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float):
+	var wood_scene = preload("res://Scenes/wood.tscn")
+	var wood = wood_scene.instantiate()
+	wood.item_id = item_id
+	wood.global_position = Vector2(pos_x, pos_y)
+	add_child(wood)
+	floor_items[item_id] = wood
+
+func remove_floor_item(item_id: int):
+	if floor_items.has(item_id):
+		if is_instance_valid(floor_items[item_id]):
+			floor_items[item_id].queue_free()
+		floor_items.erase(item_id)
+
+func sync_floor_items_to_peer(peer_id: int):
+	for item_id in floor_items:
+		var item = floor_items[item_id]
+		if is_instance_valid(item):
+			var pos = item.global_position
+			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_spawn_floor_item(pos_x: float, pos_y: float):
+	if not is_host:
+		return
+	host_spawn_floor_item(Vector2(pos_x, pos_y))
+
+# ── Boilerplate ────────────────────────────────────────────────────────────────
 
 func _notification(what):
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
