@@ -7,7 +7,7 @@ var is_host : bool = false
 var is_joining : bool = false
 var signals_connected : bool = false
 
-var floor_items: Dictionary = {}  # { item_id: Node }
+var floor_items: Dictionary = {}
 var next_item_id: int = 0
 
 @onready var host_button: Button = $CanvasLayer/Host_Button
@@ -80,7 +80,6 @@ func _on_host_disconnected():
 	multiplayer.multiplayer_peer = null
 	is_host = false
 	is_joining = false
-	# Clear all floor items
 	for item_id in floor_items:
 		if is_instance_valid(floor_items[item_id]):
 			floor_items[item_id].queue_free()
@@ -100,12 +99,16 @@ func _on_host_disconnected():
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
 	_spawn_player(id)
-	var ids_to_send : Array[int] = []
+	var ids_to_send: Array[int] = []
 	for child in get_children():
 		if child.name.is_valid_int():
 			ids_to_send.append(child.name.to_int())
 	sync_players_to_client.rpc_id(id, ids_to_send)
 	sync_floor_items_to_peer(id)
+	# Sync forest to new joiner
+	var forest = get_tree().root.get_node_or_null("Scene/Forest")
+	if forest:
+		forest.sync_trees_to_client(id)
 
 @rpc("authority", "call_remote", "reliable")
 func sync_players_to_client(ids: Array[int]):
@@ -135,7 +138,6 @@ func host_spawn_floor_item(pos: Vector2) -> int:
 	if multiplayer.has_multiplayer_peer():
 		spawn_floor_item_rpc.rpc(id, pos.x, pos.y)
 	else:
-		# Singleplayer: spawn directly, no RPC
 		_do_spawn_floor_item(id, pos.x, pos.y)
 	return id
 
@@ -169,6 +171,18 @@ func request_spawn_floor_item(pos_x: float, pos_y: float):
 	if not is_host:
 		return
 	host_spawn_floor_item(Vector2(pos_x, pos_y))
+
+# Client calls this on host to request item removal
+@rpc("any_peer", "call_remote", "reliable")
+func request_remove_floor_item(item_id: int):
+	if not is_host:
+		return
+	sync_remove_floor_item.rpc(item_id)
+
+# Host broadcasts removal to all peers including itself
+@rpc("authority", "call_local", "reliable")
+func sync_remove_floor_item(item_id: int):
+	remove_floor_item(item_id)
 
 # ── Boilerplate ────────────────────────────────────────────────────────────────
 

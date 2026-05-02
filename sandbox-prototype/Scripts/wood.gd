@@ -7,12 +7,13 @@ func _on_area_2d_body_entered(body):
 	if body is CharacterBody2D:
 		if not multiplayer.has_multiplayer_peer() or body.is_multiplayer_authority():
 			Inventory.add_item("Wood", wood_texture)
+			var scene_node = get_tree().root.get_node("Scene")
 			if multiplayer.has_multiplayer_peer():
-				remove_item_rpc.rpc(item_id)
+				if multiplayer.is_server():
+					# Host removes directly
+					scene_node.remove_floor_item(item_id)
+				else:
+					# Client asks host to remove
+					scene_node.request_remove_floor_item.rpc_id(1, item_id)
 			else:
-				# Singleplayer: just remove directly
-				get_tree().root.get_node("Scene").remove_floor_item(item_id)
-
-@rpc("any_peer", "call_local", "reliable")
-func remove_item_rpc(id: int):
-	get_tree().root.get_node("Scene").remove_floor_item(id)
+				scene_node.remove_floor_item(item_id)
