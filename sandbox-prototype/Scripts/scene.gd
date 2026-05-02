@@ -9,8 +9,7 @@ var signals_connected : bool = false
 
 var floor_items: Dictionary = {}
 var next_item_id: int = 0
-
-var trees: Dictionary = {}  # { tree_id: Node }
+var trees: Dictionary = {}
 var next_tree_id: int = 0
 
 @onready var host_button: Button = $CanvasLayer/Host_Button
@@ -87,12 +86,14 @@ func _on_host_disconnected():
 		if is_instance_valid(floor_items[item_id]):
 			floor_items[item_id].queue_free()
 	floor_items.clear()
+	for tree_id in trees:
+		if is_instance_valid(trees[tree_id]):
+			trees[tree_id].queue_free()
+	trees.clear()
 	var to_remove = []
 	for child in get_children():
-		print("Child found: ", child.name)
 		if child.name.is_valid_int():
 			to_remove.append(child)
-	print("Removing ", to_remove.size(), " players")
 	for child in to_remove:
 		child.queue_free()
 	await get_tree().process_frame
@@ -130,79 +131,7 @@ func _remove_player(id: int):
 		return
 	get_node(str(id)).queue_free()
 
-# ── Floor Item Networking ──────────────────────────────────────────────────────
-
-func host_spawn_floor_item(pos: Vector2) -> int:
-	var id = next_item_id
-	next_item_id += 1
-	if multiplayer.has_multiplayer_peer():
-		spawn_floor_item_rpc.rpc(id, pos.x, pos.y)
-	else:
-		_do_spawn_floor_item(id, pos.x, pos.y)
-	return id
-
-@rpc("authority", "call_local", "reliable")
-func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float):
-	_do_spawn_floor_item(item_id, pos_x, pos_y)
-
-func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float):
-	var wood_scene = preload("res://Scenes/wood.tscn")
-	var wood = wood_scene.instantiate()
-	wood.item_id = item_id
-	wood.global_position = Vector2(pos_x, pos_y)
-	add_child(wood)
-	floor_items[item_id] = wood
-
-func remove_floor_item(item_id: int):
-	if floor_items.has(item_id):
-		if is_instance_valid(floor_items[item_id]):
-			floor_items[item_id].queue_free()
-		floor_items.erase(item_id)
-
-func sync_floor_items_to_peer(peer_id: int):
-	for item_id in floor_items:
-		var item = floor_items[item_id]
-		if is_instance_valid(item):
-			var pos = item.global_position
-			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y)
-
-@rpc("any_peer", "call_remote", "reliable")
-func request_spawn_floor_item(pos_x: float, pos_y: float):
-	if not is_host:
-		return
-	host_spawn_floor_item(Vector2(pos_x, pos_y))
-
-# Client calls this on host to request item removal
-@rpc("any_peer", "call_remote", "reliable")
-func request_remove_floor_item(item_id: int):
-	if not is_host:
-		return
-	sync_remove_floor_item.rpc(item_id)
-
-# Host broadcasts removal to all peers including itself
-@rpc("authority", "call_local", "reliable")
-func sync_remove_floor_item(item_id: int):
-	remove_floor_item(item_id)
-
-# ── Boilerplate ────────────────────────────────────────────────────────────────
-
-func _notification(what):
-	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		if lobby_id != 0:
-			Steam.leaveLobby(lobby_id)
-		get_tree().quit()
-
-func _on_host_button_pressed():
-	host_lobby()
-
-func _on_id_prompt_text_changed(new_text):
-	join_button.disabled = (new_text.length() == 0)
-
-func _on_join_button_pressed():
-	join_lobby(id_prompt.text.to_int())
-
-func _process(_delta):
-	Steam.run_callbacks()
+# ── Tree Networking ────────────────────────────────────────────────────────────
 
 func spawn_tree_with_id(pos: Vector2) -> int:
 	var id = next_tree_id
@@ -222,8 +151,8 @@ func _do_spawn_tree(tree_id: int, pos_x: float, pos_y: float):
 	var tree = tree_scene.instantiate()
 	tree.position = Vector2(pos_x, pos_y)
 	tree.tree_id = tree_id
-	call_deferred("add_child", tree)
 	trees[tree_id] = tree
+	add_child(tree)
 
 func remove_tree(tree_id: int):
 	if trees.has(tree_id):
@@ -247,3 +176,75 @@ func sync_trees_to_peer(peer_id: int):
 		var tree = trees[tree_id]
 		if is_instance_valid(tree):
 			spawn_tree_rpc.rpc_id(peer_id, tree_id, tree.position.x, tree.position.y)
+
+# ── Floor Item Networking ──────────────────────────────────────────────────────
+
+func host_spawn_floor_item(pos: Vector2) -> int:
+	var id = next_item_id
+	next_item_id += 1
+	if multiplayer.has_multiplayer_peer():
+		spawn_floor_item_rpc.rpc(id, pos.x, pos.y)
+	else:
+		_do_spawn_floor_item(id, pos.x, pos.y)
+	return id
+
+@rpc("authority", "call_local", "reliable")
+func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float):
+	_do_spawn_floor_item(item_id, pos_x, pos_y)
+
+func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float):
+	var wood_scene = preload("res://Scenes/wood.tscn")
+	var wood = wood_scene.instantiate()
+	wood.item_id = item_id
+	wood.global_position = Vector2(pos_x, pos_y)
+	floor_items[item_id] = wood
+	add_child(wood)
+
+func remove_floor_item(item_id: int):
+	if floor_items.has(item_id):
+		if is_instance_valid(floor_items[item_id]):
+			floor_items[item_id].queue_free()
+		floor_items.erase(item_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_remove_floor_item(item_id: int):
+	remove_floor_item(item_id)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_remove_floor_item(item_id: int):
+	if not is_host:
+		return
+	sync_remove_floor_item.rpc(item_id)
+
+func sync_floor_items_to_peer(peer_id: int):
+	for item_id in floor_items:
+		var item = floor_items[item_id]
+		if is_instance_valid(item):
+			var pos = item.global_position
+			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_spawn_floor_item(pos_x: float, pos_y: float):
+	if not is_host:
+		return
+	host_spawn_floor_item(Vector2(pos_x, pos_y))
+
+# ── Boilerplate ────────────────────────────────────────────────────────────────
+
+func _notification(what):
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if lobby_id != 0:
+			Steam.leaveLobby(lobby_id)
+		get_tree().quit()
+
+func _on_host_button_pressed():
+	host_lobby()
+
+func _on_id_prompt_text_changed(new_text):
+	join_button.disabled = (new_text.length() == 0)
+
+func _on_join_button_pressed():
+	join_lobby(id_prompt.text.to_int())
+
+func _process(_delta):
+	Steam.run_callbacks()
