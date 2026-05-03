@@ -67,7 +67,7 @@ func update_hotbar():
 
 			# Durability bar for axes
 			if data["item"] == "Axe":
-				var max_dur = 60.0
+				var max_dur = 80.0
 				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
 				var bar_bg = ColorRect.new()
 				bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)

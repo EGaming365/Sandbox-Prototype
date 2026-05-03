@@ -7,12 +7,20 @@ var hits = 0
 const CHOP_COOLDOWN = 1.5
 static var can_chop = true
 var tree_id: int = -1
+var chop_cooldown_timer: float = 0.0
+var chop_cooldown_max: float = CHOP_COOLDOWN
 
 func _ready():
 	add_to_group("trees")
 
-func _process(_delta):
+func _process(delta):
 	z_index = int(global_position.y)
+	if not can_chop and chop_cooldown_max > 0:
+		chop_cooldown_timer = max(chop_cooldown_timer - delta, 0.0)
+		var pct = chop_cooldown_timer / chop_cooldown_max
+		var cursor_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
+		if cursor_ui:
+			cursor_ui.show_cooldown(pct)
 
 func _on_area_2d_body_entered(body):
 	if body is CharacterBody2D:
@@ -49,14 +57,13 @@ func do_chop():
 	var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
 	get_tree().root.get_node("Scene").host_spawn_floor_item(drop_pos)
 
-	# Check axe and consume durability BEFORE the early return
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	var chop_time = CHOP_COOLDOWN
 	if hotbar:
 		var slot_index = hotbar.current_slot - 1
 		var current = Inventory.slots[slot_index]
 		if current["item"] == "Axe":
-			chop_time = 1
+			chop_time = 1.0
 			current["count"] -= 1
 			if current["count"] <= 0:
 				Inventory.remove_item(slot_index, false)
@@ -71,5 +78,7 @@ func do_chop():
 			get_tree().root.get_node("Scene").remove_tree(tree_id)
 		return
 
+	chop_cooldown_max = chop_time
+	chop_cooldown_timer = chop_time
 	await get_tree().create_timer(chop_time).timeout
 	can_chop = true

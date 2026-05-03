@@ -1,7 +1,7 @@
 extends Node2D
 
 @export var item_id: int = -1
-@export var durability: int = 60
+@export var durability: int = 80
 var axe_texture: Texture2D
 
 func _ready():
