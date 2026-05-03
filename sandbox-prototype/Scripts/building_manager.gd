@@ -10,6 +10,7 @@ func is_placeable(item_name: String) -> bool:
 	return placeable_items.has(item_name)
 
 func get_max_hits(item_name: String) -> int:
+	print("get_max_hits called for: ", item_name, " found: ", placeable_items.has(item_name))
 	if placeable_items.has(item_name):
 		return placeable_items[item_name]["max_hits"]
 	return 1

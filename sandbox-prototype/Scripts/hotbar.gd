@@ -40,24 +40,54 @@ func update_hotbar():
 			tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
 			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			tex.offset_left = 8
-			tex.offset_right = -8
-			tex.offset_top = 8
-			tex.offset_bottom = -8
+			tex.offset_left = 6
+			tex.offset_right = -6
+			tex.offset_top = 6
+			tex.offset_bottom = -6
 			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot.add_child(tex)
 
-			var label = Label.new()
-			label.text = str(min(data["count"], 99))
-			label.add_theme_font_size_override("font_size", 12)
-			label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-			label.offset_top = -20
-			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			if data["count"] >= 10:
-				label.offset_left = -17
-			else:
-				label.offset_left = -11
-			slot.add_child(label)
+			# Stack count label
+			if not Inventory.non_stackable_items.has(data["item"]):
+				var label = Label.new()
+				label.text = str(min(data["count"], 99))
+				label.add_theme_font_size_override("font_size", 16)
+				label.add_theme_color_override("font_color", Color.WHITE)
+				label.add_theme_color_override("font_outline_color", Color.BLACK)
+				label.add_theme_constant_override("outline_size", 4)
+				label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+				label.offset_top = -24
+				label.offset_bottom = -16
+				label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				if data["count"] >= 10:
+					label.offset_left = -24
+				else:
+					label.offset_left = -14
+				slot.add_child(label)
+
+			# Durability bar for axes
+			if data["item"] == "Axe":
+				var max_dur = 60.0
+				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
+				var bar_bg = ColorRect.new()
+				bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
+				bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+				bar_bg.offset_top = -14
+				bar_bg.offset_bottom = -9
+				bar_bg.offset_left = 7
+				bar_bg.offset_right = -7
+				bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				slot.add_child(bar_bg)
+				var bar = ColorRect.new()
+				# Green -> yellow -> red based on durability
+				var bar_color = Color(1.0 - pct, pct, 0.0)
+				bar.color = bar_color
+				bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
+				bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
+				bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
+				bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
+				bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				bar_bg.add_child(bar)
 
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -157,22 +187,21 @@ func _process(_delta: float) -> void:
 				var player = get_local_player()
 				if player:
 					var item_type = Inventory.slots[dragging_from]["item"]
-					print("Dropping item type: '", item_type, "'")
 					var count = Inventory.slots[dragging_from]["count"]
+					var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
+					var durability = count if item_type == "Axe" else 60
 					var scene_node = get_tree().root.get_node("Scene")
-					print("Scene node found: ", scene_node != null)
-					for i in count:
+					for i in drop_count:
 						var angle = randf_range(0, TAU)
 						var radius = randf_range(80, 120)
 						var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-						print("Calling host_spawn_floor_item at: ", drop_pos, " type: ", item_type)
 						if multiplayer.has_multiplayer_peer():
 							if multiplayer.is_server():
-								scene_node.host_spawn_floor_item(drop_pos, item_type)
+								scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
 							else:
-								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type)
+								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, durability)
 						else:
-							scene_node.host_spawn_floor_item(drop_pos, item_type)
+							scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
 					Inventory.remove_item(dragging_from, false)
 
 			drag_node.queue_free()

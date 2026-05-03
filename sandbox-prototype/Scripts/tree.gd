@@ -49,6 +49,20 @@ func do_chop():
 	var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
 	get_tree().root.get_node("Scene").host_spawn_floor_item(drop_pos)
 
+	# Check axe and consume durability BEFORE the early return
+	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	var chop_time = CHOP_COOLDOWN
+	if hotbar:
+		var slot_index = hotbar.current_slot - 1
+		var current = Inventory.slots[slot_index]
+		if current["item"] == "Axe":
+			chop_time = CHOP_COOLDOWN * 0.2
+			current["count"] -= 1
+			if current["count"] <= 0:
+				Inventory.remove_item(slot_index, false)
+			else:
+				Inventory.inventory_changed.emit()
+
 	if hits >= max_hits:
 		can_chop = true
 		if multiplayer.has_multiplayer_peer():
@@ -57,5 +71,5 @@ func do_chop():
 			get_tree().root.get_node("Scene").remove_tree(tree_id)
 		return
 
-	await get_tree().create_timer(CHOP_COOLDOWN).timeout
+	await get_tree().create_timer(chop_time).timeout
 	can_chop = true

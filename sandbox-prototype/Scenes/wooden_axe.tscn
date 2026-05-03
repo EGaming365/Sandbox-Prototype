@@ -1,12 +1,12 @@
-[gd_scene format=3 uid="uid://dqmfhug4nh8x8"]
+[gd_scene format=3 uid="uid://cbpfwlmbypkpb"]
 
-[ext_resource type="Script" uid="uid://bwv5tdbub6usj" path="res://Scripts/wooden_plank.gd" id="1_tbvcq"]
+[ext_resource type="Script" uid="uid://by1v3sf3t1x1n" path="res://Scripts/wooden_axe.gd" id="1_cpaud"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
 radius = 15.0
 
-[node name="Wooden_Plank" type="Node2D" unique_id=1126891296]
-script = ExtResource("1_tbvcq")
+[node name="Wooden_Axe" type="Node2D" unique_id=1126891296]
+script = ExtResource("1_cpaud")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
 

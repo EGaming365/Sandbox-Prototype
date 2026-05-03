@@ -187,10 +187,8 @@ func process_block_hit(block_id: int):
 	if not is_instance_valid(block):
 		return
 	block.hits += 1
-	print("Block hit: ", block.hits, "/", block.max_hits, " item: ", block.item_name)
 	if block.hits >= block.max_hits:
 		var drop_pos = block.global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
-		print("Dropping: ", block.item_name, " at ", drop_pos)
 		host_spawn_floor_item(drop_pos, block.item_name)
 		if multiplayer.has_multiplayer_peer():
 			sync_remove_placed_block.rpc(block_id)
@@ -251,36 +249,43 @@ func sync_trees_to_peer(peer_id: int):
 
 # ── Floor Item Networking ──────────────────────────────────────────────────────
 
-func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood") -> int:
+func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
 	var id = next_item_id
 	next_item_id += 1
 	if multiplayer.has_multiplayer_peer():
-		spawn_floor_item_rpc.rpc(id, pos.x, pos.y, item_type)
+		spawn_floor_item_rpc.rpc(id, pos.x, pos.y, item_type, durability)
 	else:
-		_do_spawn_floor_item(id, pos.x, pos.y, item_type)
+		_do_spawn_floor_item(id, pos.x, pos.y, item_type, durability)
 	return id
 
 @rpc("any_peer", "call_local", "reliable")
-func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood"):
-	_do_spawn_floor_item(item_id, pos_x, pos_y, item_type)
+func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 60):
+	_do_spawn_floor_item(item_id, pos_x, pos_y, item_type, durability)
 
-func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood"):
-	print("Spawning floor item: '", item_type, "' at ", pos_x, ", ", pos_y)
+func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 60):
 	var item_scene
 	match item_type:
 		"Wood":
 			item_scene = preload("res://Scenes/wood.tscn")
 		"Wood Plank":
 			item_scene = preload("res://Scenes/wooden_plank.tscn")
+		"Axe":
+			item_scene = preload("res://Scenes/wooden_axe.tscn")
 		_:
 			item_scene = preload("res://Scenes/wood.tscn")
-	print("Scene loaded: ", item_scene)
 	var item = item_scene.instantiate()
 	item.item_id = item_id
+	if item_type == "Axe":
+		item.durability = durability
 	item.global_position = Vector2(pos_x, pos_y)
 	floor_items[item_id] = item
 	add_child(item)
-	print("Item added: ", item)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 60):
+	if not is_host:
+		return
+	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability)
 
 func remove_floor_item(item_id: int):
 	if floor_items.has(item_id):
@@ -303,14 +308,14 @@ func sync_floor_items_to_peer(peer_id: int):
 		var item = floor_items[item_id]
 		if is_instance_valid(item):
 			var pos = item.global_position
-			var item_type = "Wood Plank" if item.get_script().resource_path.contains("wooden_plank") else "Wood"
-			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type)
-
-@rpc("any_peer", "call_remote", "reliable")
-func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood"):
-	if not is_host:
-		return
-	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type)
+			var script_path = item.get_script().resource_path
+			var item_type = "Wood"
+			if script_path.contains("wooden_plank"):
+				item_type = "Wood Plank"
+			elif script_path.contains("wooden_axe"):
+				item_type = "Axe"
+			var dur = item.durability if item_type == "Axe" else 60
+			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
 # ── Boilerplate ────────────────────────────────────────────────────────────────
 

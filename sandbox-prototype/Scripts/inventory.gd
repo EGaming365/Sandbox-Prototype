@@ -15,20 +15,26 @@ func _ready():
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
 
+var non_stackable_items = ["Axe"]
+
 func add_item(item_name, texture):
-	# First check hotbar for incomplete stacks
-	for slot in slots:
-		if slot["item"] == item_name and slot["count"] < 99:
-			slot["count"] += 1
-			emit_signal("inventory_changed")
-			return
-	# Then check inventory for incomplete stacks
-	for slot in inv_slots:
-		if slot["item"] == item_name and slot["count"] < 99:
-			slot["count"] += 1
-			emit_signal("inventory_changed")
-			return
-	# No incomplete stacks found, add to hotbar empty slot first
+	var stackable = not non_stackable_items.has(item_name)
+	
+	if stackable:
+		# Try hotbar incomplete stacks first
+		for slot in slots:
+			if slot["item"] == item_name and slot["count"] < 99:
+				slot["count"] += 1
+				emit_signal("inventory_changed")
+				return
+		# Then inventory incomplete stacks
+		for slot in inv_slots:
+			if slot["item"] == item_name and slot["count"] < 99:
+				slot["count"] += 1
+				emit_signal("inventory_changed")
+				return
+
+	# Add to empty hotbar slot
 	for slot in slots:
 		if slot["item"] == "":
 			slot["item"] = item_name
@@ -36,11 +42,27 @@ func add_item(item_name, texture):
 			slot["texture"] = texture
 			emit_signal("inventory_changed")
 			return
-	# Hotbar full, add to inventory empty slot
+	# Add to empty inventory slot
 	for slot in inv_slots:
 		if slot["item"] == "":
 			slot["item"] = item_name
 			slot["count"] = 1
+			slot["texture"] = texture
+			emit_signal("inventory_changed")
+			return
+
+func add_item_with_count(item_name: String, texture: Texture2D, count: int):
+	for slot in slots:
+		if slot["item"] == "":
+			slot["item"] = item_name
+			slot["count"] = count
+			slot["texture"] = texture
+			emit_signal("inventory_changed")
+			return
+	for slot in inv_slots:
+		if slot["item"] == "":
+			slot["item"] = item_name
+			slot["count"] = count
 			slot["texture"] = texture
 			emit_signal("inventory_changed")
 			return

@@ -13,6 +13,7 @@ func setup(i_name: String, texture: Texture2D, b_id: int, rot: float = 0.0):
 	block_id = b_id
 	max_hits = BuildingManager.get_max_hits(item_name)
 	current_rotation = rot
+	print("Block setup: ", item_name, " max_hits: ", max_hits)
 
 func _ready():
 	add_to_group("placed_blocks")

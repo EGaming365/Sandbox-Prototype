@@ -21,11 +21,13 @@ var plank_texture: Texture2D
 var axe_texture: Texture2D
 
 func _ready():
-	# Create blank white textures for now
 	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	img.fill(Color.WHITE)
 	plank_texture = ImageTexture.create_from_image(img)
-	axe_texture = ImageTexture.create_from_image(img)
+	
+	var axe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+	axe_img.fill(Color.YELLOW)
+	axe_texture = ImageTexture.create_from_image(axe_img)
 
 func get_item_texture(item_name: String) -> Texture2D:
 	match item_name:
@@ -48,8 +50,12 @@ func craft(recipe: Dictionary):
 	for item in recipe["ingredients"]:
 		_remove_item(item, recipe["ingredients"][item])
 	var tex = get_item_texture(recipe["result"])
-	for i in recipe["result_count"]:
-		Inventory.add_item(recipe["result"], tex)
+	# Special case for axe — single item with 60 durability
+	if recipe["result"] == "Axe":
+		Inventory.add_item_with_count("Axe", tex, 60)
+	else:
+		for i in recipe["result_count"]:
+			Inventory.add_item(recipe["result"], tex)
 
 func _count_item(item_name: String) -> int:
 	var total = 0
