@@ -4,14 +4,12 @@ var toggle_ui = true
 var can_toggle_ui = true
 var slots = []
 var dragging_from = -1
+var dragging_from_inv = false
 var drag_node : TextureRect = null
-var wood_scene = preload("res://Scenes/wood.tscn")
 
 var current_slot = 1
 var hotbar_default: StyleBox = preload("res://Resources/hotbar_default.tres")
 var hotbar_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
-
-@onready var crafting_menu = $"../Crafting_Menu"
 
 func _ready():
 	for i in range(10):
@@ -65,9 +63,11 @@ func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and Inventory.slots[index]["item"] != "":
 			dragging_from = index
+			dragging_from_inv = false
 			drag_node = TextureRect.new()
 			drag_node.texture = Inventory.slots[index]["texture"]
 			drag_node.size = Vector2(40, 40)
+			drag_node.z_index = 9
 			drag_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			add_child(drag_node)
 
@@ -77,19 +77,29 @@ func _ready_slots():
 		var idx = i
 		slot.gui_input.connect(func(event): _gui_input_for_slot(event, idx))
 
-func _get_hovered_slot():
+func _get_hovered_slot() -> int:
+	var closest = -1
+	var closest_dist = 40.0  # max snap distance in pixels
 	for i in range(slots.size()):
-		if slots[i].get_global_rect().has_point(get_global_mouse_position()):
-			return i
+		var center = slots[i].get_global_rect().get_center()
+		var dist = get_global_mouse_position().distance_to(center)
+		if dist < closest_dist:
+			closest_dist = dist
+			closest = i
+	return closest
+
+func _get_hovered_inv_slot():
+	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	if inv_ui and inv_ui.visible:
+		return inv_ui.get_hovered_slot()
 	return -1
 
 func _process(_delta: float) -> void:
-	
 	if Input.is_action_just_pressed("inventory"):
-		var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/InventoryUI")
+		var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 		if inv_ui:
 			inv_ui.toggle()
-	
+
 	for i in range(1, 11):
 		var panel: Panel = $HBoxContainer.get_node("Item" + str(i))
 		if i == current_slot:
@@ -134,23 +144,37 @@ func _process(_delta: float) -> void:
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			var dropped_on = _get_hovered_slot()
-			if dropped_on != -1 and dropped_on != dragging_from:
-				Inventory.move_item(dragging_from, dropped_on)
-			elif dropped_on == -1:
+			var dropped_on_hotbar = _get_hovered_slot()
+			var dropped_on_inv = _get_hovered_inv_slot()
+
+			if dropped_on_hotbar != -1 and dropped_on_hotbar != dragging_from:
+				# Hotbar -> Hotbar
+				Inventory.move_item(dragging_from, dropped_on_hotbar, false, false)
+			elif dropped_on_inv != -1:
+				# Hotbar -> Inventory
+				Inventory.move_item(dragging_from, dropped_on_inv, false, true)
+			elif dropped_on_hotbar == -1 and dropped_on_inv == -1:
 				var player = get_local_player()
 				if player:
+					var item_type = Inventory.slots[dragging_from]["item"]
+					print("Dropping item type: '", item_type, "'")
 					var count = Inventory.slots[dragging_from]["count"]
 					var scene_node = get_tree().root.get_node("Scene")
+					print("Scene node found: ", scene_node != null)
 					for i in count:
 						var angle = randf_range(0, TAU)
 						var radius = randf_range(80, 120)
 						var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+						print("Calling host_spawn_floor_item at: ", drop_pos, " type: ", item_type)
 						if multiplayer.has_multiplayer_peer():
-							scene_node.host_spawn_floor_item(drop_pos)
+							if multiplayer.is_server():
+								scene_node.host_spawn_floor_item(drop_pos, item_type)
+							else:
+								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type)
 						else:
-							scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y)
-					Inventory.remove_item(dragging_from)
+							scene_node.host_spawn_floor_item(drop_pos, item_type)
+					Inventory.remove_item(dragging_from, false)
+
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
@@ -169,9 +193,3 @@ func _process(_delta: float) -> void:
 		self.show()
 	else:
 		self.hide()
-
-	if Input.is_action_just_pressed("inventory"):
-		if crafting_menu.visible:
-			crafting_menu.close()
-		else:
-			crafting_menu.open(false)

@@ -16,7 +16,9 @@ func get_local_player():
 func _process(_delta):
 	var player = get_local_player()
 	if player:
-		text = "X: " + str(snappedf(player.global_position.x, 0.1)) + "\nY: " + str(snappedf(player.global_position.y, 0.1))
+		var x = snappedf(player.global_position.x / 100.0, 0.1)
+		var y = snappedf(player.global_position.y / 100.0, 0.1)
+		text = "X: " + str(x) + "\nY: " + str(y)
 
 	if Input.is_action_just_pressed("toggle_debug"):
 		if toggle_ui == true and can_toggle_ui == true:

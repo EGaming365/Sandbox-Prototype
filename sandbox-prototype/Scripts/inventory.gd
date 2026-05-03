@@ -16,12 +16,19 @@ func _ready():
 		inv_slots.append({"item": "", "count": 0, "texture": null})
 
 func add_item(item_name, texture):
-	# Try hotbar first
+	# First check hotbar for incomplete stacks
 	for slot in slots:
 		if slot["item"] == item_name and slot["count"] < 99:
 			slot["count"] += 1
 			emit_signal("inventory_changed")
 			return
+	# Then check inventory for incomplete stacks
+	for slot in inv_slots:
+		if slot["item"] == item_name and slot["count"] < 99:
+			slot["count"] += 1
+			emit_signal("inventory_changed")
+			return
+	# No incomplete stacks found, add to hotbar empty slot first
 	for slot in slots:
 		if slot["item"] == "":
 			slot["item"] = item_name
@@ -29,12 +36,7 @@ func add_item(item_name, texture):
 			slot["texture"] = texture
 			emit_signal("inventory_changed")
 			return
-	# Hotbar full, try inventory
-	for slot in inv_slots:
-		if slot["item"] == item_name and slot["count"] < 99:
-			slot["count"] += 1
-			emit_signal("inventory_changed")
-			return
+	# Hotbar full, add to inventory empty slot
 	for slot in inv_slots:
 		if slot["item"] == "":
 			slot["item"] = item_name

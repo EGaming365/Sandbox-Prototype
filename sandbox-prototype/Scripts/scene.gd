@@ -11,6 +11,8 @@ var floor_items: Dictionary = {}
 var next_item_id: int = 0
 var trees: Dictionary = {}
 var next_tree_id: int = 0
+var placed_blocks: Dictionary = {}
+var next_block_id: int = 0
 
 @onready var host_button: Button = $CanvasLayer/Host_Button
 @onready var join_button: Button = $CanvasLayer/Join_Button
@@ -63,13 +65,10 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 		return
 	lobby_id = new_lobby_id
 	await get_tree().create_timer(1.0).timeout
-	
-	# Clear all local trees before receiving host's trees
 	for tree_id in trees:
 		if is_instance_valid(trees[tree_id]):
 			trees[tree_id].queue_free()
 	trees.clear()
-	
 	peer = SteamMultiplayerPeer.new()
 	peer.server_relay = true
 	peer.create_client(Steam.getLobbyOwner(lobby_id))
@@ -94,9 +93,9 @@ func _on_peer_connected(id: int):
 			ids_to_send.append(child.name.to_int())
 	sync_players_to_client.rpc_id(id, ids_to_send)
 	sync_floor_items_to_peer(id)
-	# Small delay before sending 1000 trees
 	await get_tree().create_timer(1.0).timeout
 	sync_trees_to_peer(id)
+	sync_placed_blocks_to_peer(id)
 
 @rpc("authority", "call_remote", "reliable")
 func sync_players_to_client(ids: Array[int]):
@@ -106,6 +105,9 @@ func sync_players_to_client(ids: Array[int]):
 func _spawn_player(id: int):
 	if has_node(str(id)):
 		print("Player ", id, " already exists, skipping")
+		return
+	if player_scene == null:
+		print("ERROR: player_scene is null! Assign it in the inspector.")
 		return
 	print("Spawning player with id: ", id)
 	var player = player_scene.instantiate()
@@ -117,6 +119,89 @@ func _remove_player(id: int):
 	if not has_node(str(id)):
 		return
 	get_node(str(id)).queue_free()
+
+# ── Block Networking ───────────────────────────────────────────────────────────
+
+func host_place_block(item_name: String, pos: Vector2, rot: float = 0.0) -> int:
+	var id = next_block_id
+	next_block_id += 1
+	if multiplayer.has_multiplayer_peer():
+		place_block_rpc.rpc(id, item_name, pos.x, pos.y, rot)
+	else:
+		_do_place_block(id, item_name, pos.x, pos.y, rot)
+	return id
+
+@rpc("authority", "call_local", "reliable")
+func place_block_rpc(block_id: int, item_name: String, pos_x: float, pos_y: float, rot: float = 0.0):
+	_do_place_block(block_id, item_name, pos_x, pos_y, rot)
+
+func _do_place_block(block_id: int, item_name: String, pos_x: float, pos_y: float, rot: float = 0.0):
+	var block_scene = preload("res://Scenes/placed_block.tscn")
+	var block = block_scene.instantiate()
+	block.setup(item_name, _get_item_texture(item_name), block_id, rot)
+	block.global_position = Vector2(pos_x, pos_y)
+	placed_blocks[block_id] = block
+	add_child(block)
+
+func _get_item_texture(item_name: String) -> Texture2D:
+	for slot in Inventory.slots:
+		if slot["item"] == item_name and slot["texture"] != null:
+			return slot["texture"]
+	for slot in Inventory.inv_slots:
+		if slot["item"] == item_name and slot["texture"] != null:
+			return slot["texture"]
+	return null
+
+func remove_placed_block(block_id: int):
+	if placed_blocks.has(block_id):
+		if is_instance_valid(placed_blocks[block_id]):
+			placed_blocks[block_id].queue_free()
+		placed_blocks.erase(block_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_remove_placed_block(block_id: int):
+	remove_placed_block(block_id)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_place_block(item_name: String, pos_x: float, pos_y: float, rot: float = 0.0):
+	if not is_host:
+		return
+	host_place_block(item_name, Vector2(pos_x, pos_y), rot)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_break_block(block_id: int):
+	if not is_host:
+		return
+	process_block_hit(block_id)
+
+func sync_placed_blocks_to_peer(peer_id: int):
+	for block_id in placed_blocks:
+		var block = placed_blocks[block_id]
+		if is_instance_valid(block):
+			place_block_rpc.rpc_id(peer_id, block_id, block.item_name, block.global_position.x, block.global_position.y, block.current_rotation)
+
+func process_block_hit(block_id: int):
+	if not placed_blocks.has(block_id):
+		return
+	var block = placed_blocks[block_id]
+	if not is_instance_valid(block):
+		return
+	block.hits += 1
+	print("Block hit: ", block.hits, "/", block.max_hits, " item: ", block.item_name)
+	if block.hits >= block.max_hits:
+		var drop_pos = block.global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
+		print("Dropping: ", block.item_name, " at ", drop_pos)
+		host_spawn_floor_item(drop_pos, block.item_name)
+		if multiplayer.has_multiplayer_peer():
+			sync_remove_placed_block.rpc(block_id)
+		else:
+			remove_placed_block(block_id)
+
+@rpc("any_peer", "call_local", "reliable")
+func register_block_hit(block_id: int):
+	if not is_host:
+		return
+	process_block_hit(block_id)
 
 # ── Tree Networking ────────────────────────────────────────────────────────────
 
@@ -166,26 +251,36 @@ func sync_trees_to_peer(peer_id: int):
 
 # ── Floor Item Networking ──────────────────────────────────────────────────────
 
-func host_spawn_floor_item(pos: Vector2) -> int:
+func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood") -> int:
 	var id = next_item_id
 	next_item_id += 1
 	if multiplayer.has_multiplayer_peer():
-		spawn_floor_item_rpc.rpc(id, pos.x, pos.y)
+		spawn_floor_item_rpc.rpc(id, pos.x, pos.y, item_type)
 	else:
-		_do_spawn_floor_item(id, pos.x, pos.y)
+		_do_spawn_floor_item(id, pos.x, pos.y, item_type)
 	return id
 
 @rpc("any_peer", "call_local", "reliable")
-func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float):
-	_do_spawn_floor_item(item_id, pos_x, pos_y)
+func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood"):
+	_do_spawn_floor_item(item_id, pos_x, pos_y, item_type)
 
-func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float):
-	var wood_scene = preload("res://Scenes/wood.tscn")
-	var wood = wood_scene.instantiate()
-	wood.item_id = item_id
-	wood.global_position = Vector2(pos_x, pos_y)
-	floor_items[item_id] = wood
-	add_child(wood)
+func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood"):
+	print("Spawning floor item: '", item_type, "' at ", pos_x, ", ", pos_y)
+	var item_scene
+	match item_type:
+		"Wood":
+			item_scene = preload("res://Scenes/wood.tscn")
+		"Wood Plank":
+			item_scene = preload("res://Scenes/wooden_plank.tscn")
+		_:
+			item_scene = preload("res://Scenes/wood.tscn")
+	print("Scene loaded: ", item_scene)
+	var item = item_scene.instantiate()
+	item.item_id = item_id
+	item.global_position = Vector2(pos_x, pos_y)
+	floor_items[item_id] = item
+	add_child(item)
+	print("Item added: ", item)
 
 func remove_floor_item(item_id: int):
 	if floor_items.has(item_id):
@@ -208,13 +303,14 @@ func sync_floor_items_to_peer(peer_id: int):
 		var item = floor_items[item_id]
 		if is_instance_valid(item):
 			var pos = item.global_position
-			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y)
+			var item_type = "Wood Plank" if item.get_script().resource_path.contains("wooden_plank") else "Wood"
+			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_spawn_floor_item(pos_x: float, pos_y: float):
+func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood"):
 	if not is_host:
 		return
-	host_spawn_floor_item(Vector2(pos_x, pos_y))
+	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type)
 
 # ── Boilerplate ────────────────────────────────────────────────────────────────
 

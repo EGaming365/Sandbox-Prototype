@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://c84bs4av2hv50"]
+
+[ext_resource type="Script" uid="uid://dcw057hg24fy6" path="res://Scripts/placed_block.gd" id="1_vkysf"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vkysf"]
+size = Vector2(32, 14)
+
+[node name="Placed_Block" type="StaticBody2D" unique_id=484630517]
+script = ExtResource("1_vkysf")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=583378745]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=422542844]
+position = Vector2(0, 9)
+shape = SubResource("RectangleShape2D_vkysf")

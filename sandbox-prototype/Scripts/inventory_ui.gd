@@ -14,7 +14,7 @@ func _ready():
 	update_inventory()
 
 func _build_slots():
-	var grid = $PanelContainer/HBoxContainer/InventoryPanel/GridContainer
+	var grid = $PanelContainer/HBoxContainer/Inventory/MarginContainer/GridContainer
 	for child in grid.get_children():
 		child.queue_free()
 	inv_slots_ui.clear()
@@ -70,14 +70,20 @@ func _gui_input_for_slot(event, index):
 			drag_node = TextureRect.new()
 			drag_node.texture = Inventory.inv_slots[index]["texture"]
 			drag_node.size = Vector2(40, 40)
+			drag_node.z_index = 9
 			drag_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			add_child(drag_node)
 
-func _get_hovered_inv_slot():
+func get_hovered_slot() -> int:
+	var closest = -1
+	var closest_dist = 40.0  # max snap distance in pixels
 	for i in inv_slots_ui.size():
-		if inv_slots_ui[i].get_global_rect().has_point(get_global_mouse_position()):
-			return i
-	return -1
+		var center = inv_slots_ui[i].get_global_rect().get_center()
+		var dist = get_global_mouse_position().distance_to(center)
+		if dist < closest_dist:
+			closest_dist = dist
+			closest = i
+	return closest
 
 func _process(_delta):
 	if not visible:
@@ -85,15 +91,20 @@ func _process(_delta):
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			var dropped_on = _get_hovered_inv_slot()
-			if dropped_on != -1 and dropped_on != dragging_from:
-				Inventory.move_item(dragging_from, dropped_on, true, true)
-			elif dropped_on == -1:
-				# Drop on floor
-				var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+			var dropped_on_inv = get_hovered_slot()
+			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+			var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
+
+			if dropped_on_inv != -1 and dropped_on_inv != dragging_from:
+				# Inventory -> Inventory
+				Inventory.move_item(dragging_from, dropped_on_inv, true, true)
+			elif dropped_on_hotbar != -1:
+				# Inventory -> Hotbar
+				Inventory.move_item(dragging_from, dropped_on_hotbar, true, false)
+			elif dropped_on_inv == -1 and dropped_on_hotbar == -1:
 				var player = hotbar.get_local_player() if hotbar else null
 				if player:
-					var wood_scene = preload("res://Scenes/wood.tscn")
+					var item_type = Inventory.inv_slots[dragging_from]["item"]
 					var count = Inventory.inv_slots[dragging_from]["count"]
 					var scene_node = get_tree().root.get_node("Scene")
 					for i in count:
@@ -102,18 +113,19 @@ func _process(_delta):
 						var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
 						if multiplayer.has_multiplayer_peer():
 							if multiplayer.is_server():
-								scene_node.host_spawn_floor_item(drop_pos)
+								scene_node.host_spawn_floor_item(drop_pos, item_type)
 							else:
-								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y)
+								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type)
 						else:
-							scene_node.host_spawn_floor_item(drop_pos)
+							scene_node.host_spawn_floor_item(drop_pos, item_type)
 					Inventory.remove_item(dragging_from, true)
+
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
 
 func _update_recipe_panel():
-	var vbox = $PanelContainer/HBoxContainer/RecipePanel/VBoxContainer
+	var vbox = $PanelContainer/HBoxContainer/Recipes/ScrollContainer/VBoxContainer
 	for child in vbox.get_children():
 		child.queue_free()
 
@@ -146,25 +158,31 @@ func _update_recipe_panel():
 		var btn = Button.new()
 		btn.text = "Craft"
 		btn.disabled = not Crafting.can_craft(recipe)
-		btn.pressed.connect(func(): _on_craft(recipe, btn))
+		var r = recipe
+		btn.pressed.connect(func(): _on_craft(r, btn))
 		row.add_child(btn)
 
 		vbox.add_child(row)
 
-		# Separator
 		var sep = HSeparator.new()
 		vbox.add_child(sep)
 
 func _on_craft(recipe: Dictionary, btn: Button):
+	if not is_instance_valid(btn):
+		return
 	if Crafting.can_craft(recipe):
 		Crafting.craft(recipe)
-		btn.text = "Done!"
+		if is_instance_valid(btn):
+			btn.text = "Done!"
 		await get_tree().create_timer(0.5).timeout
-		btn.text = "Craft"
+		if is_instance_valid(btn):
+			btn.text = "Craft"
 	else:
-		btn.text = "Need more!"
+		if is_instance_valid(btn):
+			btn.text = "Need more!"
 		await get_tree().create_timer(0.5).timeout
-		btn.text = "Craft"
+		if is_instance_valid(btn):
+			btn.text = "Craft"
 
 func toggle():
 	if visible:
