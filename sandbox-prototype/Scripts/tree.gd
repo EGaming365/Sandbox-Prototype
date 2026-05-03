@@ -4,7 +4,7 @@ extends Node2D
 var player_in_range = false
 var max_hits = randi_range(4, 8)
 var hits = 0
-const CHOP_COOLDOWN = 0.1
+const CHOP_COOLDOWN = 1.5
 static var can_chop = true
 var tree_id: int = -1
 
@@ -56,7 +56,7 @@ func do_chop():
 		var slot_index = hotbar.current_slot - 1
 		var current = Inventory.slots[slot_index]
 		if current["item"] == "Axe":
-			chop_time = CHOP_COOLDOWN * 0.2
+			chop_time = 1
 			current["count"] -= 1
 			if current["count"] <= 0:
 				Inventory.remove_item(slot_index, false)
