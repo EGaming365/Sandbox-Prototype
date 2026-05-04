@@ -1,8 +1,8 @@
 extends Node2D
 
 @export var tree_count = 1000
-@export var min_distance = 200
-@export var forest_size = Vector2(1000, 1000)
+@export var min_distance = 160
+@export var forest_size = Vector2(4000, 4000)
 var spawned_positions = []
 var target_parent: Node
 
