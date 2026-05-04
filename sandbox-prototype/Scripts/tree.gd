@@ -2,33 +2,28 @@ extends Node2D
 
 @onready var area = $Area2D
 var player_in_range = false
+var player_in_range_node = null
 var max_hits = randi_range(4, 8)
 var hits = 0
 const CHOP_COOLDOWN = 1.5
-static var can_chop = true
+var can_chop = true
 var tree_id: int = -1
-var chop_cooldown_timer: float = 0.0
-var chop_cooldown_max: float = CHOP_COOLDOWN
 
 func _ready():
 	add_to_group("trees")
 
-func _process(delta):
+func _process(_delta):
 	z_index = int(global_position.y)
-	if not can_chop and chop_cooldown_max > 0:
-		chop_cooldown_timer = max(chop_cooldown_timer - delta, 0.0)
-		var pct = chop_cooldown_timer / chop_cooldown_max
-		var cursor_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
-		if cursor_ui:
-			cursor_ui.show_cooldown(pct)
 
 func _on_area_2d_body_entered(body):
 	if body is CharacterBody2D:
 		player_in_range = true
+		player_in_range_node = body
 
 func _on_area_2d_body_exited(body):
 	if body is CharacterBody2D:
 		player_in_range = false
+		player_in_range_node = null
 
 func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -78,7 +73,9 @@ func do_chop():
 			get_tree().root.get_node("Scene").remove_tree(tree_id)
 		return
 
-	chop_cooldown_max = chop_time
-	chop_cooldown_timer = chop_time
+	# Tell the chopping player to show their cooldown bar
+	if player_in_range_node and player_in_range_node.has_method("start_chop_cooldown"):
+		player_in_range_node.start_chop_cooldown(chop_time)
+
 	await get_tree().create_timer(chop_time).timeout
 	can_chop = true

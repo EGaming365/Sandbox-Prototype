@@ -10,7 +10,7 @@ func _ready():
 func show_cooldown(pct: float):
 	cooldown_pct = pct
 	show_bar = true
-	bar_timer = 0.1
+	bar_timer = 0.15
 
 func _process(delta):
 	position = get_viewport().get_mouse_position()
@@ -23,11 +23,12 @@ func _process(delta):
 func _draw():
 	if not show_bar:
 		return
+	print("Drawing bar, pct: ", cooldown_pct, " brightness: ", 0.2 + (0.6 * (1.0 - cooldown_pct)))
 	var bar_width = 10.0
 	var bar_height = 4.0
 	var offset = Vector2(-bar_width / 2, -10)
 	# Dark gray background
-	draw_rect(Rect2(offset, Vector2(bar_width, bar_height)), Color(0.15, 0.15, 0.15, 0.95))
-	# Fill goes from dark gray (full cooldown) to light gray (almost ready)
-	var fill_color = Color(0.2 + (0.6 * (1.0 - cooldown_pct)), 0.2 + (0.6 * (1.0 - cooldown_pct)), 0.2 + (0.6 * (1.0 - cooldown_pct)), 0.95)
-	draw_rect(Rect2(offset, Vector2(bar_width * cooldown_pct, bar_height)), fill_color)
+	draw_rect(Rect2(offset, Vector2(bar_width * cooldown_pct, bar_height)), Color(1, 0, 0, 1))
+	# Dark when full cooldown, light when almost ready
+	var brightness = 0.2 + (0.6 * (1.0 - cooldown_pct))
+	draw_rect(Rect2(offset, Vector2(bar_width * cooldown_pct, bar_height)), Color(brightness, brightness, brightness, 0.95))

@@ -36,7 +36,6 @@ func update_inventory():
 			child.queue_free()
 		var data = Inventory.inv_slots[i]
 		if data["item"] != "":
-			# Texture
 			var tex = TextureRect.new()
 			tex.texture = data["texture"]
 			tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
@@ -49,7 +48,6 @@ func update_inventory():
 			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot.add_child(tex)
 
-			# Stack count label
 			if not Inventory.non_stackable_items.has(data["item"]):
 				var label = Label.new()
 				label.text = str(min(data["count"], 99))
@@ -67,7 +65,6 @@ func update_inventory():
 					label.offset_left = -14
 				slot.add_child(label)
 
-			# Durability bar for axes
 			if data["item"] == "Axe":
 				var max_dur = 80.0
 				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
@@ -95,6 +92,15 @@ func update_inventory():
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and Inventory.inv_slots[index]["item"] != "":
+			if Input.is_key_pressed(KEY_SHIFT):
+				for i in Inventory.slots.size():
+					if Inventory.slots[i]["item"] == "":
+						Inventory.move_item(index, i, true, false)
+						break
+					elif Inventory.slots[i]["item"] == Inventory.inv_slots[index]["item"] and Inventory.slots[i]["count"] < 99:
+						Inventory.move_item(index, i, true, false)
+						break
+				return
 			dragging_from = index
 			dragging_from_inv = true
 			drag_node = TextureRect.new()
@@ -189,7 +195,12 @@ func _update_recipe_panel():
 		btn.text = "Craft"
 		btn.disabled = not Crafting.can_craft(recipe)
 		var r = recipe
-		btn.pressed.connect(func(): _on_craft(r, btn))
+		btn.pressed.connect(func():
+			if Input.is_key_pressed(KEY_SHIFT):
+				_on_craft_max(r, btn)
+			else:
+				_on_craft(r, btn)
+		)
 		row.add_child(btn)
 
 		vbox.add_child(row)
@@ -204,6 +215,26 @@ func _on_craft(recipe: Dictionary, btn: Button):
 		Crafting.craft(recipe)
 		if is_instance_valid(btn):
 			btn.text = "Done!"
+		await get_tree().create_timer(0.5).timeout
+		if is_instance_valid(btn):
+			btn.text = "Craft"
+	else:
+		if is_instance_valid(btn):
+			btn.text = "Need more!"
+		await get_tree().create_timer(0.5).timeout
+		if is_instance_valid(btn):
+			btn.text = "Craft"
+
+func _on_craft_max(recipe: Dictionary, btn: Button):
+	if not is_instance_valid(btn):
+		return
+	var crafted = 0
+	while Crafting.can_craft(recipe):
+		Crafting.craft(recipe)
+		crafted += 1
+	if crafted > 0:
+		if is_instance_valid(btn):
+			btn.text = "Done x" + str(crafted) + "!"
 		await get_tree().create_timer(0.5).timeout
 		if is_instance_valid(btn):
 			btn.text = "Craft"

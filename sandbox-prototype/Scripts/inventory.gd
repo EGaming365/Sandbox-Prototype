@@ -7,7 +7,7 @@ var max_slots = 10
 var inv_slots = []
 var max_inv_slots = 30
 
-var wood_texture = preload("res://Assets/Ninja Adventure - Asset Pack/Items/Resource/Branch.png")
+var wood_texture = preload("res://Assets/Wood.png")
 
 func _ready():
 	for i in max_slots:

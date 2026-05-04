@@ -92,6 +92,19 @@ func update_hotbar():
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and Inventory.slots[index]["item"] != "":
+			if Input.is_key_pressed(KEY_SHIFT):
+				# Quick transfer to inventory
+				var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+				if inv_ui:
+					# Find first empty inventory slot
+					for i in Inventory.inv_slots.size():
+						if Inventory.inv_slots[i]["item"] == "":
+							Inventory.move_item(index, i, false, true)
+							break
+						elif Inventory.inv_slots[i]["item"] == Inventory.slots[index]["item"] and Inventory.inv_slots[i]["count"] < 99:
+							Inventory.move_item(index, i, false, true)
+							break
+				return
 			dragging_from = index
 			dragging_from_inv = false
 			drag_node = TextureRect.new()
@@ -222,3 +235,27 @@ func _process(_delta: float) -> void:
 		self.show()
 	else:
 		self.hide()
+	
+	if Input.is_action_just_pressed("drop") and not drag_node:
+		var data = Inventory.slots[current_slot - 1]
+		if data["item"] != "":
+			var player = get_local_player()
+			if player:
+				var item_type = data["item"]
+				var count = data["count"]
+				var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
+				var durability = count if item_type == "Axe" else 60
+				var scene_node = get_tree().root.get_node("Scene")
+				for i in drop_count:
+					var angle = randf_range(0, TAU)
+					var radius = randf_range(80, 120)
+					var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+					if multiplayer.has_multiplayer_peer():
+						if multiplayer.is_server():
+							scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
+						else:
+							scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, durability)
+					else:
+						scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
+				Inventory.remove_item(current_slot - 1, false)
+	

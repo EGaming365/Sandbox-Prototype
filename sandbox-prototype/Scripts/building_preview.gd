@@ -75,8 +75,28 @@ func _process(_delta):
 		preview_sprite.modulate = Color(1, 0, 0, 0.5)
 
 func _is_occupied(pos: Vector2) -> bool:
+	# Check placed blocks
 	for block in get_tree().get_nodes_in_group("placed_blocks"):
 		if is_instance_valid(block):
 			if block.global_position.distance_to(pos) < 1.0:
 				return true
+	# Check trees using full visual size
+	for tree in get_tree().get_nodes_in_group("trees"):
+		if is_instance_valid(tree):
+			var tree_rect = Rect2(
+				tree.global_position + Vector2(-96, -110),
+				Vector2(192, 140)
+			)
+			if tree_rect.has_point(pos):
+				return true
+	return false
+	# Check trees
+	var space = get_world_2d().direct_space_state
+	var query = PhysicsPointQueryParameters2D.new()
+	query.position = pos
+	query.collision_mask = 1
+	var results = space.intersect_point(query)
+	for result in results:
+		if result.collider.is_in_group("trees"):
+			return true
 	return false
