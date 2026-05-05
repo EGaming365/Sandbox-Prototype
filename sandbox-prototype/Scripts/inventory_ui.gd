@@ -3,7 +3,7 @@ extends Control
 var inv_slots_ui = []
 var dragging_from = -1
 var dragging_from_inv = false
-var drag_node: TextureRect = null
+var drag_node: Control = null
 
 var slot_scene_default: StyleBox = preload("res://Resources/hotbar_default.tres")
 
@@ -68,24 +68,25 @@ func update_inventory():
 			if data["item"] == "Axe":
 				var max_dur = 80.0
 				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
-				var bar_bg = ColorRect.new()
-				bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
-				bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-				bar_bg.offset_top = -13
-				bar_bg.offset_bottom = -8
-				bar_bg.offset_left = 5
-				bar_bg.offset_right = -5
-				bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				slot.add_child(bar_bg)
-				var bar = ColorRect.new()
-				var bar_color = Color(1.0 - pct, pct, 0.0)
-				bar.color = bar_color
-				bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
-				bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
-				bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
-				bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
-				bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				bar_bg.add_child(bar)
+				if pct < 1.0:
+					var bar_bg = ColorRect.new()
+					bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
+					bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+					bar_bg.offset_top = -13
+					bar_bg.offset_bottom = -8
+					bar_bg.offset_left = 7
+					bar_bg.offset_right = -5
+					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					slot.add_child(bar_bg)
+					var bar = ColorRect.new()
+					var bar_color = Color(1.0 - pct, pct, 0.0)
+					bar.color = bar_color
+					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
+					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
+					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
+					bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
+					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					bar_bg.add_child(bar)
 
 	_update_recipe_panel()
 
@@ -93,22 +94,31 @@ func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and Inventory.inv_slots[index]["item"] != "":
 			if Input.is_key_pressed(KEY_SHIFT):
+				var item_name = Inventory.inv_slots[index]["item"]
+				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				for i in Inventory.slots.size():
 					if Inventory.slots[i]["item"] == "":
 						Inventory.move_item(index, i, true, false)
 						break
-					elif Inventory.slots[i]["item"] == Inventory.inv_slots[index]["item"] and Inventory.slots[i]["count"] < 99:
+					elif not is_non_stackable and Inventory.slots[i]["item"] == item_name and Inventory.slots[i]["count"] < 99:
 						Inventory.move_item(index, i, true, false)
 						break
 				return
 			dragging_from = index
 			dragging_from_inv = true
-			drag_node = TextureRect.new()
-			drag_node.texture = Inventory.inv_slots[index]["texture"]
-			drag_node.size = Vector2(40, 40)
-			drag_node.z_index = 9
-			drag_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			add_child(drag_node)
+			var container = Control.new()
+			container.size = Vector2(40, 40)
+			container.z_index = 9
+			container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var tex = TextureRect.new()
+			tex.texture = Inventory.inv_slots[index]["texture"]
+			tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			container.add_child(tex)
+			add_child(container)
+			drag_node = container
 
 func get_hovered_slot() -> int:
 	var closest = -1

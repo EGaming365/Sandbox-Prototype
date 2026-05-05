@@ -90,13 +90,3 @@ func _is_occupied(pos: Vector2) -> bool:
 			if tree_rect.has_point(pos):
 				return true
 	return false
-	# Check trees
-	var space = get_world_2d().direct_space_state
-	var query = PhysicsPointQueryParameters2D.new()
-	query.position = pos
-	query.collision_mask = 1
-	var results = space.intersect_point(query)
-	for result in results:
-		if result.collider.is_in_group("trees"):
-			return true
-	return false

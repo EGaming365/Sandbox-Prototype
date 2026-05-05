@@ -34,6 +34,15 @@ func _setup_camera():
 		$Camera2D.make_current()
 
 func _physics_process(delta):
+	# Cooldown bar runs for authority player only
+	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+		if chop_cooldown_timer > 0:
+			chop_cooldown_timer = max(chop_cooldown_timer - delta, 0.0)
+			var pct = chop_cooldown_timer / chop_cooldown_max if chop_cooldown_max > 0 else 0.0
+			var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
+			if cursor:
+				cursor.show_cooldown(pct)
+
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		if synced_velocity.length() > 0:
 			anim.play("walk_down")
@@ -41,13 +50,6 @@ func _physics_process(delta):
 			anim.play("idle")
 		z_index = int(global_position.y)
 		return
-		
-		if chop_cooldown_timer > 0:
-			chop_cooldown_timer = max(chop_cooldown_timer - delta, 0.0)
-			var pct = chop_cooldown_timer / chop_cooldown_max if chop_cooldown_max > 0 else 0.0
-			var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
-			if cursor:
-				cursor.show_cooldown(pct)
 
 	var direction = Vector2.ZERO
 	if Input.is_action_pressed("move_left"):

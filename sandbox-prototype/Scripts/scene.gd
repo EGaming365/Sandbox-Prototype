@@ -18,6 +18,15 @@ var next_block_id: int = 0
 @onready var join_button: Button = $CanvasLayer/Join_Button
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
 
+var chop_cooldown_active: bool = false
+
+func set_chop_cooldown(duration: float):
+	if chop_cooldown_active:
+		return
+	chop_cooldown_active = true
+	await get_tree().create_timer(duration).timeout
+	chop_cooldown_active = false
+
 func _ready():
 	get_tree().set_auto_accept_quit(false)
 	print("Steam initialised: ", Steam.steamInitEx(480))
@@ -37,7 +46,7 @@ func host_lobby():
 	is_host = true
 	Steam.initRelayNetworkAccess()
 	await get_tree().create_timer(2.0).timeout
-	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, 2)
+	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, 4)
 
 func _on_lobby_created(result: int, new_lobby_id: int):
 	if result != 1:
@@ -69,6 +78,19 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 		if is_instance_valid(trees[tree_id]):
 			trees[tree_id].queue_free()
 	trees.clear()
+	for item_id in floor_items:
+		if is_instance_valid(floor_items[item_id]):
+			floor_items[item_id].queue_free()
+	floor_items.clear()
+	for block_id in placed_blocks:
+		if is_instance_valid(placed_blocks[block_id]):
+			placed_blocks[block_id].queue_free()
+	placed_blocks.clear()
+	for i in Inventory.slots.size():
+		Inventory.slots[i] = {"item": "", "count": 0, "texture": null}
+	for i in Inventory.inv_slots.size():
+		Inventory.inv_slots[i] = {"item": "", "count": 0, "texture": null}
+	Inventory.inventory_changed.emit()
 	peer = SteamMultiplayerPeer.new()
 	peer.server_relay = true
 	peer.create_client(Steam.getLobbyOwner(lobby_id))
@@ -92,10 +114,19 @@ func _on_peer_connected(id: int):
 		if child.name.is_valid_int():
 			ids_to_send.append(child.name.to_int())
 	sync_players_to_client.rpc_id(id, ids_to_send)
+	for child in get_children():
+		if child.name.is_valid_int():
+			var existing_id = child.name.to_int()
+			if existing_id != id and existing_id != multiplayer.get_unique_id():
+				notify_new_player.rpc_id(existing_id, id)
 	sync_floor_items_to_peer(id)
 	await get_tree().create_timer(1.0).timeout
 	sync_trees_to_peer(id)
 	sync_placed_blocks_to_peer(id)
+
+@rpc("authority", "call_remote", "reliable")
+func notify_new_player(new_id: int):
+	_spawn_player(new_id)
 
 @rpc("authority", "call_remote", "reliable")
 func sync_players_to_client(ids: Array[int]):
@@ -119,10 +150,17 @@ func _remove_player(id: int):
 	if not has_node(str(id)):
 		return
 	get_node(str(id)).queue_free()
+	if is_host:
+		remove_player_on_clients.rpc(id)
+
+@rpc("authority", "call_remote", "reliable")
+func remove_player_on_clients(id: int):
+	if has_node(str(id)):
+		get_node(str(id)).queue_free()
 
 # ── Block Networking ───────────────────────────────────────────────────────────
 
-func host_place_block(item_name: String, pos: Vector2, rot: float = 0.0) -> int:
+func host_place_block(item_name: String, pos: Vector2, rot: float = 0.0, tex: Texture2D = null) -> int:
 	var id = next_block_id
 	next_block_id += 1
 	if multiplayer.has_multiplayer_peer():
@@ -143,6 +181,8 @@ func _do_place_block(block_id: int, item_name: String, pos_x: float, pos_y: floa
 	placed_blocks[block_id] = block
 	add_child(block)
 
+var last_placed_texture: Texture2D = null
+
 func _get_item_texture(item_name: String) -> Texture2D:
 	for slot in Inventory.slots:
 		if slot["item"] == item_name and slot["texture"] != null:
@@ -150,6 +190,8 @@ func _get_item_texture(item_name: String) -> Texture2D:
 	for slot in Inventory.inv_slots:
 		if slot["item"] == item_name and slot["texture"] != null:
 			return slot["texture"]
+	if last_placed_texture != null:
+		return last_placed_texture
 	return null
 
 func remove_placed_block(block_id: int):
@@ -235,11 +277,12 @@ func sync_remove_tree(tree_id: int):
 	remove_tree(tree_id)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_chop_tree(tree_id: int):
+func request_chop_tree(tree_id: int, has_axe: bool):
 	if not is_host:
 		return
 	if trees.has(tree_id):
-		trees[tree_id].do_chop()
+		var sender_id = multiplayer.get_remote_sender_id()
+		trees[tree_id].do_chop(sender_id, has_axe)
 
 func sync_trees_to_peer(peer_id: int):
 	for tree_id in trees:
@@ -336,3 +379,15 @@ func _on_join_button_pressed():
 
 func _process(_delta):
 	Steam.run_callbacks()
+
+@rpc("authority", "call_local", "reliable")
+func notify_chop_cooldown(duration: float):
+	for child in get_children():
+		if child is CharacterBody2D:
+			if child.is_multiplayer_authority():
+				child.start_chop_cooldown(duration)
+				break
+
+@rpc("authority", "call_remote", "reliable")
+func consume_axe_on_client():
+	Inventory.consume_axe_durability()

@@ -52,7 +52,7 @@ func craft(recipe: Dictionary):
 	var tex = get_item_texture(recipe["result"])
 	# Special case for axe — single item with 60 durability
 	if recipe["result"] == "Axe":
-		Inventory.add_item_with_count("Axe", tex, 60)
+		Inventory.add_item_with_count("Axe", tex, 80)
 	else:
 		for i in recipe["result_count"]:
 			Inventory.add_item(recipe["result"], tex)

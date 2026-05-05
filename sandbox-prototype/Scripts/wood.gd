@@ -3,6 +3,9 @@ extends Node2D
 var wood_texture = preload("res://Assets/Wood.png")
 @export var item_id: int = -1
 
+func _ready():
+	z_index = int(global_position.y)
+
 func _process(_delta):
 	z_index = int(global_position.y)
 
