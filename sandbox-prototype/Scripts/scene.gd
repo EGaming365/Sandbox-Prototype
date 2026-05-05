@@ -13,12 +13,12 @@ var trees: Dictionary = {}
 var next_tree_id: int = 0
 var placed_blocks: Dictionary = {}
 var next_block_id: int = 0
+var chop_cooldown_active: bool = false
+var last_placed_texture: Texture2D = null
 
 @onready var host_button: Button = $CanvasLayer/Host_Button
 @onready var join_button: Button = $CanvasLayer/Join_Button
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
-
-var chop_cooldown_active: bool = false
 
 func set_chop_cooldown(duration: float):
 	if chop_cooldown_active:
@@ -180,8 +180,6 @@ func _do_place_block(block_id: int, item_name: String, pos_x: float, pos_y: floa
 	block.global_position = Vector2(pos_x, pos_y)
 	placed_blocks[block_id] = block
 	add_child(block)
-
-var last_placed_texture: Texture2D = null
 
 func _get_item_texture(item_name: String) -> Texture2D:
 	for slot in Inventory.slots:
@@ -360,6 +358,33 @@ func sync_floor_items_to_peer(peer_id: int):
 			var dur = item.durability if item_type == "Axe" else 60
 			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
+# ── Chop Cooldown ──────────────────────────────────────────────────────────────
+
+@rpc("authority", "call_remote", "reliable")
+func notify_chop_cooldown(duration: float):
+	print("notify_chop_cooldown received: ", duration)
+	for child in get_children():
+		if child is CharacterBody2D:
+			if child.is_multiplayer_authority():
+				print("Found authority player, starting cooldown")
+				child.start_chop_cooldown(duration)
+				return
+	print("No authority player found!")
+
+@rpc("authority", "call_remote", "reliable")
+func consume_axe_on_client():
+	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	if not hotbar:
+		return
+	var slot_index = hotbar.current_slot - 1
+	var current = Inventory.slots[slot_index]
+	if current["item"] == "Axe":
+		current["count"] -= 1
+		if current["count"] <= 0:
+			Inventory.remove_item(slot_index, false)
+		else:
+			Inventory.inventory_changed.emit()
+
 # ── Boilerplate ────────────────────────────────────────────────────────────────
 
 func _notification(what):
@@ -379,15 +404,3 @@ func _on_join_button_pressed():
 
 func _process(_delta):
 	Steam.run_callbacks()
-
-@rpc("authority", "call_local", "reliable")
-func notify_chop_cooldown(duration: float):
-	for child in get_children():
-		if child is CharacterBody2D:
-			if child.is_multiplayer_authority():
-				child.start_chop_cooldown(duration)
-				break
-
-@rpc("authority", "call_remote", "reliable")
-func consume_axe_on_client():
-	Inventory.consume_axe_durability()

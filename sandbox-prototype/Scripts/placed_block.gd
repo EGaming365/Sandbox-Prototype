@@ -7,22 +7,32 @@ var hits: int = 0
 var max_hits: int = 1
 var current_rotation: float = 0.0
 
+func _get_texture_for_item(item_name: String) -> Texture2D:
+	match item_name:
+		"Wood Plank":
+			var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+			img.fill(Color.WHITE)
+			return ImageTexture.create_from_image(img)
+		_:
+			return null
+
 func setup(i_name: String, texture: Texture2D, b_id: int, rot: float = 0.0):
 	item_name = i_name
-	item_texture = texture
+	# Use provided texture, or generate from item name if null
+	item_texture = texture if texture != null else _get_texture_for_item(i_name)
 	block_id = b_id
 	max_hits = BuildingManager.get_max_hits(item_name)
 	current_rotation = rot
-	print("Block setup: ", item_name, " max_hits: ", max_hits)
 
 func _ready():
 	add_to_group("placed_blocks")
+	if item_texture == null and item_name != "":
+		item_texture = _get_texture_for_item(item_name)
 	if item_texture:
 		$Sprite2D.texture = item_texture
 		$Sprite2D.scale = Vector2(2, 2)
 	if item_name != "":
 		max_hits = BuildingManager.get_max_hits(item_name)
-	# Duplicate the shape so each block has its own instance
 	$CollisionShape2D.shape = $CollisionShape2D.shape.duplicate()
 	call_deferred("_update_collision_for_rotation")
 
