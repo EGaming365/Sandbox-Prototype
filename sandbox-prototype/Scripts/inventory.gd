@@ -10,7 +10,7 @@ func _ready():
 		slots.append({"item": "", "count": 0, "texture": null})
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
-var non_stackable_items = ["Axe"]
+var non_stackable_items = ["Axe", "Sword"]
 func add_item(item_name, texture):
 	var stackable = not non_stackable_items.has(item_name)
 	if stackable:

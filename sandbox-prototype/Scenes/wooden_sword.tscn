@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://ctj1uc3rjcpck"]
+
+[ext_resource type="Script" uid="uid://c4xu55yxla5jv" path="res://Scenes/wooden_sword.gd" id="1_gulqd"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
+radius = 15.0
+
+[node name="Wooden_Sword" type="Node2D" unique_id=1126891296]
+script = ExtResource("1_gulqd")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=760384955]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=310392993]
+shape = SubResource("CircleShape2D_v6y3b")
+
+[connection signal="body_entered" from="Sprite2D/Area2D" to="." method="_on_area_2d_body_entered"]

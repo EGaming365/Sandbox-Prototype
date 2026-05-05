@@ -6,6 +6,7 @@ var slots = []
 var dragging_from = -1
 var dragging_from_inv = false
 var drag_node : Control = null
+var hovered_hotbar_slot: int = -1
 
 var current_slot = 1
 var hotbar_default: StyleBox = preload("res://Resources/hotbar_default.tres")
@@ -87,6 +88,29 @@ func update_hotbar():
 					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 					bar_bg.add_child(bar)
 
+			if data["item"] == "Sword":
+				var max_dur = 30.0
+				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
+				if pct < 1.0:
+					var bar_bg = ColorRect.new()
+					bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
+					bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+					bar_bg.offset_top = -14
+					bar_bg.offset_bottom = -9
+					bar_bg.offset_left = 7
+					bar_bg.offset_right = -7
+					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					slot.add_child(bar_bg)
+					var bar = ColorRect.new()
+					var bar_color = Color(1.0 - pct, pct, 0.0)
+					bar.color = bar_color
+					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
+					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
+					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
+					bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
+					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					bar_bg.add_child(bar)
+
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and Inventory.slots[index]["item"] != "":
@@ -124,6 +148,15 @@ func _ready_slots():
 		var slot = slots[i]
 		var idx = i
 		slot.gui_input.connect(func(event): _gui_input_for_slot(event, idx))
+		slot.mouse_entered.connect(func(): _on_slot_hover(idx))
+		slot.mouse_exited.connect(func(): _on_slot_unhover(idx))
+
+func _on_slot_hover(index: int):
+	hovered_hotbar_slot = index
+
+func _on_slot_unhover(index: int):
+	if hovered_hotbar_slot == index:
+		hovered_hotbar_slot = -1
 
 func _get_hovered_slot() -> int:
 	var closest = -1
@@ -148,9 +181,15 @@ func _process(_delta: float) -> void:
 		if inv_ui:
 			inv_ui.toggle()
 
+	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	var inv_open = inv_ui and inv_ui.visible
+
 	for i in range(1, 11):
 		var panel: Panel = $HBoxContainer.get_node("Item" + str(i))
-		if i == current_slot:
+		if i == current_slot and not inv_open:
+			panel.add_theme_stylebox_override("panel", hotbar_selected)
+			panel.z_index = 1
+		elif inv_open and i == hovered_hotbar_slot + 1 and Inventory.slots[hovered_hotbar_slot]["item"] != "":
 			panel.add_theme_stylebox_override("panel", hotbar_selected)
 			panel.z_index = 1
 		else:
@@ -205,7 +244,7 @@ func _process(_delta: float) -> void:
 					var item_type = Inventory.slots[dragging_from]["item"]
 					var count = Inventory.slots[dragging_from]["count"]
 					var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
-					var durability = count if item_type == "Axe" else 60
+					var durability = count if item_type in ["Axe", "Sword"] else 60
 					var scene_node = get_tree().root.get_node("Scene")
 					for i in drop_count:
 						var angle = randf_range(0, TAU)
@@ -240,24 +279,30 @@ func _process(_delta: float) -> void:
 		self.hide()
 
 	if Input.is_action_just_pressed("drop") and not drag_node:
-		var data = Inventory.slots[current_slot - 1]
-		if data["item"] != "":
-			var player = get_local_player()
-			if player:
-				var item_type = data["item"]
-				var count = data["count"]
-				var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
-				var durability = count if item_type == "Axe" else 60
-				var scene_node = get_tree().root.get_node("Scene")
-				for i in drop_count:
-					var angle = randf_range(0, TAU)
-					var radius = randf_range(80, 120)
-					var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-					if multiplayer.has_multiplayer_peer():
-						if multiplayer.is_server():
-							scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
+		var drop_index = -1
+		if inv_open and hovered_hotbar_slot != -1:
+			drop_index = hovered_hotbar_slot
+		elif not inv_open:
+			drop_index = current_slot - 1
+		if drop_index != -1:
+			var data = Inventory.slots[drop_index]
+			if data["item"] != "":
+				var player = get_local_player()
+				if player:
+					var item_type = data["item"]
+					var count = data["count"]
+					var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
+					var durability = count if item_type in ["Axe", "Sword"] else 60
+					var scene_node = get_tree().root.get_node("Scene")
+					for i in drop_count:
+						var angle = randf_range(0, TAU)
+						var radius = randf_range(80, 120)
+						var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+						if multiplayer.has_multiplayer_peer():
+							if multiplayer.is_server():
+								scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
+							else:
+								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, durability)
 						else:
-							scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, durability)
-					else:
-						scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
-				Inventory.remove_item(current_slot - 1, false)
+							scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
+					Inventory.remove_item(drop_index, false)

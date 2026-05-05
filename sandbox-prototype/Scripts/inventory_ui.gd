@@ -4,8 +4,10 @@ var inv_slots_ui = []
 var dragging_from = -1
 var dragging_from_inv = false
 var drag_node: Control = null
+var hovered_slot: int = -1
 
 var slot_scene_default: StyleBox = preload("res://Resources/hotbar_default.tres")
+var slot_scene_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
 
 func _ready():
 	hide()
@@ -28,6 +30,18 @@ func _build_slots():
 		inv_slots_ui.append(panel)
 		var idx = i
 		panel.gui_input.connect(func(event): _gui_input_for_slot(event, idx))
+		panel.mouse_entered.connect(func(): _on_slot_hover(idx))
+		panel.mouse_exited.connect(func(): _on_slot_unhover(idx))
+
+func _on_slot_hover(index: int):
+	hovered_slot = index
+	if Inventory.inv_slots[index]["item"] != "":
+		inv_slots_ui[index].add_theme_stylebox_override("panel", slot_scene_selected.duplicate())
+
+func _on_slot_unhover(index: int):
+	if hovered_slot == index:
+		hovered_slot = -1
+	inv_slots_ui[index].add_theme_stylebox_override("panel", slot_scene_default.duplicate())
 
 func update_inventory():
 	for i in 30:
@@ -67,6 +81,29 @@ func update_inventory():
 
 			if data["item"] == "Axe":
 				var max_dur = 80.0
+				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
+				if pct < 1.0:
+					var bar_bg = ColorRect.new()
+					bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
+					bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+					bar_bg.offset_top = -13
+					bar_bg.offset_bottom = -8
+					bar_bg.offset_left = 7
+					bar_bg.offset_right = -5
+					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					slot.add_child(bar_bg)
+					var bar = ColorRect.new()
+					var bar_color = Color(1.0 - pct, pct, 0.0)
+					bar.color = bar_color
+					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
+					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
+					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
+					bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
+					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					bar_bg.add_child(bar)
+
+			if data["item"] == "Sword":
+				var max_dur = 30.0
 				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
 				if pct < 1.0:
 					var bar_bg = ColorRect.new()
@@ -134,6 +171,33 @@ func get_hovered_slot() -> int:
 func _process(_delta):
 	if not visible:
 		return
+
+	# Q to drop hovered inventory item
+	if Input.is_action_just_pressed("drop") and not drag_node and hovered_slot != -1:
+		var data = Inventory.inv_slots[hovered_slot]
+		if data["item"] != "":
+			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+			var player = hotbar.get_local_player() if hotbar else null
+			if player:
+				var item_type = data["item"]
+				var count = data["count"]
+				var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
+				var durability = count if item_type in ["Axe", "Sword"] else 60
+				var scene_node = get_tree().root.get_node("Scene")
+				for i in drop_count:
+					var angle = randf_range(0, TAU)
+					var radius = randf_range(80, 120)
+					var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+					if multiplayer.has_multiplayer_peer():
+						if multiplayer.is_server():
+							scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
+						else:
+							scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, durability)
+					else:
+						scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
+				Inventory.remove_item(hovered_slot, true)
+		return
+
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -151,7 +215,7 @@ func _process(_delta):
 					var item_type = Inventory.inv_slots[dragging_from]["item"]
 					var count = Inventory.inv_slots[dragging_from]["count"]
 					var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
-					var durability = count if item_type == "Axe" else 60
+					var durability = count if item_type in ["Axe", "Sword"] else 60
 					var scene_node = get_tree().root.get_node("Scene")
 					for i in drop_count:
 						var angle = randf_range(0, TAU)

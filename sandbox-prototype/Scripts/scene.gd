@@ -108,6 +108,19 @@ func _on_host_disconnected():
 
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
+	# Clean up any stale player nodes that aren't currently connected peers
+	var connected_peers = multiplayer.get_peers()
+	var to_remove = []
+	for child in get_children():
+		if child.name.is_valid_int():
+			var child_id = child.name.to_int()
+			if child_id != multiplayer.get_unique_id() and not connected_peers.has(child_id):
+				to_remove.append(child)
+	for child in to_remove:
+		print("Removing stale player: ", child.name)
+		remove_player_on_clients.rpc(child.name.to_int())
+		child.queue_free()
+
 	_spawn_player(id)
 	var ids_to_send: Array[int] = []
 	for child in get_children():
@@ -145,12 +158,14 @@ func _spawn_player(id: int):
 	player.name = str(id)
 	add_child(player)
 	player.name = str(id)
+	player.global_position = Vector2(0, 0)
 
 func _remove_player(id: int):
+	print("Peer disconnected: ", id)
 	if not has_node(str(id)):
 		return
 	get_node(str(id)).queue_free()
-	if is_host:
+	if multiplayer.is_server():
 		remove_player_on_clients.rpc(id)
 
 @rpc("authority", "call_remote", "reliable")
@@ -400,7 +415,62 @@ func _on_id_prompt_text_changed(new_text):
 	join_button.disabled = (new_text.length() == 0)
 
 func _on_join_button_pressed():
-	join_lobby(id_prompt.text.to_int())
+	var new_lobby_id = id_prompt.text.to_int()
+	if lobby_id != 0:
+		# Already in a lobby, leave it first
+		Steam.leaveLobby(lobby_id)
+		lobby_id = 0
+		if multiplayer.multiplayer_peer:
+			multiplayer.multiplayer_peer = null
+		is_host = false
+		# Clear all state
+		for tree_id in trees:
+			if is_instance_valid(trees[tree_id]):
+				trees[tree_id].queue_free()
+		trees.clear()
+		for item_id in floor_items:
+			if is_instance_valid(floor_items[item_id]):
+				floor_items[item_id].queue_free()
+		floor_items.clear()
+		for block_id in placed_blocks:
+			if is_instance_valid(placed_blocks[block_id]):
+				placed_blocks[block_id].queue_free()
+		placed_blocks.clear()
+		for i in Inventory.slots.size():
+			Inventory.slots[i] = {"item": "", "count": 0, "texture": null}
+		for i in Inventory.inv_slots.size():
+			Inventory.inv_slots[i] = {"item": "", "count": 0, "texture": null}
+		Inventory.inventory_changed.emit()
+		# Remove all players except local
+		var to_remove = []
+		for child in get_children():
+			if child.name.is_valid_int():
+				to_remove.append(child)
+		for child in to_remove:
+			child.queue_free()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_spawn_player(1)
+	join_lobby(new_lobby_id)
 
 func _process(_delta):
 	Steam.run_callbacks()
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_deal_damage(target_id: int, amount: int):
+	if not is_host:
+		return
+	if has_node(str(target_id)):
+		var target = get_node(str(target_id))
+		if target is CharacterBody2D:
+			# Tell the target's authority to take damage
+			deal_damage_to_player.rpc_id(target_id, amount)
+
+@rpc("authority", "call_remote", "reliable")
+func deal_damage_to_player(amount: int):
+	# This runs on the target player's client
+	for child in get_children():
+		if child is CharacterBody2D:
+			if child.is_multiplayer_authority():
+				child.take_damage(amount)
+				break
