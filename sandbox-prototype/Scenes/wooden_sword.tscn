@@ -1,14 +1,17 @@
 [gd_scene format=3 uid="uid://ctj1uc3rjcpck"]
 
 [ext_resource type="Script" uid="uid://c4xu55yxla5jv" path="res://Scripts/wooden_sword.gd" id="1_gulqd"]
+[ext_resource type="Texture2D" uid="uid://c41w3j2ivu5l4" path="res://Assets/Sword.png" id="2_vivpb"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
-radius = 15.0
+radius = 12.0415945
 
 [node name="Wooden_Sword" type="Node2D" unique_id=1126891296]
+scale = Vector2(2.9999962, 2.9999962)
 script = ExtResource("1_gulqd")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
+texture = ExtResource("2_vivpb")
 
 [node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=760384955]
 

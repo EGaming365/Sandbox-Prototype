@@ -12,7 +12,18 @@ var next_block_id: int = 0
 func _ready():
 	preview = get_tree().root.get_node_or_null("Scene/BuildingPreview")
 
+func _is_ui_open() -> bool:
+	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	return (inv != null and inv.visible) or (chat != null and chat.is_open)
+
 func _process(_delta):
+	if _is_ui_open():
+		current_item = ""
+		current_texture = null
+		if preview:
+			preview.deactivate()
+		return
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
 		return
@@ -34,6 +45,8 @@ func _process(_delta):
 				preview.deactivate()
 
 func _unhandled_input(event):
+	if _is_ui_open():
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if current_item == "" or not preview or not preview.active:
 			return

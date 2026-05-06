@@ -12,6 +12,9 @@ var current_slot = 1
 var hotbar_default: StyleBox = preload("res://Resources/hotbar_default.tres")
 var hotbar_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
 
+var drop_hold_timer: float = 0.0
+var drop_hold_triggered: bool = false
+
 func _ready():
 	for i in range(10):
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
@@ -28,6 +31,19 @@ func get_local_player():
 			else:
 				return child
 	return null
+
+func _spawn_drop(player, item_type: String, spawn_durability: int):
+	var scene_node = get_tree().root.get_node("Scene")
+	var angle = randf_range(0, TAU)
+	var radius = randf_range(80, 120)
+	var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+	if multiplayer.has_multiplayer_peer():
+		if multiplayer.is_server():
+			scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
+		else:
+			scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, spawn_durability)
+	else:
+		scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
 
 func update_hotbar():
 	for i in range(10):
@@ -116,16 +132,34 @@ func _gui_input_for_slot(event, index):
 		if event.pressed and Inventory.slots[index]["item"] != "":
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.slots[index]["item"]
+				var tex = Inventory.slots[index]["texture"]
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 				if inv_ui:
-					for i in Inventory.inv_slots.size():
+					var remaining = Inventory.slots[index]["count"]
+					if not is_non_stackable:
+						for i in 20:
+							if remaining <= 0:
+								break
+							if Inventory.inv_slots[i]["item"] == item_name and Inventory.inv_slots[i]["count"] < 99:
+								var space = 99 - Inventory.inv_slots[i]["count"]
+								var add = min(space, remaining)
+								Inventory.inv_slots[i]["count"] += add
+								remaining -= add
+					for i in 20:
+						if remaining <= 0:
+							break
 						if Inventory.inv_slots[i]["item"] == "":
-							Inventory.move_item(index, i, false, true)
-							break
-						elif not is_non_stackable and Inventory.inv_slots[i]["item"] == item_name and Inventory.inv_slots[i]["count"] < 99:
-							Inventory.move_item(index, i, false, true)
-							break
+							var add = min(99, remaining)
+							Inventory.inv_slots[i]["item"] = item_name
+							Inventory.inv_slots[i]["count"] = add
+							Inventory.inv_slots[i]["texture"] = tex
+							remaining -= add
+					if remaining <= 0:
+						Inventory.slots[index] = {"item": "", "count": 0, "texture": null}
+					else:
+						Inventory.slots[index]["count"] = remaining
+					Inventory.inventory_changed.emit()
 				return
 			dragging_from = index
 			dragging_from_inv = false
@@ -175,11 +209,19 @@ func _get_hovered_inv_slot():
 		return inv_ui.get_hovered_slot()
 	return -1
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if chat and chat.is_open:
+		return
+
 	if Input.is_action_just_pressed("inventory"):
 		var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 		if inv_ui:
-			inv_ui.toggle()
+			inv_ui.toggle_to("inventory")
+	if Input.is_action_just_pressed("crafting"):
+		var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+		if inv_ui:
+			inv_ui.toggle_to("recipes")
 
 	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	var inv_open = inv_ui and inv_ui.visible
@@ -239,25 +281,25 @@ func _process(_delta: float) -> void:
 			elif dropped_on_inv != -1:
 				Inventory.move_item(dragging_from, dropped_on_inv, false, true)
 			elif dropped_on_hotbar == -1 and dropped_on_inv == -1:
-				var player = get_local_player()
-				if player:
-					var item_type = Inventory.slots[dragging_from]["item"]
-					var count = Inventory.slots[dragging_from]["count"]
-					var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
-					var durability = count if item_type in ["Axe", "Sword"] else 60
-					var scene_node = get_tree().root.get_node("Scene")
-					for i in drop_count:
-						var angle = randf_range(0, TAU)
-						var radius = randf_range(80, 120)
-						var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-						if multiplayer.has_multiplayer_peer():
-							if multiplayer.is_server():
-								scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
-							else:
-								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, durability)
+				var mouse = get_global_mouse_position()
+				var inv_ui_node = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+				var on_inv_panel = false
+				if inv_ui_node and inv_ui_node.visible:
+					on_inv_panel = inv_ui_node.get_node("PanelContainer").get_global_rect().has_point(mouse)
+				if on_inv_panel:
+					pass
+				else:
+					var player = get_local_player()
+					if player:
+						var item_type = Inventory.slots[dragging_from]["item"]
+						var count = Inventory.slots[dragging_from]["count"]
+						var is_tool = Inventory.non_stackable_items.has(item_type)
+						if is_tool:
+							_spawn_drop(player, item_type, count)
 						else:
-							scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
-					Inventory.remove_item(dragging_from, false)
+							for i in count:
+								_spawn_drop(player, item_type, 1)
+						Inventory.remove_item(dragging_from, false)
 
 			drag_node.queue_free()
 			drag_node = null
@@ -279,6 +321,30 @@ func _process(_delta: float) -> void:
 		self.hide()
 
 	if Input.is_action_just_pressed("drop") and not drag_node:
+		drop_hold_timer = 0.0
+		drop_hold_triggered = false
+
+	if Input.is_action_pressed("drop") and not drag_node:
+		if not inv_open:
+			drop_hold_timer += delta
+			if drop_hold_timer >= 1.0 and not drop_hold_triggered:
+				drop_hold_triggered = true
+				var drop_index = current_slot - 1
+				var data = Inventory.slots[drop_index]
+				if data["item"] != "":
+					var player = get_local_player()
+					if player:
+						var item_type = data["item"]
+						var count = data["count"]
+						var is_tool = Inventory.non_stackable_items.has(item_type)
+						if is_tool:
+							_spawn_drop(player, item_type, count)
+						else:
+							for i in count:
+								_spawn_drop(player, item_type, 1)
+						Inventory.remove_item(drop_index, false)
+
+	if Input.is_action_just_released("drop") and not drag_node and not drop_hold_triggered:
 		var drop_index = -1
 		if inv_open and hovered_hotbar_slot != -1:
 			drop_index = hovered_hotbar_slot
@@ -291,18 +357,19 @@ func _process(_delta: float) -> void:
 				if player:
 					var item_type = data["item"]
 					var count = data["count"]
-					var drop_count = 1 if Inventory.non_stackable_items.has(item_type) else count
-					var durability = count if item_type in ["Axe", "Sword"] else 60
-					var scene_node = get_tree().root.get_node("Scene")
-					for i in drop_count:
-						var angle = randf_range(0, TAU)
-						var radius = randf_range(80, 120)
-						var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
-						if multiplayer.has_multiplayer_peer():
-							if multiplayer.is_server():
-								scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
-							else:
-								scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, durability)
+					var is_tool = Inventory.non_stackable_items.has(item_type)
+					if inv_open:
+						if is_tool:
+							_spawn_drop(player, item_type, count)
 						else:
-							scene_node.host_spawn_floor_item(drop_pos, item_type, durability)
-					Inventory.remove_item(drop_index, false)
+							for i in count:
+								_spawn_drop(player, item_type, 1)
+						Inventory.remove_item(drop_index, false)
+					else:
+						var spawn_durability = count if is_tool else 1
+						_spawn_drop(player, item_type, spawn_durability)
+						if is_tool or count <= 1:
+							Inventory.remove_item(drop_index, false)
+						else:
+							Inventory.slots[drop_index]["count"] -= 1
+							Inventory.inventory_changed.emit()

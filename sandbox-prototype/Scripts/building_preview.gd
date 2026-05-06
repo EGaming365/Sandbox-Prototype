@@ -48,6 +48,10 @@ func get_current_rotation() -> float:
 func _input(event):
 	if not active:
 		return
+	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if (inv and inv.visible) or (chat and chat.is_open):
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		current_rotation_deg += 90.0
 		if current_rotation_deg >= 360.0:

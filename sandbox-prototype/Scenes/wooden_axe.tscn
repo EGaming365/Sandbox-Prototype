@@ -1,14 +1,16 @@
 [gd_scene format=3 uid="uid://cbpfwlmbypkpb"]
 
 [ext_resource type="Script" uid="uid://by1v3sf3t1x1n" path="res://Scripts/wooden_axe.gd" id="1_cpaud"]
+[ext_resource type="Texture2D" uid="uid://c8brs6b637yug" path="res://Assets/Axe.png" id="2_p4a5d"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
-radius = 15.0
 
 [node name="Wooden_Axe" type="Node2D" unique_id=1126891296]
+scale = Vector2(2.9599988, 2.9599988)
 script = ExtResource("1_cpaud")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
+texture = ExtResource("2_p4a5d")
 
 [node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=760384955]
 

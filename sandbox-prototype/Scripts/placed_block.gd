@@ -76,6 +76,10 @@ func get_global_rect() -> Rect2:
 
 func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+		var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+		if (inv and inv.visible) or (chat and chat.is_open):
+			return
 		var mouse = get_global_mouse_position()
 		if not get_global_rect().has_point(mouse):
 			return

@@ -50,7 +50,27 @@ func _setup_camera():
 		$Camera2D.enabled = true
 		$Camera2D.make_current()
 
+func _process(delta):
+	if _is_inventory_open():
+		return
+
 func _physics_process(delta):
+	if _is_inventory_open():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+			anim.play("idle")
+		return
+
+	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
+		if synced_velocity.length() > 0:
+			anim.play("walk_down")
+		else:
+			anim.play("idle")
+		z_index = int(global_position.y)
+		_update_hand_sprite()
+		return
+
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		if chop_cooldown_timer > 0:
 			chop_cooldown_timer = max(chop_cooldown_timer - delta, 0.0)
@@ -67,14 +87,6 @@ func _physics_process(delta):
 		var hearts_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hearts")
 		if hearts_ui:
 			hearts_ui.update_hearts(synced_health)
-	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
-		if synced_velocity.length() > 0:
-			anim.play("walk_down")
-		else:
-			anim.play("idle")
-		z_index = int(global_position.y)
-		_update_hand_sprite()
-		return
 	var direction = Vector2.ZERO
 	if Input.is_action_pressed("move_left"):
 		direction.x -= 1
@@ -96,6 +108,8 @@ func _physics_process(delta):
 	_update_hand_sprite()
 
 func _input(event):
+	if _is_inventory_open():
+		return
 	if not (is_multiplayer_authority() or not multiplayer.has_multiplayer_peer()):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -203,8 +217,18 @@ func _apply_hand_texture(tex: Texture2D):
 	hand_sprite.modulate = Color(1, 1, 1, 1)
 	var tex_size = tex.get_size()
 	if tex_size.x > 0 and tex_size.y > 0:
-		hand_sprite.scale = Vector2(8.0 / tex_size.x, 8.0 / tex_size.y)
+		hand_sprite.scale = Vector2(12.0 / tex_size.x, 12.0 / tex_size.y)
 
 func start_chop_cooldown(duration: float):
 	chop_cooldown_max = duration
 	chop_cooldown_timer = duration
+
+func _is_inventory_open() -> bool:
+	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	var chat_open = chat != null and chat.is_open
+	return (inv != null and inv.visible) or chat_open
+
+func _is_chat_open() -> bool:
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	return chat != null and chat.is_open

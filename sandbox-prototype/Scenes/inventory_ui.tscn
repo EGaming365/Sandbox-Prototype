@@ -55,64 +55,82 @@ mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_8su62")
 metadata/_edit_use_anchors_ = true
 
-[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer" unique_id=832462167]
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=1794122811]
 layout_mode = 2
+
+[node name="Tab_Buttons" type="HBoxContainer" parent="PanelContainer/VBoxContainer" unique_id=2096845171]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer" unique_id=832462167]
+layout_mode = 2
+size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="Inventory" type="VBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=1965094523]
+[node name="Inventory" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1965094523]
 custom_minimum_size = Vector2(350, 0)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Inventory" unique_id=1009314130]
+[node name="Label" type="Label" parent="PanelContainer/VBoxContainer/HBoxContainer/Inventory" unique_id=1009314130]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Inventory"
 
-[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/HBoxContainer/Inventory" unique_id=249182839]
+[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Inventory" unique_id=249182839]
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxEmpty_8su62")
 
-[node name="GridContainer" type="GridContainer" parent="PanelContainer/HBoxContainer/Inventory/PanelContainer" unique_id=1036793898]
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Inventory/PanelContainer" unique_id=1036793898]
 layout_mode = 2
 mouse_filter = 2
-columns = 5
+columns = 10
 
-[node name="Recipes" type="VBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=815163848]
+[node name="Recipes" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=815163848]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Recipes" unique_id=661516627]
+[node name="Label" type="Label" parent="PanelContainer/VBoxContainer/HBoxContainer/Recipes" unique_id=661516627]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Recipes"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/HBoxContainer/Recipes" unique_id=871951979]
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Recipes" unique_id=172918107]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/HBoxContainer/Recipes/ScrollContainer" unique_id=638246253]
+[node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer" unique_id=871951979]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/ScrollContainer" unique_id=638246253]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="Equipped" type="VBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=484326531]
+[node name="Detail" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer" unique_id=1722949118]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.5
+
+[node name="Equipped" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=484326531]
 custom_minimum_size = Vector2(350, 0)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Equipped" unique_id=565280540]
+[node name="Label" type="Label" parent="PanelContainer/VBoxContainer/HBoxContainer/Equipped" unique_id=565280540]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Equipped"
 
-[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/HBoxContainer/Equipped" unique_id=1619417030]
+[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Equipped" unique_id=1619417030]
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxEmpty_8su62")
 
-[node name="GridContainer" type="GridContainer" parent="PanelContainer/HBoxContainer/Equipped/PanelContainer" unique_id=858263979]
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Equipped/PanelContainer" unique_id=858263979]
 layout_mode = 2
 mouse_filter = 2
 columns = 5

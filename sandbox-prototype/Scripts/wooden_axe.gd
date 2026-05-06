@@ -2,16 +2,9 @@ extends Node2D
 
 @export var item_id: int = -1
 @export var durability: int = 80
-var axe_texture: Texture2D
+var axe_texture = preload("res://Assets/Axe.png")
 
 func _ready():
-	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	img.fill(Color.YELLOW)
-	axe_texture = ImageTexture.create_from_image(img)
-	$Sprite2D.texture = axe_texture
-	z_index = int(global_position.y)
-
-func _process(_delta):
 	z_index = int(global_position.y)
 
 func _on_area_2d_body_entered(body):
@@ -19,7 +12,8 @@ func _on_area_2d_body_entered(body):
 		if not multiplayer.has_multiplayer_peer() or body.is_multiplayer_authority():
 			if _is_inventory_full("Axe"):
 				return
-			Inventory.add_item_with_count("Axe", axe_texture, durability)
+			Inventory.batch_add_item("Axe", axe_texture, durability)
+			Inventory.request_inventory_update()
 			var scene_node = get_tree().root.get_node("Scene")
 			if multiplayer.has_multiplayer_peer():
 				if multiplayer.is_server():

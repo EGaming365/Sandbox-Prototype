@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://dakryvklm668i"]
+
+[ext_resource type="Script" uid="uid://d1xhjoid52a2k" path="res://Scripts/chat_box.gd" id="1_kefbe"]
+
+[node name="Chat_Box" type="Control" unique_id=1658616292]
+layout_mode = 3
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -210.0
+offset_right = 610.0
+offset_bottom = -10.0
+grow_vertical = 0
+script = ExtResource("1_kefbe")
+
+[node name="ChatContainer" type="VBoxContainer" parent="." unique_id=1552094842]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="InputRow" type="HBoxContainer" parent="ChatContainer" unique_id=812104063]
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="InputField" type="LineEdit" parent="ChatContainer/InputRow" unique_id=455413548]
+custom_minimum_size = Vector2(500, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ScrollContainer" type="ScrollContainer" parent="ChatContainer" unique_id=650668455]
+custom_minimum_size = Vector2(500, 150)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Messages" type="VBoxContainer" parent="ChatContainer/ScrollContainer" unique_id=2127450570]
+custom_minimum_size = Vector2(500, 150)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[connection signal="text_submitted" from="ChatContainer/InputRow/InputField" to="." method="_on_input_submitted"]

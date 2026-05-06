@@ -3,14 +3,18 @@ signal inventory_changed
 var slots = []
 var max_slots = 10
 var inv_slots = []
-var max_inv_slots = 30
+var max_inv_slots = 80
 var wood_texture = preload("res://Assets/Wood.png")
+var axe_texture = preload("res://Assets/Axe.png")
+var sword_texture = preload("res://Assets/Sword.png")
+
 func _ready():
 	for i in max_slots:
 		slots.append({"item": "", "count": 0, "texture": null})
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
 var non_stackable_items = ["Axe", "Sword"]
+
 func add_item(item_name, texture):
 	discover(item_name)
 	var stackable = not non_stackable_items.has(item_name)
@@ -39,6 +43,7 @@ func add_item(item_name, texture):
 			slot["texture"] = texture
 			emit_signal("inventory_changed")
 			return
+
 func add_item_with_count(item_name: String, texture: Texture2D, count: int):
 	discover(item_name)
 	for slot in slots:
@@ -129,3 +134,44 @@ func is_discovered(recipe: Dictionary) -> bool:
 		if not Inventory.discovered_items.has(item):
 			return false
 	return true
+
+var _emit_pending: bool = false
+
+func batch_add_item(item_name: String, texture: Texture2D, count: int = 1):
+	discover(item_name)
+	var stackable = not non_stackable_items.has(item_name)
+	if stackable:
+		for slot in slots:
+			if slot["item"] == item_name and slot["count"] < 99:
+				slot["count"] += min(count, 99 - slot["count"])
+				return
+		for slot in inv_slots:
+			if slot["item"] == item_name and slot["count"] < 99:
+				slot["count"] += min(count, 99 - slot["count"])
+				return
+	for slot in slots:
+		if slot["item"] == "":
+			slot["item"] = item_name
+			slot["count"] = count
+			slot["texture"] = texture
+			return
+	for slot in inv_slots:
+		if slot["item"] == "":
+			slot["item"] = item_name
+			slot["count"] = count
+			slot["texture"] = texture
+			return
+
+func flush_inventory_signal():
+	inventory_changed.emit()
+
+var _signal_timer: SceneTree = null
+
+func request_inventory_update():
+	if not _emit_pending:
+		_emit_pending = true
+		Engine.get_main_loop().create_timer(0.05).timeout.connect(_do_emit)
+
+func _do_emit():
+	_emit_pending = false
+	inventory_changed.emit()
