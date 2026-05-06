@@ -41,6 +41,7 @@ func _ready():
 		max_hits = BuildingManager.get_max_hits(item_name)
 	$CollisionShape2D.shape = $CollisionShape2D.shape.duplicate()
 	call_deferred("_update_collision_for_rotation")
+	z_index = int(global_position.y)
 
 func _update_collision_for_rotation():
 	var shape = $CollisionShape2D.shape as RectangleShape2D

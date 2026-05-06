@@ -3,7 +3,7 @@ var placeable_items = {
 	"Wood Plank": { "texture": null, "max_hits": 2 },
 	"Stone Wall":  { "texture": null, "max_hits": 5 },
 	"Wood Door":   { "texture": null, "max_hits": 3 },
-	"Crafting_Bench": { "texture": null, "max_hits": 5 },
+	"Crafting_Bench": { "texture": null, "max_hits": 2 },
 }
 func is_placeable(item_name: String) -> bool:
 	return placeable_items.has(item_name)
