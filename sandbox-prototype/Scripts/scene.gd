@@ -327,15 +327,37 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 			item_scene = preload("res://Scenes/wooden_plank.tscn")
 		"Axe":
 			item_scene = preload("res://Scenes/wooden_axe.tscn")
+		"Sword":
+			item_scene = preload("res://Scenes/wooden_sword.tscn")
+		"Crafting_Bench":
+			item_scene = preload("res://Scenes/crafting_bench.tscn")
 		_:
 			item_scene = preload("res://Scenes/wood.tscn")
 	var item = item_scene.instantiate()
 	item.item_id = item_id
-	if item_type == "Axe":
+	if item_type in ["Axe", "Sword"]:
 		item.durability = durability
 	item.global_position = Vector2(pos_x, pos_y)
 	floor_items[item_id] = item
 	add_child(item)
+
+func sync_floor_items_to_peer(peer_id: int):
+	for item_id in floor_items:
+		var item = floor_items[item_id]
+		if is_instance_valid(item):
+			var pos = item.global_position
+			var script_path = item.get_script().resource_path
+			var item_type = "Wood"
+			if script_path.contains("wooden_plank"):
+				item_type = "Wood Plank"
+			elif script_path.contains("wooden_axe"):
+				item_type = "Axe"
+			elif script_path.contains("wooden_sword") or script_path.contains("sword"):
+				item_type = "Sword"
+			elif script_path.contains("crafting_bench"):
+				item_type = "Crafting_Bench"
+			var dur = item.durability if item_type in ["Axe", "Sword"] else 60
+			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 60):
@@ -359,19 +381,6 @@ func request_remove_floor_item(item_id: int):
 		return
 	sync_remove_floor_item.rpc(item_id)
 
-func sync_floor_items_to_peer(peer_id: int):
-	for item_id in floor_items:
-		var item = floor_items[item_id]
-		if is_instance_valid(item):
-			var pos = item.global_position
-			var script_path = item.get_script().resource_path
-			var item_type = "Wood"
-			if script_path.contains("wooden_plank"):
-				item_type = "Wood Plank"
-			elif script_path.contains("wooden_axe"):
-				item_type = "Axe"
-			var dur = item.durability if item_type == "Axe" else 60
-			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
 # ── Chop Cooldown ──────────────────────────────────────────────────────────────
 

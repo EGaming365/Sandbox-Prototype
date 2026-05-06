@@ -16,7 +16,7 @@ func _ready():
 	update_inventory()
 
 func _build_slots():
-	var grid = $PanelContainer/HBoxContainer/Inventory/MarginContainer/GridContainer
+	var grid = $PanelContainer/HBoxContainer/Inventory/PanelContainer/GridContainer
 	for child in grid.get_children():
 		child.queue_free()
 	inv_slots_ui.clear()
@@ -168,9 +168,23 @@ func get_hovered_slot() -> int:
 			closest = i
 	return closest
 
+var _last_near_bench: bool = false
+
 func _process(_delta):
 	if not visible:
 		return
+
+	# Only rebuild recipe panel if bench proximity changed
+	var near_bench = Crafting.is_near_bench()
+	if near_bench != _last_near_bench:
+		_last_near_bench = near_bench
+		_update_recipe_panel()
+
+	if visible and not drag_node:
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			var inv_panel = $PanelContainer
+			if not inv_panel.get_global_rect().has_point(get_global_mouse_position()):
+				toggle()
 
 	# Q to drop hovered inventory item
 	if Input.is_action_just_pressed("drop") and not drag_node and hovered_slot != -1:
@@ -239,48 +253,72 @@ func _update_recipe_panel():
 	for child in vbox.get_children():
 		child.queue_free()
 
-	var all_recipes = Crafting.basic_recipes + Crafting.advanced_recipes
-	for recipe in all_recipes:
-		var row = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
+	var basic_header = Label.new()
+	basic_header.text = "— Basic —"
+	basic_header.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(basic_header)
 
-		var icon = TextureRect.new()
-		icon.texture = Crafting.get_item_texture(recipe["result"])
-		icon.custom_minimum_size = Vector2(32, 32)
-		icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-		row.add_child(icon)
+	for recipe in Crafting.basic_recipes:
+		_add_recipe_row(vbox, recipe, false)
 
-		var info = VBoxContainer.new()
-		var name_label = Label.new()
-		name_label.text = str(recipe["result_count"]) + "x " + recipe["result"]
-		name_label.add_theme_font_size_override("font_size", 13)
-		info.add_child(name_label)
+	if Crafting.is_near_bench():
+		var bench_header = Label.new()
+		bench_header.text = "— Crafting Bench —"
+		bench_header.add_theme_font_size_override("font_size", 12)
+		vbox.add_child(bench_header)
+		for recipe in Crafting.bench_recipes:
+			_add_recipe_row(vbox, recipe, true)
 
-		var ing_label = Label.new()
-		var ing_text = ""
-		for item in recipe["ingredients"]:
-			ing_text += str(recipe["ingredients"][item]) + "x " + item + "  "
-		ing_label.text = ing_text
-		ing_label.add_theme_font_size_override("font_size", 11)
-		info.add_child(ing_label)
-		row.add_child(info)
+func _add_recipe_row(vbox: VBoxContainer, recipe: Dictionary, requires_bench: bool):
+	var near_bench = Crafting.is_near_bench()
 
-		var btn = Button.new()
-		btn.text = "Craft"
-		btn.disabled = not Crafting.can_craft(recipe)
-		var r = recipe
-		btn.pressed.connect(func():
-			if Input.is_key_pressed(KEY_SHIFT):
-				_on_craft_max(r, btn)
-			else:
-				_on_craft(r, btn)
-		)
-		row.add_child(btn)
+	# Hide if not discovered
+	if not Inventory.is_discovered(recipe):
+		return
 
-		vbox.add_child(row)
+	# Hide bench recipes if not near bench
+	if requires_bench and not near_bench:
+		return
 
-		var sep = HSeparator.new()
-		vbox.add_child(sep)
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	var icon = TextureRect.new()
+	icon.texture = Crafting.get_item_texture(recipe["result"])
+	icon.custom_minimum_size = Vector2(32, 32)
+	icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+	row.add_child(icon)
+
+	var info = VBoxContainer.new()
+	var name_label = Label.new()
+	name_label.text = str(recipe["result_count"]) + "x " + recipe["result"]
+	name_label.add_theme_font_size_override("font_size", 13)
+	info.add_child(name_label)
+
+	var ing_label = Label.new()
+	var ing_text = ""
+	for item in recipe["ingredients"]:
+		ing_text += str(recipe["ingredients"][item]) + "x " + item + "  "
+	ing_label.text = ing_text
+	ing_label.add_theme_font_size_override("font_size", 11)
+	info.add_child(ing_label)
+	row.add_child(info)
+
+	var btn = Button.new()
+	btn.text = "Craft"
+	btn.disabled = not Crafting.can_craft(recipe) or (requires_bench and not near_bench)
+	var r = recipe
+	btn.pressed.connect(func():
+		if Input.is_key_pressed(KEY_SHIFT):
+			_on_craft_max(r, btn)
+		else:
+			_on_craft(r, btn)
+	)
+	row.add_child(btn)
+	vbox.add_child(row)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
 
 func _on_craft(recipe: Dictionary, btn: Button):
 	if not is_instance_valid(btn):

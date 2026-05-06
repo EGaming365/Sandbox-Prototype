@@ -12,6 +12,7 @@ func _ready():
 		inv_slots.append({"item": "", "count": 0, "texture": null})
 var non_stackable_items = ["Axe", "Sword"]
 func add_item(item_name, texture):
+	discover(item_name)
 	var stackable = not non_stackable_items.has(item_name)
 	if stackable:
 		for slot in slots:
@@ -39,6 +40,7 @@ func add_item(item_name, texture):
 			emit_signal("inventory_changed")
 			return
 func add_item_with_count(item_name: String, texture: Texture2D, count: int):
+	discover(item_name)
 	for slot in slots:
 		if slot["item"] == "":
 			slot["item"] = item_name
@@ -115,3 +117,15 @@ func consume_axe_durability():
 			emit_signal("inventory_changed")
 	else:
 		print("ERROR: slot is not Axe, it is: ", slot["item"])
+var discovered_items: Dictionary = {}
+
+func discover(item_name: String):
+	if not discovered_items.has(item_name):
+		discovered_items[item_name] = true
+		inventory_changed.emit()
+
+func is_discovered(recipe: Dictionary) -> bool:
+	for item in recipe["ingredients"]:
+		if not Inventory.discovered_items.has(item):
+			return false
+	return true

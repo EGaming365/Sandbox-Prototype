@@ -13,6 +13,10 @@ func _get_texture_for_item(item_name: String) -> Texture2D:
 			var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 			img.fill(Color.WHITE)
 			return ImageTexture.create_from_image(img)
+		"Crafting_Bench":
+			var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+			img.fill(Color.RED)
+			return ImageTexture.create_from_image(img)
 		_:
 			return null
 
@@ -26,6 +30,8 @@ func setup(i_name: String, texture: Texture2D, b_id: int, rot: float = 0.0):
 
 func _ready():
 	add_to_group("placed_blocks")
+	if item_name == "Crafting_Bench":
+		add_to_group("crafting_benches")
 	if item_texture == null and item_name != "":
 		item_texture = _get_texture_for_item(item_name)
 	if item_texture:

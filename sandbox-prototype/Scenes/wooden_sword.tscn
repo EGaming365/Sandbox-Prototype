@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ctj1uc3rjcpck"]
 
-[ext_resource type="Script" uid="uid://c4xu55yxla5jv" path="res://Scenes/wooden_sword.gd" id="1_gulqd"]
+[ext_resource type="Script" uid="uid://c4xu55yxla5jv" path="res://Scripts/wooden_sword.gd" id="1_gulqd"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
 radius = 15.0

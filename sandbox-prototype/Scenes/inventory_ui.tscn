@@ -3,7 +3,23 @@
 [ext_resource type="Script" uid="uid://dhfdwebaijcrf" path="res://Scripts/inventory_ui.gd" id="1_8su62"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8su62"]
-bg_color = Color(0.20152655, 0.20152661, 0.20152646, 1)
+content_margin_left = 30.0
+content_margin_top = 30.0
+content_margin_right = 30.0
+content_margin_bottom = 30.0
+bg_color = Color(0.38039216, 0.38039216, 0.38039216, 1)
+border_width_left = 10
+border_width_top = 10
+border_width_right = 10
+border_width_bottom = 10
+border_color = Color(0.29586652, 0.2958665, 0.29586646, 1)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_8su62"]
+content_margin_top = 10.0
 
 [node name="Inventory_UI" type="Control" unique_id=804006947]
 z_index = 4096
@@ -50,14 +66,15 @@ mouse_filter = 2
 
 [node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Inventory" unique_id=1009314130]
 layout_mode = 2
+theme_override_font_sizes/font_size = 32
 text = "Inventory"
 
-[node name="MarginContainer" type="MarginContainer" parent="PanelContainer/HBoxContainer/Inventory" unique_id=1290195133]
+[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/HBoxContainer/Inventory" unique_id=249182839]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 40
+theme_override_styles/panel = SubResource("StyleBoxEmpty_8su62")
 
-[node name="GridContainer" type="GridContainer" parent="PanelContainer/HBoxContainer/Inventory/MarginContainer" unique_id=1036793898]
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/HBoxContainer/Inventory/PanelContainer" unique_id=1036793898]
 layout_mode = 2
 mouse_filter = 2
 columns = 5
@@ -68,6 +85,7 @@ size_flags_horizontal = 3
 
 [node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Recipes" unique_id=661516627]
 layout_mode = 2
+theme_override_font_sizes/font_size = 32
 text = "Recipes"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/HBoxContainer/Recipes" unique_id=871951979]
@@ -78,3 +96,23 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+
+[node name="Equipped" type="VBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=484326531]
+custom_minimum_size = Vector2(350, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="PanelContainer/HBoxContainer/Equipped" unique_id=565280540]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Equipped"
+
+[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/HBoxContainer/Equipped" unique_id=1619417030]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_8su62")
+
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/HBoxContainer/Equipped/PanelContainer" unique_id=858263979]
+layout_mode = 2
+mouse_filter = 2
+columns = 5

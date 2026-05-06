@@ -4,9 +4,14 @@ var basic_recipes = [
 		"result": "Wood Plank",
 		"result_count": 4,
 		"ingredients": { "Wood": 4 }
+	},
+	{
+		"result": "Crafting_Bench",
+		"result_count": 1,
+		"ingredients": { "Wood Plank": 4 }
 	}
 ]
-var advanced_recipes = [
+var bench_recipes = [
 	{
 		"result": "Axe",
 		"result_count": 1,
@@ -21,6 +26,8 @@ var advanced_recipes = [
 var plank_texture: Texture2D
 var axe_texture: Texture2D
 var sword_texture: Texture2D
+var bench_texture: Texture2D
+
 func _ready():
 	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	img.fill(Color.WHITE)
@@ -31,6 +38,9 @@ func _ready():
 	var sword_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	sword_img.fill(Color.SILVER)
 	sword_texture = ImageTexture.create_from_image(sword_img)
+	var bench_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+	bench_img.fill(Color.RED)
+	bench_texture = ImageTexture.create_from_image(bench_img)
 func get_item_texture(item_name: String) -> Texture2D:
 	match item_name:
 		"Wood Plank":
@@ -39,6 +49,26 @@ func get_item_texture(item_name: String) -> Texture2D:
 			return axe_texture
 		"Sword":
 			return sword_texture
+		"Crafting_Bench":
+			return bench_texture
+	return null
+func is_near_bench() -> bool:
+	var player = _get_local_player()
+	if not player:
+		return false
+	for bench in get_tree().get_nodes_in_group("crafting_benches"):
+		if is_instance_valid(bench):
+			if player.global_position.distance_to(bench.global_position) <= 100.0:
+				return true
+	return false
+func _get_local_player():
+	for child in get_tree().root.get_node("Scene").get_children():
+		if child is CharacterBody2D:
+			if multiplayer.has_multiplayer_peer():
+				if child.is_multiplayer_authority():
+					return child
+			else:
+				return child
 	return null
 func can_craft(recipe: Dictionary) -> bool:
 	for item in recipe["ingredients"]:
@@ -56,6 +86,8 @@ func craft(recipe: Dictionary):
 		Inventory.add_item_with_count("Axe", tex, 80)
 	elif recipe["result"] == "Sword":
 		Inventory.add_item_with_count("Sword", tex, 30)
+	elif recipe["result"] == "Crafting_Bench":
+		Inventory.add_item_with_count("Crafting_Bench", tex, 1)
 	else:
 		for i in recipe["result_count"]:
 			Inventory.add_item(recipe["result"], tex)
