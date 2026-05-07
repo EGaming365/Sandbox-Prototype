@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://b5ke6a26alu2f"]
+
+[ext_resource type="Script" uid="uid://ba60v6ge4m36l" path="res://Scripts/rock.gd" id="1_5mkji"]
+[ext_resource type="Texture2D" uid="uid://clbfyskqhlpae" path="res://Assets/TestTree.Piskel (1) (1).png" id="2_vd8au"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rsuno"]
+size = Vector2(27.708334, 28.125)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_l7sa7"]
+radius = 28.549454
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_l7sa7"]
+size = Vector2(18.566599, 2.2093697)
+
+[node name="Rock" type="Node2D" unique_id=53906318]
+z_index = 1
+position = Vector2(0, 72)
+scale = Vector2(4.7999997, 4.7999997)
+script = ExtResource("1_5mkji")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1137885574]
+position = Vector2(0, -15.041668)
+scale = Vector2(1.042119, 1.042119)
+texture = ExtResource("2_vd8au")
+region_rect = Rect2(32, 0, 32, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=162251713]
+position = Vector2(-0.4166667, -14.479168)
+scale = Vector2(1.1312554, 1.1312554)
+shape = SubResource("RectangleShape2D_rsuno")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=1267964822]
+position = Vector2(0, -15.041668)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1129072680]
+shape = SubResource("CircleShape2D_l7sa7")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=705878636]
+position = Vector2(0, -15.041668)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1155343725]
+position = Vector2(-0.20833334, 14.208336)
+scale = Vector2(0.6488612, -0.6194949)
+shape = SubResource("RectangleShape2D_l7sa7")
+
+[connection signal="body_entered" from="Area2D" to="." method="_on_area_2d_body_entered"]
+[connection signal="body_exited" from="Area2D" to="." method="_on_area_2d_body_exited"]
