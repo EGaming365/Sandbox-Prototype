@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://bhlj2n22ijc3c"]
+
+[ext_resource type="Script" uid="uid://dmnld3wx18wr6" path="res://Scripts/stone_sword.gd" id="1_chssq"]
+[ext_resource type="Texture2D" uid="uid://b7nncq1ts0h5d" path="res://Assets/Stone_Sword.png" id="2_chssq"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
+radius = 12.0415945
+
+[node name="Stone_Sword" type="Node2D" unique_id=1126891296]
+scale = Vector2(2.9999962, 2.9999962)
+script = ExtResource("1_chssq")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
+texture = ExtResource("2_chssq")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=760384955]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=310392993]
+shape = SubResource("CircleShape2D_v6y3b")
+
+[connection signal="body_entered" from="Sprite2D/Area2D" to="." method="_on_area_2d_body_entered"]

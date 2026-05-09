@@ -9,6 +9,14 @@ var current_tab: String = "inventory"
 
 const UNLOCKED_SLOTS = 20
 const TOTAL_SLOTS = 80
+const TOOL_MAX_DURABILITY = {
+	"Axe": 80.0,
+	"Sword": 30.0,
+	"Pickaxe": 80.0,
+	"Stone Axe": 120.0,
+	"Stone Sword": 40.0,
+	"Stone Pickaxe": 100.0
+}
 
 var slot_scene_default: StyleBox = preload("res://Resources/hotbar_default.tres")
 var slot_scene_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
@@ -51,6 +59,26 @@ func _spawn_drop(player, item_type: String, spawn_durability: int):
 			scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, spawn_durability)
 	else:
 		scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
+
+func _spawn_drop_stack(player, item_type: String, count: int):
+	var scene_node = get_tree().root.get_node("Scene")
+	var positions: Array = []
+	var positions_x: Array = []
+	var positions_y: Array = []
+	for i in count:
+		var angle = randf_range(0, TAU)
+		var radius = randf_range(80, 120)
+		var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+		positions.append(drop_pos)
+		positions_x.append(drop_pos.x)
+		positions_y.append(drop_pos.y)
+	if multiplayer.has_multiplayer_peer():
+		if multiplayer.is_server():
+			scene_node.host_spawn_floor_items_batch(positions, item_type, 1)
+		else:
+			scene_node.request_spawn_floor_items_batch.rpc_id(1, positions_x, positions_y, item_type, 1)
+	else:
+		scene_node.host_spawn_floor_items_batch(positions, item_type, 1)
 
 func _build_tabs():
 	var tab_bar = $PanelContainer/VBoxContainer/Tab_Buttons
@@ -132,91 +160,77 @@ func _on_slot_unhover(index: int):
 	inv_slots_ui[index].add_theme_stylebox_override("panel", slot_scene_default.duplicate())
 
 func update_inventory():
-	for i in TOTAL_SLOTS:
+	for i in UNLOCKED_SLOTS:
 		var slot = inv_slots_ui[i]
-		if i >= UNLOCKED_SLOTS:
+		var data = Inventory.inv_slots[i]
+
+		var prev_item = slot.get_meta("last_item", "")
+		var prev_count = slot.get_meta("last_count", -1)
+		if prev_item == data["item"] and prev_count == data["count"]:
 			continue
+
+		slot.set_meta("last_item", data["item"])
+		slot.set_meta("last_count", data["count"])
+
 		for child in slot.get_children():
 			child.queue_free()
-		var data = Inventory.inv_slots[i]
-		if data["item"] != "":
-			var tex = TextureRect.new()
-			tex.texture = data["texture"]
-			tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			tex.offset_left = 6
-			tex.offset_right = -6
-			tex.offset_top = 6
-			tex.offset_bottom = -6
-			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			slot.add_child(tex)
 
-			if not Inventory.non_stackable_items.has(data["item"]):
-				var label = Label.new()
-				label.text = str(min(data["count"], 99))
-				label.add_theme_font_size_override("font_size", 16)
-				label.add_theme_color_override("font_color", Color.WHITE)
-				label.add_theme_color_override("font_outline_color", Color.BLACK)
-				label.add_theme_constant_override("outline_size", 4)
-				label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-				label.offset_top = -24
-				label.offset_bottom = -16
-				label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				if data["count"] >= 10:
-					label.offset_left = -24
-				else:
-					label.offset_left = -14
-				slot.add_child(label)
+		if data["item"] == "":
+			continue
 
-			if data["item"] == "Axe":
-				var max_dur = 80.0
-				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
-				if pct < 1.0:
-					var bar_bg = ColorRect.new()
-					bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
-					bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-					bar_bg.offset_top = -13
-					bar_bg.offset_bottom = -8
-					bar_bg.offset_left = 7
-					bar_bg.offset_right = -5
-					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					slot.add_child(bar_bg)
-					var bar = ColorRect.new()
-					var bar_color = Color(1.0 - pct, pct, 0.0)
-					bar.color = bar_color
-					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
-					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
-					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
-					bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
-					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					bar_bg.add_child(bar)
+		var tex = TextureRect.new()
+		tex.texture = data["texture"]
+		tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tex.offset_left = 6
+		tex.offset_right = -6
+		tex.offset_top = 6
+		tex.offset_bottom = -6
+		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(tex)
 
-			if data["item"] == "Sword":
-				var max_dur = 30.0
-				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
-				if pct < 1.0:
-					var bar_bg = ColorRect.new()
-					bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
-					bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-					bar_bg.offset_top = -13
-					bar_bg.offset_bottom = -8
-					bar_bg.offset_left = 7
-					bar_bg.offset_right = -5
-					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					slot.add_child(bar_bg)
-					var bar = ColorRect.new()
-					var bar_color = Color(1.0 - pct, pct, 0.0)
-					bar.color = bar_color
-					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
-					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
-					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
-					bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
-					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					bar_bg.add_child(bar)
+		if not Inventory.non_stackable_items.has(data["item"]):
+			var label = Label.new()
+			label.text = str(min(data["count"], 99))
+			label.add_theme_font_size_override("font_size", 16)
+			label.add_theme_color_override("font_color", Color.WHITE)
+			label.add_theme_color_override("font_outline_color", Color.BLACK)
+			label.add_theme_constant_override("outline_size", 4)
+			label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+			label.offset_top = -24
+			label.offset_bottom = -16
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			label.offset_left = -24 if data["count"] >= 10 else -14
+			slot.add_child(label)
+
+		if TOOL_MAX_DURABILITY.has(data["item"]):
+			_add_durability_bar(slot, data["count"], TOOL_MAX_DURABILITY[data["item"]])
 
 	if current_tab == "recipes":
 		_update_recipe_panel()
+
+func _add_durability_bar(slot: Panel, current: float, max_dur: float):
+	var pct = clamp(current / max_dur, 0.0, 1.0)
+	if pct >= 1.0:
+		return
+	var bar_bg = ColorRect.new()
+	bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
+	bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bar_bg.offset_top = -13
+	bar_bg.offset_bottom = -8
+	bar_bg.offset_left = 7
+	bar_bg.offset_right = -5
+	bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(bar_bg)
+	var bar = ColorRect.new()
+	bar.color = Color(1.0 - pct, pct, 0.0)
+	bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
+	bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
+	bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
+	bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_bg.add_child(bar)
 
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -332,8 +346,7 @@ func _process(_delta):
 				if is_tool:
 					_spawn_drop(player, item_type, count)
 				else:
-					for i in count:
-						_spawn_drop(player, item_type, 1)
+					_spawn_drop_stack(player, item_type, count)
 				Inventory.remove_item(hovered_slot, true)
 		return
 
@@ -360,13 +373,15 @@ func _process(_delta):
 						if is_tool:
 							_spawn_drop(player, item_type, count)
 						else:
-							for i in count:
-								_spawn_drop(player, item_type, 1)
+							_spawn_drop_stack(player, item_type, count)
 						Inventory.remove_item(dragging_from, true)
 
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
+			var now_hovered = get_hovered_slot()
+			if now_hovered != -1:
+				_on_slot_hover(now_hovered)
 
 func _update_recipe_panel():
 	var scroll_vbox = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/ScrollContainer/VBoxContainer
@@ -375,9 +390,10 @@ func _update_recipe_panel():
 	for child in scroll_vbox.get_children():
 		scroll_vbox.remove_child(child)
 		child.queue_free()
-	for child in detail.get_children():
-		detail.remove_child(child)
-		child.queue_free()
+	if selected_recipe.is_empty():
+		for child in detail.get_children():
+			detail.remove_child(child)
+			child.queue_free()
 
 	var cat_bar = HBoxContainer.new()
 	cat_bar.add_theme_constant_override("separation", 4)
@@ -410,7 +426,7 @@ func _update_recipe_panel():
 			continue
 		if Crafting.bench_recipes.has(recipe) and not Crafting.is_near_bench():
 			continue
-		if recipe["result"] in ["Axe", "Sword"]:
+		if recipe["result"] in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe"]:
 			equipment.append(recipe)
 		else:
 			blocks.append(recipe)
@@ -531,9 +547,13 @@ func _on_craft(recipe: Dictionary, btn: Button):
 		Crafting.craft(recipe)
 		if btn != null and is_instance_valid(btn):
 			btn.text = "Done!"
-			await get_tree().create_timer(0.5).timeout
-			if is_instance_valid(btn):
-				btn.text = "Craft"
+		# Refresh detail panel
+		if not selected_recipe.is_empty():
+			var detail = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/Detail
+			_show_recipe_detail(selected_recipe, detail)
+		await get_tree().create_timer(0.5).timeout
+		if btn != null and is_instance_valid(btn):
+			btn.text = "Craft"
 	else:
 		if btn != null and is_instance_valid(btn):
 			btn.text = "Need more!"
@@ -544,8 +564,14 @@ func _on_craft(recipe: Dictionary, btn: Button):
 func _on_craft_max(recipe: Dictionary, btn: Button):
 	var crafted = 0
 	while Crafting.can_craft(recipe):
-		Crafting.craft(recipe)
+		Crafting.craft(recipe, true)
 		crafted += 1
+	if crafted > 0:
+		Inventory.inventory_changed.emit()
+		# Refresh detail panel
+		if not selected_recipe.is_empty():
+			var detail = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/Detail
+			_show_recipe_detail(selected_recipe, detail)
 	if btn != null and is_instance_valid(btn):
 		if crafted > 0:
 			btn.text = "Done x" + str(crafted) + "!"
@@ -560,7 +586,7 @@ func toggle():
 
 func toggle_to(tab: String):
 	var overlay = get_parent().get_node_or_null("DarkOverlay")
-	if visible and current_tab == tab:
+	if visible:
 		selected_recipe = {}
 		hide()
 		if overlay:

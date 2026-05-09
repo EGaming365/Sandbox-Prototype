@@ -1,14 +1,11 @@
 extends Node2D
 
-@export var forest_tree_count = 800
-@export var rock_count = 50
-@export var min_distance = 80
+@export var plains_tree_count = 150
+@export var plains_min_distance = 350
 @export var world_size = Vector2(16000, 16000)
 
 var spawned_positions = []
 var biome_callback: Callable = Callable()
-
-const BIOME_MARGIN: float = 100.0
 
 func _ready():
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
@@ -17,51 +14,35 @@ func _ready():
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		await get_tree().process_frame
 		await get_tree().process_frame
-		generate_forest()
+		generate_plains()
 
 func set_biome_callback(callback: Callable):
 	biome_callback = callback
 
-func generate_forest():
+func generate_plains():
 	var top_left = Vector2(-world_size.x / 2, -world_size.y / 2)
 	var bottom_right = Vector2(world_size.x / 2, world_size.y / 2)
 	var scene_node = get_tree().root.get_node("Scene")
 
 	var attempts = 0
-	var max_attempts = forest_tree_count * 15
-	var trees_spawned = 0
-	while trees_spawned < forest_tree_count and attempts < max_attempts:
+	var max_attempts = plains_tree_count * 20
+	var plains_spawned = 0
+	while plains_spawned < plains_tree_count and attempts < max_attempts:
 		attempts += 1
 		var random_pos = Vector2(
 			randf_range(top_left.x, bottom_right.x),
 			randf_range(top_left.y, bottom_right.y)
 		)
-		if biome_callback.is_valid() and not biome_callback.call(random_pos):
+		if biome_callback.is_valid() and biome_callback.call(random_pos):
 			continue
-		if not is_safely_in_biome(random_pos, true):
+		if not is_safely_in_biome(random_pos, false):
 			continue
-		if is_position_valid(random_pos, min_distance):
+		if is_position_valid(random_pos, plains_min_distance):
 			spawned_positions.append(random_pos)
 			scene_node.spawn_tree_with_id(random_pos)
-			trees_spawned += 1
+			plains_spawned += 1
 
-	attempts = 0
-	var max_rock_attempts = rock_count * 20
-	var rock_spawned = 0
-	while rock_spawned < rock_count and attempts < max_rock_attempts:
-		attempts += 1
-		var random_pos = Vector2(
-			randf_range(top_left.x, bottom_right.x),
-			randf_range(top_left.y, bottom_right.y)
-		)
-		if biome_callback.is_valid() and not biome_callback.call(random_pos):
-			continue
-		if not is_safely_in_biome(random_pos, true):
-			continue
-		if is_position_valid(random_pos, min_distance):
-			spawned_positions.append(random_pos)
-			scene_node.spawn_rock_with_id(random_pos)
-			rock_spawned += 1
+const BIOME_MARGIN: float = 200.0
 
 func is_safely_in_biome(pos: Vector2, is_forest: bool) -> bool:
 	if not biome_callback.is_valid():

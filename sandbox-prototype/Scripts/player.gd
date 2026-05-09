@@ -67,7 +67,7 @@ func _physics_process(delta):
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
-		z_index = int(global_position.y)
+		z_index = int(global_position.y) % 1000
 		_update_hand_sprite()
 		return
 
@@ -104,7 +104,7 @@ func _physics_process(delta):
 	velocity = direction * speed
 	synced_velocity = velocity
 	move_and_slide()
-	z_index = int(global_position.y)
+	z_index = int(global_position.y) % 1000
 	_update_hand_sprite()
 
 func _input(event):

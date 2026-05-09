@@ -10,6 +10,9 @@ var is_open: bool = false
 var wood_texture: Texture2D = preload("res://Assets/Wood.png")
 var axe_texture: Texture2D = preload("res://Assets/Axe.png")
 var sword_texture: Texture2D = preload("res://Assets/Sword.png")
+var stone_texture: Texture2D = preload("res://Assets/Stone.png")
+var stone_axe_texture: Texture2D = preload("res://Assets/Stone_Axe.png")
+var stone_sword_texture: Texture2D = preload("res://Assets/Stone_Sword.png")
 
 @onready var scroll_container: ScrollContainer = $ChatContainer/ScrollContainer
 @onready var messages_container: VBoxContainer = $ChatContainer/ScrollContainer/Messages
@@ -41,7 +44,9 @@ func _handle_command(text: String):
 				"wood plank": item_name = "Wood Plank"
 				"axe": item_name = "Axe"
 				"sword": item_name = "Sword"
-				"crafting_bench": item_name = "Crafting_Bench"
+				"crafting bench": item_name = "Crafting_Bench"
+				"stone": item_name = "Stone"
+				"pickaxe": item_name = "Pickaxe"
 			_give_item_to_player(target_name, item_name, amount)
 		_:
 			_add_message("[System] Unknown command: " + cmd)
@@ -99,7 +104,12 @@ func _get_item_texture(item_name: String) -> Texture2D:
 		"wood plank": return Crafting.plank_texture
 		"axe": return axe_texture
 		"sword": return sword_texture
+		"pickaxe": return Crafting.pickaxe_texture
 		"crafting_bench": return Crafting.bench_texture
+		"stone axe": return stone_axe_texture
+		"stone sword": return stone_sword_texture
+		"stone pickaxe": return Crafting.stone_pickaxe_texture
+		"stone": return stone_texture
 	return null
 
 func _do_give_item(item_name: String, amount: int):
@@ -167,6 +177,7 @@ func _do_give_item(item_name: String, amount: int):
 				remaining -= add
 
 	Inventory.inventory_changed.emit()
+	Inventory.discover(item_name)
 
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():

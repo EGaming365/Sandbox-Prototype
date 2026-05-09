@@ -7,13 +7,16 @@ var max_inv_slots = 80
 var wood_texture = preload("res://Assets/Wood.png")
 var axe_texture = preload("res://Assets/Axe.png")
 var sword_texture = preload("res://Assets/Sword.png")
+var stone_axe_texture = preload("res://Assets/Stone_Axe.png")
+var stone_sword_texture = preload("res://Assets/Stone_Sword.png")
 
 func _ready():
+	set_process(true)
 	for i in max_slots:
 		slots.append({"item": "", "count": 0, "texture": null})
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
-var non_stackable_items = ["Axe", "Sword"]
+var non_stackable_items = ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Crafting_Bench"]
 
 func add_item(item_name, texture):
 	discover(item_name)
@@ -165,13 +168,35 @@ func batch_add_item(item_name: String, texture: Texture2D, count: int = 1):
 func flush_inventory_signal():
 	inventory_changed.emit()
 
-var _signal_timer: SceneTree = null
-
 func request_inventory_update():
 	if not _emit_pending:
 		_emit_pending = true
-		Engine.get_main_loop().create_timer(0.05).timeout.connect(_do_emit)
+
+func _process(_delta):
+	if _emit_pending:
+		_emit_pending = false
+		inventory_changed.emit()
+
+var _last_inv_state: Array = []
 
 func _do_emit():
 	_emit_pending = false
+	_check_and_emit()
+
+func _check_and_emit():
 	inventory_changed.emit()
+
+func add_item_with_count_silent(item_name: String, texture: Texture2D, count: int):
+	discover(item_name)
+	for slot in slots:
+		if slot["item"] == "":
+			slot["item"] = item_name
+			slot["count"] = count
+			slot["texture"] = texture
+			return
+	for slot in inv_slots:
+		if slot["item"] == "":
+			slot["item"] = item_name
+			slot["count"] = count
+			slot["texture"] = texture
+			return

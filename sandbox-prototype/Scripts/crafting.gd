@@ -22,16 +22,46 @@ var bench_recipes = [
 		"result": "Sword",
 		"result_count": 1,
 		"ingredients": { "Wood": 1, "Wood Plank": 2 }
+	},
+	{
+		"result": "Pickaxe",
+		"result_count": 1,
+		"ingredients": { "Wood": 2, "Wood Plank": 3 }
+	},
+	{
+		"result": "Stone Axe",
+		"result_count": 1,
+		"ingredients": { "Stone": 3, "Wood": 2 }
+	},
+	{
+		"result": "Stone Sword",
+		"result_count": 1,
+		"ingredients": { "Stone": 2, "Wood": 1 }
+	},
+	{
+		"result": "Stone Pickaxe",
+		"result_count": 1,
+		"ingredients": { "Stone": 3, "Wood": 2 }
 	}
 ]
 var plank_texture: Texture2D
 var axe_texture: Texture2D
 var sword_texture: Texture2D
 var bench_texture: Texture2D
-
 var wood_texture: Texture2D
+var stone_texture: Texture2D
+var pickaxe_texture: Texture2D
+var stone_axe_texture: Texture2D
+var stone_sword_texture: Texture2D
+var stone_pickaxe_texture: Texture2D
 
 func _ready():
+	var stone_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+	stone_img.fill(Color.GRAY)
+	stone_texture = ImageTexture.create_from_image(stone_img)
+	var pickaxe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+	pickaxe_img.fill(Color(0.6, 0.6, 0.8))
+	pickaxe_texture = ImageTexture.create_from_image(pickaxe_img)
 	wood_texture = load("res://Assets/Wood.png")
 	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	img.fill(Color.WHITE)
@@ -41,6 +71,9 @@ func _ready():
 	var bench_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	bench_img.fill(Color.RED)
 	bench_texture = ImageTexture.create_from_image(bench_img)
+	var stone_pickaxe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+	stone_pickaxe_img.fill(Color(0.6, 0.6, 0.7))
+	stone_pickaxe_texture = ImageTexture.create_from_image(stone_pickaxe_img)
 
 func get_item_texture(item_name: String) -> Texture2D:
 	match item_name:
@@ -54,6 +87,16 @@ func get_item_texture(item_name: String) -> Texture2D:
 			return Inventory.sword_texture
 		"Crafting_Bench":
 			return bench_texture
+		"Stone":
+			return stone_texture
+		"Pickaxe":
+			return pickaxe_texture
+		"Stone Axe":
+			return Inventory.stone_axe_texture
+		"Stone Sword":
+			return Inventory.stone_sword_texture
+		"Stone Pickaxe":
+			return stone_pickaxe_texture
 	return null
 
 func is_near_bench() -> bool:
@@ -89,7 +132,7 @@ func _has_inventory_space() -> bool:
 			return true
 	return false
 
-func craft(recipe: Dictionary):
+func craft(recipe: Dictionary, silent: bool = false):
 	if not can_craft(recipe):
 		return
 	for item in recipe["ingredients"]:
@@ -100,7 +143,10 @@ func craft(recipe: Dictionary):
 
 	if recipe["result"] == "Axe":
 		if _has_inventory_space():
-			Inventory.add_item_with_count("Axe", tex, 80)
+			if silent:
+				Inventory.add_item_with_count_silent("Axe", tex, 80)
+			else:
+				Inventory.add_item_with_count("Axe", tex, 80)
 		elif player:
 			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
 			if multiplayer.has_multiplayer_peer():
@@ -112,7 +158,10 @@ func craft(recipe: Dictionary):
 				scene_node.host_spawn_floor_item(drop_pos, "Axe", 80)
 	elif recipe["result"] == "Sword":
 		if _has_inventory_space():
-			Inventory.add_item_with_count("Sword", tex, 30)
+			if silent:
+				Inventory.add_item_with_count_silent("Sword", tex, 30)
+			else:
+				Inventory.add_item_with_count("Sword", tex, 30)
 		elif player:
 			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
 			if multiplayer.has_multiplayer_peer():
@@ -122,9 +171,48 @@ func craft(recipe: Dictionary):
 					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Sword", 30)
 			else:
 				scene_node.host_spawn_floor_item(drop_pos, "Sword", 30)
+	elif recipe["result"] == "Stone Axe":
+		if _has_inventory_space():
+			Inventory.add_item_with_count("Stone Axe", tex, 120)
+		elif player:
+			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, "Stone Axe", 120)
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Stone Axe", 120)
+			else:
+				scene_node.host_spawn_floor_item(drop_pos, "Stone Axe", 120)
+	elif recipe["result"] == "Stone Sword":
+		if _has_inventory_space():
+			Inventory.add_item_with_count("Stone Sword", tex, 40)
+		elif player:
+			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, "Stone Sword", 40)
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Stone Sword", 40)
+			else:
+				scene_node.host_spawn_floor_item(drop_pos, "Stone Sword", 40)
+	elif recipe["result"] == "Stone Pickaxe":
+		if _has_inventory_space():
+			Inventory.add_item_with_count("Stone Pickaxe", tex, 100)
+		elif player:
+			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, "Stone Pickaxe", 100)
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Stone Pickaxe", 100)
+			else:
+				scene_node.host_spawn_floor_item(drop_pos, "Stone Pickaxe", 100)
 	elif recipe["result"] == "Crafting_Bench":
 		if _has_inventory_space():
-			Inventory.add_item_with_count("Crafting_Bench", tex, 1)
+			if silent:
+				Inventory.add_item_with_count_silent("Crafting_Bench", tex, 1)
+			else:
+				Inventory.add_item_with_count("Crafting_Bench", tex, 1)
 		elif player:
 			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
 			if multiplayer.has_multiplayer_peer():
@@ -134,19 +222,41 @@ func craft(recipe: Dictionary):
 					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Crafting_Bench", 1)
 			else:
 				scene_node.host_spawn_floor_item(drop_pos, "Crafting_Bench", 1)
+	elif recipe["result"] == "Pickaxe":
+		if _has_inventory_space():
+			if silent:
+				Inventory.add_item_with_count_silent("Pickaxe", tex, 80)
+			else:
+				Inventory.add_item_with_count("Pickaxe", tex, 80)
+		elif player:
+			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, "Pickaxe", 80)
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Pickaxe", 80)
+			else:
+				scene_node.host_spawn_floor_item(drop_pos, "Pickaxe", 80)
 	else:
 		for i in recipe["result_count"]:
 			if _has_inventory_space():
-				Inventory.add_item(recipe["result"], tex)
+				if silent:
+					Inventory.batch_add_item(recipe["result"], tex, 1)
+				else:
+					Inventory.add_item(recipe["result"], tex)
 			elif player:
 				var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
 				if multiplayer.has_multiplayer_peer():
 					if multiplayer.is_server():
-						scene_node.host_spawn_floor_item(drop_pos, recipe["result"], 60)
+						scene_node.host_spawn_floor_item(drop_pos, recipe["result"], 1)
 					else:
-						scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, recipe["result"], 60)
+						scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, recipe["result"], 1)
 				else:
-					scene_node.host_spawn_floor_item(drop_pos, recipe["result"], 60)
+					scene_node.host_spawn_floor_item(drop_pos, recipe["result"], 1)
+
+	if not silent:
+		return
+	Inventory.inventory_changed.emit()
 
 func _count_item(item_name: String) -> int:
 	var total = 0

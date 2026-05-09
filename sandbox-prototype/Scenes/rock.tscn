@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://b5ke6a26alu2f"]
 
 [ext_resource type="Script" uid="uid://ba60v6ge4m36l" path="res://Scripts/rock.gd" id="1_5mkji"]
-[ext_resource type="Texture2D" uid="uid://clbfyskqhlpae" path="res://Assets/TestTree.Piskel (1) (1).png" id="2_vd8au"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rsuno"]
 size = Vector2(27.708334, 28.125)
@@ -21,7 +20,6 @@ script = ExtResource("1_5mkji")
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1137885574]
 position = Vector2(0, -15.041668)
 scale = Vector2(1.042119, 1.042119)
-texture = ExtResource("2_vd8au")
 region_rect = Rect2(32, 0, 32, 32)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=162251713]

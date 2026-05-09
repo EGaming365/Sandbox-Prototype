@@ -6,6 +6,7 @@ var peer : SteamMultiplayerPeer
 var is_host : bool = false
 var is_joining : bool = false
 var signals_connected : bool = false
+var local_player: CharacterBody2D = null
 
 var floor_items: Dictionary = {}
 var next_item_id: int = 0
@@ -15,10 +16,49 @@ var placed_blocks: Dictionary = {}
 var next_block_id: int = 0
 var chop_cooldown_active: bool = false
 var last_placed_texture: Texture2D = null
+var rocks: Dictionary = {}
+var next_rock_id: int = 0
 
 @onready var host_button: Button = $CanvasLayer/Host_Button
 @onready var join_button: Button = $CanvasLayer/Join_Button
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
+
+func spawn_rock_with_id(pos: Vector2) -> int:
+	var id = next_rock_id
+	next_rock_id += 1
+	if multiplayer.has_multiplayer_peer():
+		spawn_rock_rpc.rpc(id, pos.x, pos.y)
+	else:
+		_do_spawn_rock(id, pos.x, pos.y)
+	return id
+
+@rpc("authority", "call_local", "reliable")
+func spawn_rock_rpc(rock_id: int, pos_x: float, pos_y: float):
+	_do_spawn_rock(rock_id, pos_x, pos_y)
+
+func _do_spawn_rock(rock_id: int, pos_x: float, pos_y: float):
+	var rock_scene = preload("res://Scenes/rock.tscn")
+	var rock = rock_scene.instantiate()
+	rock.position = Vector2(pos_x, pos_y)
+	rock.rock_id = rock_id
+	rocks[rock_id] = rock
+	add_child(rock)
+
+func remove_rock(rock_id: int):
+	if rocks.has(rock_id):
+		if is_instance_valid(rocks[rock_id]):
+			rocks[rock_id].queue_free()
+		rocks.erase(rock_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_remove_rock(rock_id: int):
+	remove_rock(rock_id)
+
+func sync_rocks_to_peer(peer_id: int):
+	for rock_id in rocks:
+		var rock = rocks[rock_id]
+		if is_instance_valid(rock):
+			spawn_rock_rpc.rpc_id(peer_id, rock_id, rock.position.x, rock.position.y)
 
 func set_chop_cooldown(duration: float):
 	if chop_cooldown_active:
@@ -135,6 +175,7 @@ func _on_peer_connected(id: int):
 	sync_floor_items_to_peer(id)
 	await get_tree().create_timer(1.0).timeout
 	sync_trees_to_peer(id)
+	sync_rocks_to_peer(id)
 	sync_placed_blocks_to_peer(id)
 
 @rpc("authority", "call_remote", "reliable")
@@ -290,12 +331,12 @@ func sync_remove_tree(tree_id: int):
 	remove_tree(tree_id)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_chop_tree(tree_id: int, has_axe: bool):
+func request_chop_tree(tree_id: int, held_item: String):
 	if not is_host:
 		return
 	if trees.has(tree_id):
 		var sender_id = multiplayer.get_remote_sender_id()
-		trees[tree_id].do_chop(sender_id, has_axe)
+		trees[tree_id].do_chop(sender_id, held_item)
 
 func sync_trees_to_peer(peer_id: int):
 	for tree_id in trees:
@@ -318,7 +359,7 @@ func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability:
 func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
 	_do_spawn_floor_item(item_id, pos_x, pos_y, item_type, durability)
 
-func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
+func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 60):
 	var item_scene
 	match item_type:
 		"Wood":
@@ -329,13 +370,24 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 			item_scene = preload("res://Scenes/wooden_axe.tscn")
 		"Sword":
 			item_scene = preload("res://Scenes/wooden_sword.tscn")
+		"Pickaxe":
+			item_scene = preload("res://Scenes/wooden_pickaxe.tscn")
 		"Crafting_Bench":
 			item_scene = preload("res://Scenes/crafting_bench.tscn")
+		"Stone":
+			item_scene = preload("res://Scenes/stone.tscn")
+		"Stone Axe":
+			item_scene = preload("res://Scenes/stone_axe.tscn")
+		"Stone Sword":
+			item_scene = preload("res://Scenes/stone_sword.tscn")
+		"Stone Pickaxe":
+			item_scene = preload("res://Scenes/stone_pickaxe.tscn")
 		_:
 			item_scene = preload("res://Scenes/wood.tscn")
 	var item = item_scene.instantiate()
 	item.item_id = item_id
-	item.durability = durability
+	if item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe"]:
+		item.durability = durability
 	item.global_position = Vector2(pos_x, pos_y)
 	floor_items[item_id] = item
 	add_child(item)
@@ -357,11 +409,21 @@ func sync_floor_items_to_peer(peer_id: int):
 				item_type = "Wood Plank"
 			elif script_path.contains("wooden_axe"):
 				item_type = "Axe"
-			elif script_path.contains("wooden_sword") or script_path.contains("sword"):
+			elif script_path.contains("wooden_sword"):
 				item_type = "Sword"
+			elif script_path.contains("stone_axe"):
+				item_type = "Stone Axe"
+			elif script_path.contains("stone_sword"):
+				item_type = "Stone Sword"
+			elif script_path.contains("stone_pickaxe"):
+				item_type = "Stone Pickaxe"
+			elif script_path.contains("pickaxe"):
+				item_type = "Pickaxe"
 			elif script_path.contains("crafting_bench"):
 				item_type = "Crafting_Bench"
-			var dur = item.durability if item_type in ["Axe", "Sword"] else 60
+			elif script_path.contains("stone"):
+				item_type = "Stone"
+			var dur = item.durability if item.get("durability") != null else 1
 			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
 func remove_floor_item(item_id: int):
@@ -461,9 +523,6 @@ func _on_join_button_pressed():
 		_spawn_player(1)
 	join_lobby(new_lobby_id)
 
-func _process(_delta):
-	Steam.run_callbacks()
-
 @rpc("any_peer", "call_remote", "reliable")
 func request_deal_damage(target_id: int, amount: int):
 	if not is_host:
@@ -482,3 +541,43 @@ func deal_damage_to_player(amount: int):
 			if child.is_multiplayer_authority():
 				child.take_damage(amount)
 				break
+
+var _spawn_queue: Array = []
+var _spawning: bool = false
+
+func host_spawn_floor_items_batch(positions: Array, item_type: String, durability: int):
+	for pos in positions:
+		_spawn_queue.append({"pos": pos, "type": item_type, "dur": durability})
+
+func _process(_delta):
+	Steam.run_callbacks()
+	local_player = null
+	for child in get_children():
+		if child is CharacterBody2D:
+			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
+				local_player = child
+				break
+	if not _spawn_queue.is_empty():
+		var entry = _spawn_queue.pop_front()
+		host_spawn_floor_item(entry["pos"], entry["type"], entry["dur"])
+
+func _process_spawn_queue():
+	if _spawn_queue.is_empty():
+		_spawning = false
+		return
+	_spawning = true
+	var batch_size = min(5, _spawn_queue.size())
+	for i in batch_size:
+		var entry = _spawn_queue.pop_front()
+		host_spawn_floor_item(entry["pos"], entry["type"], entry["dur"])
+	if not _spawn_queue.is_empty():
+		get_tree().create_timer(0.05).timeout.connect(_process_spawn_queue)
+	else:
+		_spawning = false
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_spawn_floor_items_batch(positions_x: Array, positions_y: Array, item_type: String, durability: int):
+	if not is_host:
+		return
+	for i in positions_x.size():
+		host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, durability)

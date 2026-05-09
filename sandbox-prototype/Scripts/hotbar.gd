@@ -15,6 +15,15 @@ var hotbar_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
 var drop_hold_timer: float = 0.0
 var drop_hold_triggered: bool = false
 
+const TOOL_MAX_DURABILITY = {
+	"Axe": 80.0,
+	"Sword": 30.0,
+	"Pickaxe": 80.0,
+	"Stone Axe": 120.0,
+	"Stone Sword": 40.0,
+	"Stone Pickaxe": 100.0
+}
+
 func _ready():
 	for i in range(10):
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
@@ -44,6 +53,26 @@ func _spawn_drop(player, item_type: String, spawn_durability: int):
 			scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, spawn_durability)
 	else:
 		scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
+
+func _spawn_drop_stack(player, item_type: String, count: int):
+	var scene_node = get_tree().root.get_node("Scene")
+	var positions_x: Array = []
+	var positions_y: Array = []
+	for i in count:
+		var angle = randf_range(0, TAU)
+		var radius = randf_range(80, 120)
+		var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+		positions_x.append(drop_pos.x)
+		positions_y.append(drop_pos.y)
+	if multiplayer.has_multiplayer_peer():
+		if multiplayer.is_server():
+			for i in positions_x.size():
+				scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, 1)
+		else:
+			scene_node.request_spawn_floor_items_batch.rpc_id(1, positions_x, positions_y, item_type, 1)
+	else:
+		for i in positions_x.size():
+			scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, 1)
 
 func update_hotbar():
 	for i in range(10):
@@ -81,8 +110,8 @@ func update_hotbar():
 					label.offset_left = -14
 				slot.add_child(label)
 
-			if data["item"] == "Axe":
-				var max_dur = 80.0
+			if TOOL_MAX_DURABILITY.has(data["item"]):
+				var max_dur = TOOL_MAX_DURABILITY[data["item"]]
 				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
 				if pct < 1.0:
 					var bar_bg = ColorRect.new()
@@ -95,31 +124,7 @@ func update_hotbar():
 					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 					slot.add_child(bar_bg)
 					var bar = ColorRect.new()
-					var bar_color = Color(1.0 - pct, pct, 0.0)
-					bar.color = bar_color
-					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
-					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
-					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
-					bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
-					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					bar_bg.add_child(bar)
-
-			if data["item"] == "Sword":
-				var max_dur = 30.0
-				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
-				if pct < 1.0:
-					var bar_bg = ColorRect.new()
-					bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
-					bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-					bar_bg.offset_top = -14
-					bar_bg.offset_bottom = -9
-					bar_bg.offset_left = 7
-					bar_bg.offset_right = -7
-					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					slot.add_child(bar_bg)
-					var bar = ColorRect.new()
-					var bar_color = Color(1.0 - pct, pct, 0.0)
-					bar.color = bar_color
+					bar.color = Color(1.0 - pct, pct, 0.0)
 					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
 					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
 					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
@@ -297,8 +302,7 @@ func _process(delta: float) -> void:
 						if is_tool:
 							_spawn_drop(player, item_type, count)
 						else:
-							for i in count:
-								_spawn_drop(player, item_type, 1)
+							_spawn_drop_stack(player, item_type, count)
 						Inventory.remove_item(dragging_from, false)
 
 			drag_node.queue_free()
@@ -340,8 +344,7 @@ func _process(delta: float) -> void:
 						if is_tool:
 							_spawn_drop(player, item_type, count)
 						else:
-							for i in count:
-								_spawn_drop(player, item_type, 1)
+							_spawn_drop_stack(player, item_type, count)
 						Inventory.remove_item(drop_index, false)
 
 	if Input.is_action_just_released("drop") and not drag_node and not drop_hold_triggered:
@@ -362,8 +365,7 @@ func _process(delta: float) -> void:
 						if is_tool:
 							_spawn_drop(player, item_type, count)
 						else:
-							for i in count:
-								_spawn_drop(player, item_type, 1)
+							_spawn_drop_stack(player, item_type, count)
 						Inventory.remove_item(drop_index, false)
 					else:
 						var spawn_durability = count if is_tool else 1

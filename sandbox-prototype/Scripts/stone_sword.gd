@@ -1,7 +1,7 @@
 extends Node2D
 @export var item_id: int = -1
-@export var durability: int = 1
-var plank_texture: Texture2D
+@export var durability: int = 40
+var stone_sword_texture = preload("res://Assets/Stone_Sword.png")
 var _picked_up: bool = false
 const DESPAWN_TIME = 300.0
 const PICKUP_RANGE = 40.0
@@ -10,8 +10,7 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
 func _ready():
-	plank_texture = Crafting.plank_texture
-	$Sprite2D.texture = plank_texture
+	z_as_relative = false
 	z_index = int(global_position.y) % 1000
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
@@ -27,15 +26,18 @@ func _process(delta):
 	if check_timer > 0.0:
 		return
 	check_timer = CHECK_INTERVAL
-	var scene_node = get_tree().root.get_node_or_null("Scene")
-	if not scene_node or not scene_node.local_player:
+	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	if not hotbar:
 		return
-	if scene_node.local_player.global_position.distance_to(global_position) <= PICKUP_RANGE:
-		if _is_inventory_full("Wood Plank"):
+	var player = hotbar.get_local_player()
+	if not player:
+		return
+	if player.global_position.distance_to(global_position) <= PICKUP_RANGE:
+		if _is_inventory_full("Stone Sword"):
 			return
 		_picked_up = true
-		Inventory.batch_add_item("Wood Plank", plank_texture, durability)
-		Inventory.request_inventory_update()
+		Inventory.add_item_with_count("Stone Sword", stone_sword_texture, durability)
+		var scene_node = get_tree().root.get_node("Scene")
 		if multiplayer.has_multiplayer_peer():
 			if multiplayer.is_server():
 				scene_node.sync_remove_floor_item.rpc(item_id)
@@ -55,6 +57,14 @@ func _do_despawn():
 		scene_node.remove_floor_item(item_id)
 
 func _is_inventory_full(item_name: String) -> bool:
+	if Inventory.non_stackable_items.has(item_name):
+		for slot in Inventory.slots:
+			if slot["item"] == "":
+				return false
+		for slot in Inventory.inv_slots:
+			if slot["item"] == "":
+				return false
+		return true
 	for slot in Inventory.slots:
 		if slot["item"] == "" or (slot["item"] == item_name and slot["count"] < 99):
 			return false
