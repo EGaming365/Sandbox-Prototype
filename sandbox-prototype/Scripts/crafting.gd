@@ -42,6 +42,11 @@ var bench_recipes = [
 		"result": "Stone Pickaxe",
 		"result_count": 1,
 		"ingredients": { "Stone": 3, "Wood": 2 }
+	},
+	{
+		"result": "Wardrobe",
+		"result_count": 1,
+		"ingredients": { "Wood Plank": 5, "Stone": 1 }
 	}
 ]
 var plank_texture: Texture2D
@@ -54,6 +59,7 @@ var pickaxe_texture: Texture2D
 var stone_axe_texture: Texture2D
 var stone_sword_texture: Texture2D
 var stone_pickaxe_texture: Texture2D
+var wardrobe_texture: Texture2D
 
 func _ready():
 	var stone_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
@@ -74,6 +80,9 @@ func _ready():
 	var stone_pickaxe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	stone_pickaxe_img.fill(Color(0.6, 0.6, 0.7))
 	stone_pickaxe_texture = ImageTexture.create_from_image(stone_pickaxe_img)
+	var wardrobe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+	wardrobe_img.fill(Color(0.4, 0.2, 0.1))
+	wardrobe_texture = ImageTexture.create_from_image(wardrobe_img)
 
 func get_item_texture(item_name: String) -> Texture2D:
 	match item_name:
@@ -97,6 +106,8 @@ func get_item_texture(item_name: String) -> Texture2D:
 			return Inventory.stone_sword_texture
 		"Stone Pickaxe":
 			return stone_pickaxe_texture
+		"Wardrobe":
+			return wardrobe_texture
 	return null
 
 func is_near_bench() -> bool:
@@ -237,6 +248,21 @@ func craft(recipe: Dictionary, silent: bool = false):
 					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Pickaxe", 80)
 			else:
 				scene_node.host_spawn_floor_item(drop_pos, "Pickaxe", 80)
+	elif recipe["result"] == "Wardrobe":
+		if _has_inventory_space():
+			if silent:
+				Inventory.add_item_with_count_silent("Wardrobe", tex, 1)
+			else:
+				Inventory.add_item_with_count("Wardrobe", tex, 1)
+		elif player:
+			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, "Wardrobe", 1)
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Wardrobe", 1)
+			else:
+				scene_node.host_spawn_floor_item(drop_pos, "Wardrobe", 1)
 	else:
 		for i in recipe["result_count"]:
 			if _has_inventory_space():

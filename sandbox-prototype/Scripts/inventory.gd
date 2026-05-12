@@ -16,7 +16,7 @@ func _ready():
 		slots.append({"item": "", "count": 0, "texture": null})
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
-var non_stackable_items = ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Crafting_Bench"]
+var non_stackable_items = ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Wardrobe"]
 
 func add_item(item_name, texture):
 	discover(item_name)

@@ -134,6 +134,8 @@ func update_hotbar():
 
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			current_slot = index + 1
 		if event.pressed and Inventory.slots[index]["item"] != "":
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.slots[index]["item"]
