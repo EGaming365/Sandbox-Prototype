@@ -13,12 +13,25 @@ func get_local_player():
 				return child
 	return null
 
+func get_current_biome_name(player_pos: Vector2) -> String:
+	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	if not world_gen:
+		return "Unknown"
+
+	if world_gen.has_method("is_forest_at") and world_gen.is_forest_at(player_pos):
+		return "Forest"
+
+	return "Plains"
+
 func _process(_delta):
 	var player = get_local_player()
 	if player:
 		var x = snappedf(player.global_position.x / 100.0, 0.1)
 		var y = snappedf(player.global_position.y / 100.0, 0.1)
-		text = "X: " + str(x) + "\nY: " + str(y)
+		var feet_pos = player.global_position + Vector2(0, 48)
+		var biome_name = get_current_biome_name(feet_pos)
+
+		text = "X: " + str(x) + "\nY: " + str(y) + "\nBiome: " + biome_name
 
 	if Input.is_action_just_pressed("toggle_debug"):
 		if toggle_ui == true and can_toggle_ui == true:
