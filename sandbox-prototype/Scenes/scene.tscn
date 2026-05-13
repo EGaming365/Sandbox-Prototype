@@ -13,10 +13,11 @@
 [ext_resource type="PackedScene" uid="uid://dyt3sf1v3eg7p" path="res://Scenes/inventory_ui.tscn" id="11_rcvm1"]
 [ext_resource type="Script" uid="uid://lxoxflac3ghp" path="res://Scripts/block_placer.gd" id="12_usre1"]
 [ext_resource type="Script" uid="uid://bt5j7q2nekadg" path="res://Scripts/hearts.gd" id="13_nimp4"]
-[ext_resource type="PackedScene" uid="uid://dakryvklm668i" path="res://Scenes/chat_box.tscn" id="14_oisvf"]
+[ext_resource type="PackedScene" path="res://Scenes/chat_box.tscn" id="14_oisvf"]
 [ext_resource type="Texture2D" uid="uid://8fv1kmv0dm72" path="res://Assets/New Piskel (4) (1).png" id="15_oisvf"]
 [ext_resource type="Script" uid="uid://btrncygs1p3db" path="res://Scripts/building_preview.gd" id="16_nimp4"]
 [ext_resource type="Script" uid="uid://do2anvpdk4kxf" path="res://Scripts/world_generation.gd" id="18_oisvf"]
+[ext_resource type="Script" uid="uid://jrkn55j2buqc" path="res://Scenes/weather.gd" id="19_l8vl3"]
 [ext_resource type="Script" uid="uid://ctsjl5ujr4u7f" path="res://Scenes/environment_gen.gd" id="20_b0t05"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_l8vl3"]
@@ -138,6 +139,9 @@ script = ExtResource("18_oisvf")
 
 [node name="EnvironmentGen" type="Node2D" parent="." unique_id=1926375224]
 script = ExtResource("20_b0t05")
+
+[node name="Weather" type="Node2D" parent="." unique_id=1376705338]
+script = ExtResource("19_l8vl3")
 
 [connection signal="pressed" from="CanvasLayer/Host_Button" to="." method="_on_host_button_pressed"]
 [connection signal="pressed" from="CanvasLayer/Join_Button" to="." method="_on_join_button_pressed"]

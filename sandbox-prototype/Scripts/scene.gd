@@ -565,3 +565,73 @@ func deal_damage_to_player(amount: int):
 			if child.is_multiplayer_authority():
 				child.take_damage(amount)
 				break
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_chop_env_tree(env_id: String, held_item: String):
+	if not is_host:
+		return
+
+	var env_gen = get_node_or_null("EnvironmentGen")
+	if not env_gen:
+		return
+
+	if not env_gen.active_objects.has(env_id):
+		return
+
+	var tree = env_gen.active_objects[env_id]
+	if not is_instance_valid(tree):
+		return
+
+	var sender_id = multiplayer.get_remote_sender_id()
+	tree.do_chop(sender_id, held_item)
+
+@rpc("authority", "call_remote", "reliable")
+func consume_axe_on_client():
+	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	if not hotbar:
+		return
+
+	var slot_index = hotbar.current_slot - 1
+	var current = Inventory.slots[slot_index]
+
+	if current["item"] in ["Axe", "Stone Axe"]:
+		current["count"] -= 1
+		if current["count"] <= 0:
+			Inventory.remove_item(slot_index, false)
+		else:
+			Inventory.inventory_changed.emit()
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_mine_env_rock(env_id: String, held_item: String):
+	if not is_host:
+		return
+
+	var env_gen = get_node_or_null("EnvironmentGen")
+	if not env_gen:
+		return
+
+	if not env_gen.active_objects.has(env_id):
+		return
+
+	var rock = env_gen.active_objects[env_id]
+	if not is_instance_valid(rock):
+		return
+
+	var sender_id = multiplayer.get_remote_sender_id()
+	rock.do_mine(sender_id, held_item)
+
+@rpc("authority", "call_remote", "reliable")
+func consume_pickaxe_on_client():
+	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	if not hotbar:
+		return
+
+	var slot_index = hotbar.current_slot - 1
+	var current = Inventory.slots[slot_index]
+
+	if current["item"] in ["Pickaxe", "Stone Pickaxe"]:
+		current["count"] -= 1
+		if current["count"] <= 0:
+			Inventory.remove_item(slot_index, false)
+		else:
+			Inventory.inventory_changed.emit()
