@@ -13,6 +13,7 @@ var attack_cooldown: float = 0.0
 const ATTACK_COOLDOWN_MAX: float = 0.8
 const ATTACK_RANGE: float = 80.0
 const SWORD_DAMAGE: int = 2
+var camera: Camera2D = null
 
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
@@ -22,8 +23,6 @@ func _enter_tree():
 
 func _ready():
 	add_to_group("players")
-	$Camera2D.enabled = false
-	call_deferred("_setup_camera")
 	if not multiplayer.has_multiplayer_peer():
 		collision_layer = 1
 		collision_mask = 1
@@ -33,6 +32,7 @@ func _ready():
 		collision_mask = 0
 		$CollisionShape2D.disabled = true
 	_setup_hand()
+	call_deferred("_setup_camera")
 
 func _setup_hand():
 	hand_sprite = Sprite2D.new()
@@ -43,14 +43,21 @@ func _setup_hand():
 	add_child(hand_sprite)
 
 func _setup_camera():
-	if not multiplayer.has_multiplayer_peer():
-		$Camera2D.enabled = true
-		$Camera2D.make_current()
-	elif is_multiplayer_authority():
-		$Camera2D.enabled = true
-		$Camera2D.make_current()
+	var is_local = not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()
+	if not is_local:
+		return
+	camera = get_tree().root.get_node_or_null("Scene/Camera2D")
+	if not camera:
+		camera = Camera2D.new()
+		camera.name = "Camera2D"
+		get_tree().root.get_node("Scene").add_child(camera)
+	camera.enabled = true
+	camera.make_current()
+	camera.global_position = global_position
 
 func _process(delta):
+	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
+		camera.global_position = global_position
 	if _is_inventory_open():
 		return
 
@@ -63,6 +70,8 @@ func _physics_process(delta):
 		return
 
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
+		velocity = synced_velocity
+		move_and_slide()
 		if synced_velocity.length() > 0:
 			anim.play("walk_down")
 		else:
@@ -87,6 +96,7 @@ func _physics_process(delta):
 		var hearts_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hearts")
 		if hearts_ui:
 			hearts_ui.update_hearts(synced_health)
+
 	var direction = Vector2.ZERO
 	if Input.is_action_pressed("move_left"):
 		direction.x -= 1
@@ -106,6 +116,15 @@ func _physics_process(delta):
 	move_and_slide()
 	z_index = int(global_position.y) % 1000
 	_update_hand_sprite()
+
+	if multiplayer.has_multiplayer_peer():
+		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String):
+	global_position = Vector2(px, py)
+	synced_velocity = Vector2(vx, vy)
+	synced_held_item = held
 
 func _input(event):
 	if _is_inventory_open():
@@ -128,7 +147,6 @@ func _try_attack():
 					scene_node.request_deal_damage.rpc_id(1, target_id, SWORD_DAMAGE)
 				else:
 					child.take_damage(SWORD_DAMAGE)
-				# Consume sword durability
 				_consume_sword_durability()
 				break
 
@@ -157,36 +175,39 @@ func take_damage(amount: int):
 func die():
 	is_dead = true
 	var scene_node = get_tree().root.get_node("Scene")
+
+	var drops: Array = []
 	for i in Inventory.slots.size():
 		var slot = Inventory.slots[i]
 		if slot["item"] != "":
-			var angle = randf_range(0, TAU)
-			var radius = randf_range(40, 80)
-			var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
-			var durability = slot["count"] if slot["item"] == "Axe" else 60
-			if multiplayer.has_multiplayer_peer():
-				if multiplayer.is_server():
-					scene_node.host_spawn_floor_item(drop_pos, slot["item"], durability)
-				else:
-					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, slot["item"], durability)
-			else:
-				scene_node.host_spawn_floor_item(drop_pos, slot["item"], durability)
-			Inventory.remove_item(i, false)
+			var durability = slot.get("durability", slot["count"] if slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] else 60)
+			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": true, "index": i})
+
 	for i in Inventory.inv_slots.size():
 		var slot = Inventory.inv_slots[i]
 		if slot["item"] != "":
-			var angle = randf_range(0, TAU)
-			var radius = randf_range(40, 80)
-			var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
-			var durability = slot["count"] if slot["item"] == "Axe" else 60
-			if multiplayer.has_multiplayer_peer():
-				if multiplayer.is_server():
-					scene_node.host_spawn_floor_item(drop_pos, slot["item"], durability)
-				else:
-					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, slot["item"], durability)
+			var durability = slot.get("durability", slot["count"] if slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] else 60)
+			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": false, "index": i})
+
+	for drop in drops:
+		var angle = randf_range(0, TAU)
+		var radius = randf_range(40, 80)
+		var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
+		if multiplayer.has_multiplayer_peer():
+			if multiplayer.is_server():
+				scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
 			else:
-				scene_node.host_spawn_floor_item(drop_pos, slot["item"], durability)
+				scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"])
+		else:
+			scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
+
+	for i in Inventory.slots.size():
+		if Inventory.slots[i]["item"] != "":
+			Inventory.remove_item(i, false)
+	for i in Inventory.inv_slots.size():
+		if Inventory.inv_slots[i]["item"] != "":
 			Inventory.remove_item(i, true)
+
 	global_position = Vector2(0, 0)
 	synced_health = max_health
 	is_dead = false

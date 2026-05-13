@@ -1,7 +1,7 @@
 extends Node2D
 @export var item_id: int = -1
 @export var durability: int = 80
-var stone_pickaxe_texture: Texture2D
+var stone_pickaxe_texture = preload("res://Assets/Stone_Pickaxe.png")
 var _picked_up: bool = false
 const DESPAWN_TIME = 300.0
 const PICKUP_RANGE = 40.0
@@ -10,12 +10,6 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
 func _ready():
-	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	img.fill(Color(0.6, 0.4, 0.2))
-	stone_pickaxe_texture = ImageTexture.create_from_image(img)
-	var sprite = get_node_or_null("Sprite2D")
-	if sprite:
-		sprite.texture = stone_pickaxe_texture
 	z_as_relative = false
 	z_index = int(global_position.y) % 1000
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)

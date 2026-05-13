@@ -5,7 +5,7 @@ extends Node2D
 
 @export var render_distance_chunks: int = 2
 @export var unload_distance_chunks: int = 4
-@export var update_interval: float = 0.25
+@export var update_interval: float = 0.5
 
 @export var forest_trees_per_chunk: float = 16.0
 @export var forest_rocks_per_chunk: float = 0.25
@@ -18,7 +18,7 @@ extends Node2D
 @export var biome_edge_check_radius: float = 200.0
 @export var max_spawn_attempts_per_object: int = 30
 
-var scene_node: Node2D
+var scene_node: Node
 var world_gen: Node
 var local_player: CharacterBody2D
 
@@ -33,10 +33,15 @@ var object_positions_by_chunk: Dictionary = {}
 var destroyed_env_objects: Dictionary = {}
 var env_object_hits: Dictionary = {}
 
+var _chunk_load_queue: Array = []
+var _packed_tree_scene: PackedScene = null
+var _packed_rock_scene: PackedScene = null
 
 func _ready():
 	scene_node = get_tree().root.get_node_or_null("Scene")
 	world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	_packed_tree_scene = load(tree_scene_path)
+	_packed_rock_scene = load(rock_scene_path)
 
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -44,10 +49,10 @@ func _ready():
 
 	if world_gen and world_gen.get("world_seed") != null:
 		world_seed = world_gen.world_seed
-		print("EnvironmentGen got seed: ", world_seed)
-
 
 func _process(delta):
+	_process_load_queue()
+
 	update_timer -= delta
 	if update_timer > 0.0:
 		return
@@ -59,6 +64,12 @@ func _process(delta):
 
 	_update_chunks_around_player()
 
+func _process_load_queue():
+	if _chunk_load_queue.is_empty():
+		return
+	var chunk_coord = _chunk_load_queue.pop_front()
+	if not loaded_chunks.has(chunk_coord):
+		_load_chunk(chunk_coord)
 
 func _refresh_references() -> bool:
 	if not scene_node:
@@ -78,11 +89,9 @@ func _refresh_references() -> bool:
 
 	return local_player != null
 
-
 func set_world_seed(seed: int):
 	world_seed = seed
 	_unload_all_chunks()
-
 
 func apply_env_state(destroyed: Dictionary, hits: Dictionary):
 	destroyed_env_objects = destroyed.duplicate(true)
@@ -94,11 +103,9 @@ func apply_env_state(destroyed: Dictionary, hits: Dictionary):
 	for env_id in env_object_hits.keys():
 		set_object_hits(env_id, env_object_hits[env_id])
 
-
 func mark_destroyed(env_id: String):
 	destroyed_env_objects[env_id] = true
 	_despawn_object(env_id)
-
 
 func set_object_hits(env_id: String, hits: int):
 	env_object_hits[env_id] = hits
@@ -108,32 +115,26 @@ func set_object_hits(env_id: String, hits: int):
 		if is_instance_valid(obj) and _has_property(obj, "hits"):
 			obj.hits = hits
 
-
 func _update_chunks_around_player():
 	var player_tile = world_gen.world_to_tile(local_player.global_position)
 	var center_chunk = world_gen.tile_to_chunk(player_tile)
 
-	var desired_chunks: Dictionary = {}
-
 	for x in range(center_chunk.x - render_distance_chunks, center_chunk.x + render_distance_chunks + 1):
 		for y in range(center_chunk.y - render_distance_chunks, center_chunk.y + render_distance_chunks + 1):
 			var chunk_coord = Vector2i(x, y)
-			desired_chunks[chunk_coord] = true
-
-			if not loaded_chunks.has(chunk_coord):
-				_load_chunk(chunk_coord)
+			if not loaded_chunks.has(chunk_coord) and not _chunk_load_queue.has(chunk_coord):
+				_chunk_load_queue.append(chunk_coord)
 
 	var chunks_to_unload: Array = []
 	for chunk_coord in loaded_chunks.keys():
 		var dist_x = abs(chunk_coord.x - center_chunk.x)
 		var dist_y = abs(chunk_coord.y - center_chunk.y)
-
 		if dist_x > unload_distance_chunks or dist_y > unload_distance_chunks:
 			chunks_to_unload.append(chunk_coord)
 
 	for chunk_coord in chunks_to_unload:
 		_unload_chunk(chunk_coord)
-
+		_chunk_load_queue.erase(chunk_coord)
 
 func _load_chunk(chunk_coord: Vector2i):
 	if loaded_chunks.has(chunk_coord):
@@ -149,7 +150,6 @@ func _load_chunk(chunk_coord: Vector2i):
 
 	_spawn_chunk_objects(chunk_coord)
 
-
 func _unload_chunk(chunk_coord: Vector2i):
 	if chunk_objects.has(chunk_coord):
 		for env_id in chunk_objects[chunk_coord]:
@@ -159,8 +159,8 @@ func _unload_chunk(chunk_coord: Vector2i):
 	object_positions_by_chunk.erase(chunk_coord)
 	loaded_chunks.erase(chunk_coord)
 
-
 func _unload_all_chunks():
+	_chunk_load_queue.clear()
 	for chunk_coord in loaded_chunks.keys():
 		_unload_chunk(chunk_coord)
 
@@ -168,7 +168,6 @@ func _unload_all_chunks():
 	chunk_objects.clear()
 	object_positions_by_chunk.clear()
 	active_objects.clear()
-
 
 func _spawn_chunk_objects(chunk_coord: Vector2i):
 	_spawn_kind_in_chunk(chunk_coord, "rock", true, forest_rocks_per_chunk, rock_min_distance)
@@ -185,7 +184,6 @@ func _spawn_kind_in_chunk(chunk_coord: Vector2i, kind: String, wants_forest: boo
 
 	var actual_count: int
 	if count < 1.0:
-		# Fractional count — spawn 1 object with probability equal to count
 		if rng.randf() < count:
 			actual_count = 1
 		else:
@@ -224,18 +222,17 @@ func _spawn_kind_in_chunk(chunk_coord: Vector2i, kind: String, wants_forest: boo
 		_spawn_object(env_id, kind, pos, chunk_coord)
 		spawned += 1
 
-
 func _spawn_object(env_id: String, kind: String, pos: Vector2, chunk_coord: Vector2i):
 	if active_objects.has(env_id):
 		return
 
-	var scene_path := tree_scene_path
+	var packed_scene: PackedScene
 	if kind == "rock":
-		scene_path = rock_scene_path
+		packed_scene = _packed_rock_scene
+	else:
+		packed_scene = _packed_tree_scene
 
-	var packed_scene = load(scene_path)
 	if packed_scene == null:
-		push_error("EnvironmentGen: Could not load scene: " + scene_path)
 		return
 
 	var obj = packed_scene.instantiate()
@@ -260,7 +257,6 @@ func _spawn_object(env_id: String, kind: String, pos: Vector2, chunk_coord: Vect
 	chunk_objects[chunk_coord].append(env_id)
 	object_positions_by_chunk[chunk_coord].append(pos)
 
-
 func _despawn_object(env_id: String):
 	if not active_objects.has(env_id):
 		return
@@ -270,7 +266,6 @@ func _despawn_object(env_id: String):
 		obj.queue_free()
 
 	active_objects.erase(env_id)
-
 
 func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: float) -> bool:
 	var chunks_to_check = [
@@ -295,7 +290,6 @@ func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: fl
 
 	return true
 
-
 func _is_safely_in_biome(pos: Vector2, wants_forest: bool) -> bool:
 	var offsets = [
 		Vector2.ZERO,
@@ -311,16 +305,12 @@ func _is_safely_in_biome(pos: Vector2, wants_forest: bool) -> bool:
 
 	return true
 
-
 func _is_forest_at(pos: Vector2) -> bool:
 	if world_gen.has_method("is_forest_tile_at"):
 		return world_gen.is_forest_tile_at(pos)
-
 	if world_gen.has_method("is_forest_at"):
 		return world_gen.is_forest_at(pos)
-
 	return false
-
 
 func _get_chunk_world_bounds(chunk_coord: Vector2i) -> Array:
 	var start_tile: Vector2i = world_gen.chunk_to_start_tile(chunk_coord)
@@ -334,7 +324,6 @@ func _get_chunk_world_bounds(chunk_coord: Vector2i) -> Array:
 
 	return [world_min, world_max]
 
-
 func _chunk_seed(chunk_coord: Vector2i, kind: String, wants_forest: bool) -> int:
 	var biome_key := 0
 	if wants_forest:
@@ -347,14 +336,11 @@ func _chunk_seed(chunk_coord: Vector2i, kind: String, wants_forest: bool) -> int
 	var mixed = world_seed ^ (chunk_coord.x * 374761393) ^ (chunk_coord.y * 1234567891) ^ (kind_key * 7919) ^ (biome_key * 104729)
 	return abs(mixed)
 
-
 func _make_env_id(kind: String, chunk_coord: Vector2i, index: int) -> String:
 	return kind + ":" + str(chunk_coord.x) + ":" + str(chunk_coord.y) + ":" + str(index)
-
 
 func _has_property(obj: Object, property_name: String) -> bool:
 	for prop in obj.get_property_list():
 		if prop.name == property_name:
 			return true
-
 	return false

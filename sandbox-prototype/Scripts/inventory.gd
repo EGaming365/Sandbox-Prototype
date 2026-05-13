@@ -9,6 +9,7 @@ var axe_texture = preload("res://Assets/Axe.png")
 var sword_texture = preload("res://Assets/Sword.png")
 var stone_axe_texture = preload("res://Assets/Stone_Axe.png")
 var stone_sword_texture = preload("res://Assets/Stone_Sword.png")
+var stone_pickaxe_texture = preload("res://Assets/Stone_Pickaxe.png")
 
 func _ready():
 	set_process(true)

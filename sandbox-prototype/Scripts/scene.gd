@@ -1,4 +1,4 @@
-extends Node2D
+extends Node
 
 var lobby_id: int = 0
 var peer: SteamMultiplayerPeer
@@ -20,7 +20,6 @@ var rocks: Dictionary = {}
 var next_rock_id: int = 0
 var placed_blocks: Dictionary = {}
 var next_block_id: int = 0
-var chop_cooldown_active: bool = false
 var last_placed_texture: Texture2D = null
 
 @onready var host_button: Button = $CanvasLayer/Host_Button
@@ -148,6 +147,8 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 
 	if has_node("1"):
 		get_node("1").name = str(multiplayer.get_unique_id())
+		get_node(str(multiplayer.get_unique_id())).set_multiplayer_authority(multiplayer.get_unique_id(), true)
+
 	else:
 		_spawn_player(multiplayer.get_unique_id())
 
@@ -190,6 +191,10 @@ func _on_peer_connected(id: int):
 
 	_spawn_player(id)
 	_sync_world_to_peer(id)
+	var weather = get_node_or_null("Weather")
+	if weather:
+		weather.sync_weather_state.rpc_id(id, weather.current_weather, weather.time_of_day, weather.weather_timer)
+
 	await get_tree().create_timer(0.5).timeout
 
 	var ids_to_send: Array[int] = []
@@ -253,7 +258,9 @@ func _spawn_player(id: int):
 	var player = player_scene.instantiate()
 	player.name = str(id)
 	add_child(player)
+	player.set_multiplayer_authority(id, true)
 	player.global_position = Vector2(0, 0)
+
 
 func _remove_player(id: int):
 	if not has_node(str(id)):
@@ -499,14 +506,6 @@ func request_remove_floor_item(item_id: int):
 		return
 
 	sync_remove_floor_item.rpc(item_id)
-
-func set_chop_cooldown(duration: float):
-	if chop_cooldown_active:
-		return
-
-	chop_cooldown_active = true
-	await get_tree().create_timer(duration).timeout
-	chop_cooldown_active = false
 
 func _notification(what):
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

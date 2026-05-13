@@ -316,8 +316,13 @@ func _process(_delta):
 	var near_bench = Crafting.is_near_bench()
 	if near_bench != _last_near_bench:
 		_last_near_bench = near_bench
+
+		if not near_bench and Crafting.bench_recipes.has(selected_recipe):
+			selected_recipe = {}
+
 		if current_tab == "recipes":
 			_update_recipe_panel()
+
 
 	if not drag_node:
 		if Input.is_action_just_pressed("click"):

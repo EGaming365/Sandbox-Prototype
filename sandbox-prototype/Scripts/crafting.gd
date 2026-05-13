@@ -105,7 +105,7 @@ func get_item_texture(item_name: String) -> Texture2D:
 		"Stone Sword":
 			return Inventory.stone_sword_texture
 		"Stone Pickaxe":
-			return stone_pickaxe_texture
+			return Inventory.stone_pickaxe_texture
 		"Wardrobe":
 			return wardrobe_texture
 	return null
@@ -129,11 +129,16 @@ func _get_local_player():
 				return child
 	return null
 func can_craft(recipe: Dictionary) -> bool:
+	if bench_recipes.has(recipe) and not is_near_bench():
+		return false
+
 	for item in recipe["ingredients"]:
 		var count = recipe["ingredients"][item]
 		if _count_item(item) < count:
 			return false
+
 	return true
+
 func _has_inventory_space() -> bool:
 	for slot in Inventory.slots:
 		if slot["item"] == "":

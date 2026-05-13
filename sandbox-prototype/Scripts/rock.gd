@@ -70,8 +70,8 @@ func _process(_delta):
 		if local_player:
 			local_player.start_chop_cooldown(_get_mine_time(held_item))
 	else:
-		if scene_node.chop_cooldown_active:
-			return
+		if local_player:
+			local_player.start_chop_cooldown(_get_mine_time(held_item))
 
 		do_mine(multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 1, held_item)
 
@@ -86,9 +86,6 @@ func _get_mine_time(held_item: String) -> float:
 
 func do_mine(miner_id: int = 1, held_item: String = ""):
 	var scene_node = get_tree().root.get_node("Scene")
-	var mine_time = _get_mine_time(held_item)
-
-	scene_node.set_chop_cooldown(mine_time)
 
 	hits += 1
 
@@ -97,12 +94,8 @@ func do_mine(miner_id: int = 1, held_item: String = ""):
 	var angle = randf_range(0, TAU)
 	var radius = randf_range(75, 95) + 40
 	var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
-	scene_node.host_spawn_floor_item(drop_pos, "Stone", 1)
 
-	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
-	var local_player = hotbar.get_local_player() if hotbar else null
-	if local_player:
-		local_player.start_chop_cooldown(mine_time)
+	scene_node.host_spawn_floor_item(drop_pos, "Stone", 1)
 
 	if hits >= max_hits:
 		if env_id != "":
@@ -117,7 +110,6 @@ func do_mine(miner_id: int = 1, held_item: String = ""):
 				scene_node.remove_rock(rock_id)
 		else:
 			queue_free()
-		return
 
 func _consume_pickaxe(miner_id: int):
 	var scene_node = get_tree().root.get_node("Scene")
@@ -135,6 +127,7 @@ func _consume_pickaxe(miner_id: int):
 
 	if current["item"] in ["Pickaxe", "Stone Pickaxe"]:
 		current["count"] -= 1
+
 		if current["count"] <= 0:
 			Inventory.remove_item(slot_index, false)
 		else:

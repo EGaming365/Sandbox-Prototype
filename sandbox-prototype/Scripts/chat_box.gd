@@ -13,6 +13,7 @@ var sword_texture: Texture2D = preload("res://Assets/Sword.png")
 var stone_texture: Texture2D = preload("res://Assets/Stone.png")
 var stone_axe_texture: Texture2D = preload("res://Assets/Stone_Axe.png")
 var stone_sword_texture: Texture2D = preload("res://Assets/Stone_Sword.png")
+var stone_pickaxe_texture: Texture2D = preload("res://Assets/Stone_Pickaxe.png")
 
 @onready var scroll_container: ScrollContainer = $ChatContainer/ScrollContainer
 @onready var messages_container: VBoxContainer = $ChatContainer/ScrollContainer/Messages

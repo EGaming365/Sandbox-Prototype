@@ -67,7 +67,7 @@ func _process(_delta):
 		text = "X: " + str(x) \
 			+ "\nY: " + str(y) \
 			+ "\nBiome: " + biome_name \
-			+ "\nDay: " + day_type \
+			+ "\nTime: " + day_type \
 			+ "\nWeather: " + weather_type
 
 	if Input.is_action_just_pressed("toggle_debug"):
