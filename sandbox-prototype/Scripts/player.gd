@@ -1,4 +1,5 @@
 extends CharacterBody2D
+
 @export var speed = 450
 @export var synced_velocity : Vector2 = Vector2.ZERO
 @export var synced_held_item: String = ""
@@ -13,6 +14,7 @@ var attack_cooldown: float = 0.0
 const ATTACK_COOLDOWN_MAX: float = 0.8
 const ATTACK_RANGE: float = 80.0
 const SWORD_DAMAGE: int = 2
+const FEET_OFFSET: float = 1.0
 var camera: Camera2D = null
 
 func _enter_tree():
@@ -22,6 +24,7 @@ func _enter_tree():
 		set_multiplayer_authority(1)
 
 func _ready():
+	z_index = 2
 	add_to_group("players")
 	if not multiplayer.has_multiplayer_peer():
 		collision_layer = 1
@@ -37,7 +40,8 @@ func _ready():
 func _setup_hand():
 	hand_sprite = Sprite2D.new()
 	hand_sprite.position = Vector2(-10, -16)
-	hand_sprite.z_index = 1
+	hand_sprite.z_as_relative = true  # inherits player's z_index
+	hand_sprite.z_index = 0           # 0 relative to parent = same as player
 	hand_sprite.visible = false
 	hand_sprite.modulate = Color(1, 1, 1, 0)
 	add_child(hand_sprite)
@@ -46,11 +50,11 @@ func _setup_camera():
 	var is_local = not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()
 	if not is_local:
 		return
-	camera = get_tree().root.get_node_or_null("Scene/Camera2D")
+	camera = get_tree().root.get_node_or_null("Camera2D")
 	if not camera:
 		camera = Camera2D.new()
 		camera.name = "Camera2D"
-		get_tree().root.get_node("Scene").add_child(camera)
+		get_tree().root.add_child(camera)  # add to ROOT not Scene
 	camera.enabled = true
 	camera.make_current()
 	camera.global_position = global_position
@@ -76,8 +80,6 @@ func _physics_process(delta):
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
-		# player
-		z_index = int(global_position.y) % 1000
 		_update_hand_sprite()
 		return
 
@@ -115,7 +117,6 @@ func _physics_process(delta):
 	velocity = direction * speed
 	synced_velocity = velocity
 	move_and_slide()
-	z_index = int(global_position.y) % 1000
 	_update_hand_sprite()
 
 	if multiplayer.has_multiplayer_peer():

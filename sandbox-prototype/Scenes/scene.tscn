@@ -61,7 +61,8 @@ texture = ExtResource("15_oisvf")
 [sub_resource type="TileSet" id="TileSet_6yy46"]
 sources/0 = SubResource("TileSetAtlasSource_l8vl3")
 
-[node name="Scene" type="Node" unique_id=2017335807]
+[node name="Scene" type="Node2D" unique_id=399292761]
+y_sort_enabled = true
 script = ExtResource("1_6yy46")
 player_scene = ExtResource("1_gjdyk")
 

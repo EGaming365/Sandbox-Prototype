@@ -1,4 +1,4 @@
-extends Node
+extends Node2D
 
 var lobby_id: int = 0
 var peer: SteamMultiplayerPeer
@@ -27,6 +27,7 @@ var last_placed_texture: Texture2D = null
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
 
 func _ready():
+	y_sort_enabled = true
 	get_tree().set_auto_accept_quit(false)
 	print("Steam initialised: ", Steam.steamInitEx(480))
 	Steam.initRelayNetworkAccess()

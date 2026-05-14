@@ -10,9 +10,9 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
 func _ready():
+	z_index = 2
 	plank_texture = Crafting.plank_texture
 	$Sprite2D.texture = plank_texture
-	z_index = int(global_position.y) % 1000
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
 

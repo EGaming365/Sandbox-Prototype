@@ -10,7 +10,7 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
 func _ready():
-	z_index = int(global_position.y) % 1000
+	z_index = 2
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
 
@@ -25,15 +25,18 @@ func _process(delta):
 	if check_timer > 0.0:
 		return
 	check_timer = CHECK_INTERVAL
-	var scene_node = get_tree().root.get_node_or_null("Scene")
-	if not scene_node or not scene_node.local_player:
+	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	if not hotbar:
 		return
-	if scene_node.local_player.global_position.distance_to(global_position) <= PICKUP_RANGE:
+	var player = hotbar.get_local_player()
+	if not player:
+		return
+	if player.global_position.distance_to(global_position) <= PICKUP_RANGE:
 		if _is_inventory_full("Axe"):
 			return
 		_picked_up = true
-		Inventory.batch_add_item("Axe", axe_texture, durability)
-		Inventory.request_inventory_update()
+		Inventory.add_item_with_count("Axe", axe_texture, durability)
+		var scene_node = get_tree().root.get_node("Scene")
 		if multiplayer.has_multiplayer_peer():
 			if multiplayer.is_server():
 				scene_node.sync_remove_floor_item.rpc(item_id)

@@ -30,6 +30,7 @@ func setup(i_name: String, texture: Texture2D, b_id: int, rot: float = 0.0):
 
 func _ready():
 	add_to_group("placed_blocks")
+	z_index = 2
 	if item_name == "Crafting_Bench":
 		add_to_group("crafting_benches")
 	if item_texture == null and item_name != "":
@@ -41,7 +42,6 @@ func _ready():
 		max_hits = BuildingManager.get_max_hits(item_name)
 	$CollisionShape2D.shape = $CollisionShape2D.shape.duplicate()
 	call_deferred("_update_collision_for_rotation")
-	z_index = int(global_position.y + 32) % 1000
 
 func _update_collision_for_rotation():
 	var shape = $CollisionShape2D.shape as RectangleShape2D

@@ -10,6 +10,7 @@ var is_open: bool = false
 var wood_texture: Texture2D = preload("res://Assets/Wood.png")
 var axe_texture: Texture2D = preload("res://Assets/Axe.png")
 var sword_texture: Texture2D = preload("res://Assets/Sword.png")
+var pickaxe_texture: Texture2D = preload("res://Assets/Pickaxe.png")
 var stone_texture: Texture2D = preload("res://Assets/Stone.png")
 var stone_axe_texture: Texture2D = preload("res://Assets/Stone_Axe.png")
 var stone_sword_texture: Texture2D = preload("res://Assets/Stone_Sword.png")

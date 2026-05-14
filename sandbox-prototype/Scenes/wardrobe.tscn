@@ -1,3 +1,10 @@
 [gd_scene format=3 uid="uid://ducljjqvblluu"]
 
+[ext_resource type="Script" uid="uid://nq3rkmuy4a3h" path="res://Scenes/wardrobe.gd" id="1_flhbc"]
+[ext_resource type="Texture2D" uid="uid://ca7ol3krh3bk4" path="res://Assets/Wardrobe.png" id="2_b1x2a"]
+
 [node name="Wardrobe" type="Node2D" unique_id=119570879]
+script = ExtResource("1_flhbc")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=917602025]
+texture = ExtResource("2_b1x2a")

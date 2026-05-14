@@ -1,5 +1,4 @@
 extends Node2D
-
 @onready var area = $Area2D
 var player_in_range = false
 var player_in_range_node = null
@@ -7,15 +6,16 @@ var max_hits = randi_range(4, 8)
 var hits = 0
 var tree_id: int = -1
 var env_id: String = ""
+var trunk_base_y: float = 0.0
 
 func _ready():
-	z_as_relative = false
+	add_to_group("trees")
+	z_index = 2
+	trunk_base_y = global_position.y
 	if has_meta("env_id"):
 		env_id = str(get_meta("env_id"))
 
 func _process(_delta):
-	_update_z_index()
-
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	if chat and chat.is_open:
 		return
@@ -49,31 +49,6 @@ func _process(_delta):
 		if local_player:
 			local_player.start_chop_cooldown(_get_chop_time(held_item))
 		do_chop(multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 1, held_item)
-
-func _update_z_index():
-	var scene_node = get_tree().root.get_node_or_null("Scene")
-	if not scene_node:
-		z_index = int(global_position.y) % 1000
-		return
-
-	var local_player = null
-	for child in scene_node.get_children():
-		if child is CharacterBody2D:
-			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
-				local_player = child
-				break
-
-	if not local_player:
-		z_index = int(global_position.y) % 1000
-		return
-
-	var player_feet = local_player.global_position.y + 113
-	var trunk_base = global_position.y
-
-	if player_feet > trunk_base:
-		z_index = int(local_player.global_position.y) - 1
-	else:
-		z_index = int(local_player.global_position.y) + 1
 
 func _get_chop_time(held_item: String) -> float:
 	match held_item:

@@ -62,24 +62,21 @@ var stone_pickaxe_texture: Texture2D
 var wardrobe_texture: Texture2D
 
 func _ready():
-	var stone_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	stone_img.fill(Color.GRAY)
-	stone_texture = ImageTexture.create_from_image(stone_img)
-	var pickaxe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	pickaxe_img.fill(Color(0.6, 0.6, 0.8))
-	pickaxe_texture = ImageTexture.create_from_image(pickaxe_img)
+	stone_texture = load("res://Assets/Stone.png")
 	wood_texture = load("res://Assets/Wood.png")
-	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	img.fill(Color.WHITE)
-	plank_texture = ImageTexture.create_from_image(img)
 	axe_texture = load("res://Assets/Axe.png")
 	sword_texture = load("res://Assets/Sword.png")
+	pickaxe_texture = load("res://Assets/Pickaxe.png")
+	stone_axe_texture = load("res://Assets/Stone_Axe.png")
+	stone_sword_texture = load("res://Assets/Stone_Sword.png")
+	stone_pickaxe_texture = load("res://Assets/Stone_Pickaxe.png")
+	# No real assets for these, keep placeholders
+	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
+	img.fill(Color(0.6, 0.4, 0.2))
+	plank_texture = ImageTexture.create_from_image(img)
 	var bench_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	bench_img.fill(Color.RED)
 	bench_texture = ImageTexture.create_from_image(bench_img)
-	var stone_pickaxe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	stone_pickaxe_img.fill(Color(0.6, 0.6, 0.7))
-	stone_pickaxe_texture = ImageTexture.create_from_image(stone_pickaxe_img)
 	var wardrobe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	wardrobe_img.fill(Color(0.4, 0.2, 0.1))
 	wardrobe_texture = ImageTexture.create_from_image(wardrobe_img)
@@ -99,7 +96,7 @@ func get_item_texture(item_name: String) -> Texture2D:
 		"Stone":
 			return stone_texture
 		"Pickaxe":
-			return pickaxe_texture
+			return Inventory.pickaxe_texture
 		"Stone Axe":
 			return Inventory.stone_axe_texture
 		"Stone Sword":

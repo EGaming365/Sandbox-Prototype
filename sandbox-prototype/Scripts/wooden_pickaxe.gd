@@ -1,7 +1,7 @@
 extends Node2D
 @export var item_id: int = -1
-@export var durability: int = 80
-var pickaxe_texture: Texture2D
+@export var durability: int = 60
+var pickaxe_texture = preload("res://Assets/Pickaxe.png")
 var _picked_up: bool = false
 const DESPAWN_TIME = 300.0
 const PICKUP_RANGE = 40.0
@@ -10,12 +10,8 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
 func _ready():
-	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	img.fill(Color(0.4, 0.4, 0.4))
-	pickaxe_texture = ImageTexture.create_from_image(img)
+	z_index = 2
 	$Sprite2D.texture = pickaxe_texture
-	z_as_relative = false
-	z_index = int(global_position.y) % 1000
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
 
@@ -37,10 +33,10 @@ func _process(delta):
 	if not player:
 		return
 	if player.global_position.distance_to(global_position) <= PICKUP_RANGE:
-		if _is_inventory_full("Stone Pickaxe"):
+		if _is_inventory_full("Pickaxe"):
 			return
 		_picked_up = true
-		Inventory.add_item_with_count("Stone Pickaxe", pickaxe_texture, durability)
+		Inventory.add_item_with_count("Pickaxe", pickaxe_texture, durability)
 		var scene_node = get_tree().root.get_node("Scene")
 		if multiplayer.has_multiplayer_peer():
 			if multiplayer.is_server():

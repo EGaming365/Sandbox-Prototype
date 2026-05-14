@@ -10,7 +10,7 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
 func _ready():
-	z_index = int(global_position.y) % 1000
+	z_index = 2
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
 
