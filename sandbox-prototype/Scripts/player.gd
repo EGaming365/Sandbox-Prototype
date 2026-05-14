@@ -76,6 +76,7 @@ func _physics_process(delta):
 			anim.play("walk_down")
 		else:
 			anim.play("idle")
+		# player
 		z_index = int(global_position.y) % 1000
 		_update_hand_sprite()
 		return

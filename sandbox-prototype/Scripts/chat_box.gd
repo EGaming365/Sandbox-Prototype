@@ -49,9 +49,35 @@ func _handle_command(text: String):
 				"stone": item_name = "Stone"
 				"pickaxe": item_name = "Pickaxe"
 			_give_item_to_player(target_name, item_name, amount)
+		"/weather":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /weather <clear|rain|thunder|thunderstorm>")
+				return
+			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
+			if not weather_node:
+				_add_message("[System] WeatherSystem not found.")
+				return
+			match parts[1].to_lower():
+				"clear":
+					weather_node._set_weather(weather_node.WeatherType.CLEAR)
+				"rain":
+					weather_node._set_weather(weather_node.WeatherType.RAIN)
+				"thunder":
+					weather_node._set_weather(weather_node.WeatherType.THUNDER)
+				"thunderstorm":
+					weather_node._set_weather(weather_node.WeatherType.THUNDERSTORM)
+				_:
+					_add_message("[System] Unknown weather. Use: clear, rain, thunder, thunderstorm")
+					return
+			if multiplayer.has_multiplayer_peer():
+				weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+			_add_message("[System] Weather set to: " + parts[1].to_lower())
 		_:
 			_add_message("[System] Unknown command: " + cmd)
-
+	
 func _give_item_to_player(target_name: String, item_name: String, amount: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	var target_peer_id: int = -1
@@ -109,7 +135,7 @@ func _get_item_texture(item_name: String) -> Texture2D:
 		"crafting_bench": return Crafting.bench_texture
 		"stone axe": return stone_axe_texture
 		"stone sword": return stone_sword_texture
-		"stone pickaxe": return Crafting.stone_pickaxe_texture
+		"stone pickaxe": return stone_pickaxe_texture
 		"stone": return stone_texture
 	return null
 

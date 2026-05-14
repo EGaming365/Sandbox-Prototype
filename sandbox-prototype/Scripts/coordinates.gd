@@ -51,6 +51,8 @@ func get_weather_type() -> String:
 			return "Rain"
 		weather.WeatherType.THUNDER:
 			return "Thunder"
+		weather.WeatherType.THUNDERSTORM:
+			return "Thunderstorm"
 		_:
 			return "Unknown"
 
@@ -58,7 +60,7 @@ func _process(_delta):
 	var player = get_local_player()
 	if player:
 		var x = snappedf(player.global_position.x / 100.0, 0.1)
-		var y = snappedf(player.global_position.y / 100.0, 0.1)
+		var y = snappedf((player.global_position.y * -1) / 100.0, 0.1)
 		var feet_pos = player.global_position + Vector2(0, 48)
 		var biome_name = get_current_biome_name(feet_pos)
 		var day_type = get_day_type()

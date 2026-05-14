@@ -3,14 +3,15 @@ extends Node2D
 enum WeatherType {
 	CLEAR,
 	RAIN,
-	THUNDER
+	THUNDER,
+	THUNDERSTORM
 }
 
 @export var lightning_min_seconds: float = 25.0
 @export var lightning_max_seconds: float = 60.0
 @export var lightning_hit_radius: float = 36.0
 @export var lightning_kill_damage: int = 9999
-@export var lightning_spawn_radius: float = 100.0
+@export var lightning_spawn_radius: float = 800.0
 @export var lightning_bolt_height: float = 2200.0
 
 @export var rain_drop_count: int = 420
@@ -69,12 +70,14 @@ func _create_rain():
 	if not rain_particles:
 		print("ERROR: RainParticles not found")
 		return
-	rain_particles.emitting = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER
+	rain_particles.emitting = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
 
 func _set_weather(new_weather: WeatherType):
 	current_weather = new_weather
+	var raining = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
 	if rain_particles:
-		rain_particles.emitting = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER
+		rain_particles.emitting = raining
+		rain_particles.set_storm_intensity(current_weather == WeatherType.THUNDERSTORM)
 	match current_weather:
 		WeatherType.CLEAR:
 			lightning_timer = 0.0
@@ -82,6 +85,8 @@ func _set_weather(new_weather: WeatherType):
 			lightning_timer = 0.0
 		WeatherType.THUNDER:
 			lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
+		WeatherType.THUNDERSTORM:
+			lightning_timer = rng.randf_range(1, 1)
 
 func _create_lightning_flash():
 	lightning_flash_layer = CanvasLayer.new()
@@ -133,6 +138,11 @@ func _apply_day_night_color():
 		tint = tint.darkened(0.12)
 	elif current_weather == WeatherType.THUNDER:
 		tint = tint.darkened(0.24)
+	elif current_weather == WeatherType.THUNDERSTORM:
+		tint = tint.darkened(0.38)
+	elif current_weather == WeatherType.THUNDERSTORM:
+		tint = tint.darkened(0.38)
+		tint = tint.lerp(Color(0.1, 0.13, 0.22), 0.35)
 
 	canvas_modulate.color = tint
 
@@ -143,16 +153,20 @@ func _update_weather_timer(delta):
 
 func _pick_next_weather():
 	var roll = rng.randi_range(1, 100)
-	if roll <= 55:
+	if roll <= 80:
 		_set_weather(WeatherType.CLEAR)
-	elif roll <= 85:
+	elif roll <= 92:
 		_set_weather(WeatherType.RAIN)
-	else:
+	elif roll <= 98:
 		_set_weather(WeatherType.THUNDER)
+	else:
+		_set_weather(WeatherType.THUNDERSTORM)
 	weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 
 func _update_lightning(delta):
-	if current_weather != WeatherType.THUNDER:
+	var is_electric = current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+
+	if not is_electric:
 		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 5.0)
 		if lightning_flash:
 			lightning_flash.color = Color(1, 1, 1, lightning_alpha)
@@ -161,12 +175,22 @@ func _update_lightning(delta):
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		lightning_timer -= delta
 		if lightning_timer <= 0.0:
-			var strike_pos = _get_random_lightning_world_position()
-			if multiplayer.has_multiplayer_peer():
-				lightning_strike_rpc.rpc(strike_pos.x, strike_pos.y)
+			if current_weather == WeatherType.THUNDERSTORM:
+				var strike_count = rng.randi_range(1, 3)
+				for i in range(strike_count):
+					var strike_pos = _get_random_lightning_world_position()
+					if multiplayer.has_multiplayer_peer():
+						lightning_strike_rpc.rpc(strike_pos.x, strike_pos.y)
+					else:
+						lightning_strike_rpc(strike_pos.x, strike_pos.y)
+				lightning_timer = rng.randf_range(1.0, 3.0)
 			else:
-				lightning_strike_rpc(strike_pos.x, strike_pos.y)
-			lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
+				var strike_pos = _get_random_lightning_world_position()
+				if multiplayer.has_multiplayer_peer():
+					lightning_strike_rpc.rpc(strike_pos.x, strike_pos.y)
+				else:
+					lightning_strike_rpc(strike_pos.x, strike_pos.y)
+				lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
 
 	lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 3.5)
 	if lightning_flash:
@@ -217,10 +241,21 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
 		return
+
+	var space = get_world_2d().direct_space_state
+
 	for player in get_tree().get_nodes_in_group("players"):
 		if not is_instance_valid(player):
 			continue
 		if player.global_position.distance_to(world_pos) > lightning_hit_radius:
+			continue
+
+		var query = PhysicsPointQueryParameters2D.new()
+		query.position = player.global_position
+		query.collision_mask = 4
+		query.exclude = [player]
+		var overlaps = space.intersect_point(query)
+		if overlaps.size() > 0:
 			continue
 
 		var player_id = player.name.to_int()
