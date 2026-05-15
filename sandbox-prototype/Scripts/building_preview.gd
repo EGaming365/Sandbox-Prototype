@@ -3,26 +3,30 @@ extends Node2D
 const GRID_SIZE = 64
 const PLACE_RANGE = 300.0
 
+const ITEM_PLACED_SCALE = {
+	"Wardrobe": Vector2(3.2, 3.2),
+}
+const DEFAULT_PLACED_SCALE = Vector2(2, 2)
+
+const ITEM_PREVIEW_OFFSET = {
+	"Wardrobe": Vector2(0, -48),
+}
+
+const ITEM_SPAWN_OFFSET = {
+	"Wardrobe": Vector2(0, -48),
+}
+
 var preview_sprite: Sprite2D
 var can_place: bool = false
 var active: bool = false
 var current_rotation_deg: float = 0.0
 var current_item_name: String = ""
 
-const ITEM_PLACED_SCALE = {
-	"Wardrobe": Vector2(3.2, 3.2),
-}
-const DEFAULT_PLACED_SCALE = Vector2(2, 2)
-const ITEM_OFFSET = {
-	"Wardrobe": Vector2(0, -5),
-}
-const ITEM_PLACE_OFFSET = {
-	"Wardrobe": Vector2(0, -48),
-}
 func get_place_pos() -> Vector2:
-	return get_snapped_mouse_pos() + ITEM_PLACE_OFFSET.get(current_item_name, Vector2.ZERO)
+	return global_position
 
-const DEFAULT_OFFSET = Vector2(0, 0)
+func get_place_offset() -> Vector2:
+	return Vector2.ZERO
 
 func _ready():
 	z_index = 100
@@ -35,7 +39,7 @@ func activate(texture: Texture2D, item_name: String = ""):
 	current_item_name = item_name
 	preview_sprite.texture = texture
 	preview_sprite.scale = ITEM_PLACED_SCALE.get(item_name, DEFAULT_PLACED_SCALE)
-	preview_sprite.offset = ITEM_OFFSET.get(item_name, DEFAULT_OFFSET)
+	preview_sprite.offset = Vector2.ZERO  # ← no sprite offset
 	preview_sprite.rotation_degrees = current_rotation_deg
 	active = true
 	show()
@@ -84,11 +88,11 @@ func _process(_delta):
 	if not active:
 		return
 	var snapped = get_snapped_mouse_pos()
-	global_position = snapped
+	global_position = snapped + ITEM_SPAWN_OFFSET.get(current_item_name, Vector2.ZERO)
 	var player = get_local_player()
 	if player:
 		var dist = player.global_position.distance_to(snapped)
-		can_place = dist <= PLACE_RANGE and not _is_occupied(snapped)
+		can_place = dist <= PLACE_RANGE and not _is_occupied(global_position)
 	else:
 		can_place = false
 	preview_sprite.modulate = Color(0, 1, 0, 0.5) if can_place else Color(1, 0, 0, 0.5)

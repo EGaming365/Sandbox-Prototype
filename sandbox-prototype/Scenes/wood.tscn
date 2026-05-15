@@ -7,7 +7,7 @@
 radius = 11.901794
 
 [node name="Wood" type="Sprite2D" unique_id=1703092314]
-scale = Vector2(0.07064457, 0.07064457)
+scale = Vector2(0.052793197, 0.052793197)
 texture = ExtResource("1_tfydv")
 script = ExtResource("2_tfydv")
 

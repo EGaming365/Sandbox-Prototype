@@ -2,39 +2,76 @@
 
 [ext_resource type="Script" uid="uid://s2le5gapamkt" path="res://Scripts/wardrobe_ui.gd" id="1_bcp8c"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bcp8c"]
+bg_color = Color(0.17283267, 0.17283267, 0.17283258, 1)
+
 [node name="Wardrobe_UI" type="Control" unique_id=103554997]
+custom_minimum_size = Vector2(800, 500)
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -918.0
+offset_top = -504.0
+offset_right = -118.0
+offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_bcp8c")
 
 [node name="PanelContainer" type="PanelContainer" parent="." unique_id=342263597]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bcp8c")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=641074274]
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer" unique_id=1326995240]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Left" type="VBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=702166647]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Tab_Buttons" type="HBoxContainer" parent="PanelContainer/HBoxContainer/Left" unique_id=2066063265]
 layout_mode = 2
 
-[node name="Tab_Buttons" type="HBoxContainer" parent="PanelContainer/VBoxContainer" unique_id=877642125]
+[node name="Body" type="Button" parent="PanelContainer/HBoxContainer/Left/Tab_Buttons" unique_id=1401815848]
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer" unique_id=1478478584]
+[node name="Accessories" type="Button" parent="PanelContainer/HBoxContainer/Left/Tab_Buttons" unique_id=1505622835]
+layout_mode = 2
+
+[node name="Hair" type="Button" parent="PanelContainer/HBoxContainer/Left/Tab_Buttons" unique_id=652388972]
+layout_mode = 2
+
+[node name="Shirt" type="Button" parent="PanelContainer/HBoxContainer/Left/Tab_Buttons" unique_id=1161771330]
+layout_mode = 2
+
+[node name="Pants" type="Button" parent="PanelContainer/HBoxContainer/Left/Tab_Buttons" unique_id=813067593]
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/HBoxContainer/Left" unique_id=1828818612]
 layout_mode = 2
 size_flags_vertical = 3
-mouse_filter = 2
+theme_override_constants/scrollbar_h_separation = 4
 
-[node name="Left" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=779827430]
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer/HBoxContainer/Left/ScrollContainer" unique_id=120802566]
 layout_mode = 2
+theme_override_constants/margin_left = 8
 
-[node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Left" unique_id=1259115923]
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/HBoxContainer/Left/ScrollContainer/MarginContainer" unique_id=1263331300]
 layout_mode = 2
+columns = 4
 
-[node name="GridContainer" type="GridContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Left/ScrollContainer" unique_id=1962635867]
+[node name="Right" type="HBoxContainer" parent="PanelContainer/HBoxContainer" unique_id=2033028489]
 layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="Right" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1750644095]
+[node name="PlayerPreview" type="TextureRect" parent="PanelContainer/HBoxContainer/Right" unique_id=231071769]
 layout_mode = 2

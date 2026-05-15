@@ -53,8 +53,9 @@ func _unhandled_input(event):
 		if not preview.can_place:
 			return
 		var snapped = preview.get_place_pos()
+		var offset = preview.get_place_offset()
 		var rot = preview.get_current_rotation()
-		_place_block(current_item, current_texture, snapped, rot)
+		_place_block(current_item, current_texture, snapped + offset, rot)
 
 func _place_block(item_name: String, texture: Texture2D, pos: Vector2, rot: float = 0.0):
 	var scene_node = get_tree().root.get_node("Scene")

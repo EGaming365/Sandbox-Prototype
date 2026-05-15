@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ccvv8kwl56r0m"
-path="res://.godot/imported/Player-Walk.png-d9d1de4c04c7c162e57e9ac44a85828e.ctex"
+uid="uid://8d0i4ck53qwn"
+path="res://.godot/imported/Crafting_Bench.png-6aef703f2bd2e80e25f970db1e908092.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Player-Walk.png"
-dest_files=["res://.godot/imported/Player-Walk.png-d9d1de4c04c7c162e57e9ac44a85828e.ctex"]
+source_file="res://Assets/Crafting_Bench.png"
+dest_files=["res://.godot/imported/Crafting_Bench.png-6aef703f2bd2e80e25f970db1e908092.ctex"]
 
 [params]
 

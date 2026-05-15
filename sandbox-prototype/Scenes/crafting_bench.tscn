@@ -1,16 +1,21 @@
 [gd_scene format=3 uid="uid://byjtw6dxc6nt"]
 
 [ext_resource type="Script" uid="uid://lx02vafr7pw4" path="res://Scripts/crafting_bench.gd" id="1_7jmvw"]
+[ext_resource type="Texture2D" uid="uid://8d0i4ck53qwn" path="res://Assets/Crafting_Bench.png" id="2_pqphe"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
 radius = 15.0
 
 [node name="Crafting_Bench" type="Node2D" unique_id=1126891296]
+scale = Vector2(1.2104051, 1.2104051)
 script = ExtResource("1_7jmvw")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
+texture = ExtResource("2_pqphe")
 
 [node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=760384955]
+position = Vector2(0, 2)
+scale = Vector2(1.3742391, 1.3742391)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=310392993]
 shape = SubResource("CircleShape2D_v6y3b")

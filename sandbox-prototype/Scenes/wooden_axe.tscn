@@ -6,7 +6,7 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
 
 [node name="Wooden_Axe" type="Node2D" unique_id=1126891296]
-scale = Vector2(2.9599988, 2.9599988)
+scale = Vector2(2.0229962, 2.0229962)
 script = ExtResource("1_cpaud")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]

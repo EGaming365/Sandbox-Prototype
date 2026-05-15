@@ -18,6 +18,7 @@ func _ready():
 	var area_shape = RectangleShape2D.new()
 	area_shape.size = Vector2(72, 72)
 	$Area2D/CollisionShape2D.shape = area_shape
+	$Area2D/CollisionShape2D.position = Vector2.ZERO
 	call_deferred("_setup_area")
 	z_index = 2
 
@@ -36,6 +37,7 @@ func setup_placed(b_id: int):
 	block_id = b_id
 	is_placed = true
 	$Sprite2D.scale = Vector2(3.2, 3.2)
+	$Sprite2D.offset = Vector2.ZERO
 	call_deferred("_setup_area")
 
 func setup_floor(i_id: int):
@@ -79,7 +81,10 @@ func _toggle_wardrobe_ui():
 		return
 	is_open = not is_open
 	$Sprite2D.texture = wardrobe_open_texture if is_open else wardrobe_texture
-	wardrobe_ui.visible = is_open
+	if is_open:
+		wardrobe_ui.open()
+	else:
+		wardrobe_ui.close()
 
 func close_ui():
 	is_open = false
@@ -153,3 +158,20 @@ func _get_local_player():
 			else:
 				return child
 	return null
+
+func _is_inventory_full(item_name: String) -> bool:
+	if Inventory.non_stackable_items.has(item_name):
+		for slot in Inventory.slots:
+			if slot["item"] == "":
+				return false
+		for slot in Inventory.inv_slots:
+			if slot["item"] == "":
+				return false
+		return true
+	for slot in Inventory.slots:
+		if slot["item"] == "" or (slot["item"] == item_name and slot["count"] < 99):
+			return false
+	for slot in Inventory.inv_slots:
+		if slot["item"] == "" or (slot["item"] == item_name and slot["count"] < 99):
+			return false
+	return true

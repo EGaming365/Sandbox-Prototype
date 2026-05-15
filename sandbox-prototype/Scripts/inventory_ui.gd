@@ -567,21 +567,26 @@ func _on_craft(recipe: Dictionary, btn: Button):
 				btn.text = "Craft"
 
 func _on_craft_max(recipe: Dictionary, btn: Button):
+	if btn != null and is_instance_valid(btn):
+		btn.disabled = true
+		btn.text = "Crafting..."
+
 	var crafted = 0
 	while Crafting.can_craft(recipe):
-		Crafting.craft(recipe, true)
+		for item in recipe["ingredients"]:
+			Crafting._remove_item(item, recipe["ingredients"][item])
+		Crafting._add_result_silent(recipe)
 		crafted += 1
+
 	if crafted > 0:
 		Inventory.inventory_changed.emit()
-		# Refresh detail panel
 		if not selected_recipe.is_empty():
 			var detail = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/Detail
 			_show_recipe_detail(selected_recipe, detail)
+
 	if btn != null and is_instance_valid(btn):
-		if crafted > 0:
-			btn.text = "Done x" + str(crafted) + "!"
-		else:
-			btn.text = "Need more!"
+		btn.disabled = false
+		btn.text = "Done x" + str(crafted) + "!" if crafted > 0 else "Need more!"
 		await get_tree().create_timer(0.5).timeout
 		if is_instance_valid(btn):
 			btn.text = "Craft"

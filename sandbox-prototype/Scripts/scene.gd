@@ -394,7 +394,7 @@ func sync_placed_blocks_to_peer(peer_id: int):
 	for block_id in placed_blocks:
 		var block = placed_blocks[block_id]
 		if is_instance_valid(block):
-			if block.get("is_placed") == true:
+			if block.get_script() and block.get_script().resource_path.contains("wardrobe"):
 				place_wardrobe_rpc.rpc_id(peer_id, block_id, block.global_position.x, block.global_position.y)
 			else:
 				place_block_rpc.rpc_id(peer_id, block_id, block.item_name, block.global_position.x, block.global_position.y, block.current_rotation)
@@ -402,17 +402,14 @@ func sync_placed_blocks_to_peer(peer_id: int):
 func process_block_hit(block_id: int):
 	if not placed_blocks.has(block_id):
 		return
-
 	var block = placed_blocks[block_id]
 	if not is_instance_valid(block):
 		return
-
 	block.hits += 1
-
 	if block.hits >= block.max_hits:
 		var drop_pos = block.global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
-		host_spawn_floor_item(drop_pos, block.item_name)
-
+		var drop_item = block.get("item_name") if block.get("item_name") != "" else "Wardrobe"
+		host_spawn_floor_item(drop_pos, drop_item)
 		if multiplayer.has_multiplayer_peer():
 			sync_remove_placed_block.rpc(block_id)
 		else:
@@ -426,15 +423,37 @@ func register_block_hit(block_id: int):
 	process_block_hit(block_id)
 
 func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
+	if not item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Wardrobe"]:
+		for item_id in floor_items:
+			var item = floor_items[item_id]
+			if not is_instance_valid(item):
+				continue
+			if item.get("item_type") != item_type:
+				continue
+			if item.global_position.distance_to(pos) > 48.0:
+				continue
+			if item.get("stack_count") >= 99:
+				continue
+			if multiplayer.has_multiplayer_peer():
+				increment_floor_item_rpc.rpc(item_id)
+			else:
+				item.stack_count += 1
+				item._update_label()
+			return item_id
+
 	var id = next_item_id
 	next_item_id += 1
-
 	if multiplayer.has_multiplayer_peer():
 		spawn_floor_item_rpc.rpc(id, pos.x, pos.y, item_type, durability)
 	else:
 		_do_spawn_floor_item(id, pos.x, pos.y, item_type, durability)
-
 	return id
+
+@rpc("authority", "call_local", "reliable")
+func increment_floor_item_rpc(item_id: int):
+	if floor_items.has(item_id) and is_instance_valid(floor_items[item_id]):
+		floor_items[item_id].stack_count += 1
+		floor_items[item_id]._update_label()
 
 @rpc("any_peer", "call_local", "reliable")
 func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
@@ -681,3 +700,14 @@ func request_break_wardrobe(b_id: int, drop_x: float, drop_y: float):
 			if child.has_method("remove_wardrobe_rpc"):
 				child.remove_wardrobe_rpc.rpc(b_id)
 			break
+
+func host_spawn_floor_items_batch(positions: Array, item_type: String, durability: int = 1):
+	for pos in positions:
+		host_spawn_floor_item(pos, item_type, durability)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_spawn_floor_items_batch(positions_x: Array, positions_y: Array, item_type: String, durability: int = 1):
+	if not is_host:
+		return
+	for i in positions_x.size():
+		host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, durability)

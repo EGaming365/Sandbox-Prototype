@@ -6,13 +6,15 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
 
 [node name="Stone_Pickaxe" type="Node2D" unique_id=1126891296]
-scale = Vector2(2.9599988, 2.9599988)
+scale = Vector2(2.4832158, 2.4832158)
 script = ExtResource("1_lhv71")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
 texture = ExtResource("2_hdbcq")
 
 [node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=760384955]
+position = Vector2(-0.67567605, 1.013514)
+scale = Vector2(1.0468812, 1.0468812)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=310392993]
 shape = SubResource("CircleShape2D_v6y3b")

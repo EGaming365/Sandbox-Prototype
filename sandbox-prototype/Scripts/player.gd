@@ -5,6 +5,14 @@ extends CharacterBody2D
 @export var synced_held_item: String = ""
 @export var synced_health: int = 10
 @onready var anim = $AnimatedSprite2D
+@onready var hair_sprite: AnimatedSprite2D = $Hair_Sprite
+@onready var shirt_sprite: AnimatedSprite2D = $Shirt_Sprite
+@onready var pants_sprite: AnimatedSprite2D = $Pants_Sprite
+
+@export var synced_hair: bool = true
+@export var synced_shirt: bool = true
+@export var synced_pants: bool = true
+
 var chop_cooldown_timer: float = 0.0
 var chop_cooldown_max: float = 1.5
 var hand_sprite: Sprite2D = null
@@ -26,6 +34,9 @@ func _enter_tree():
 func _ready():
 	z_index = 2
 	add_to_group("players")
+	hair_sprite.visible = true
+	shirt_sprite.visible = true
+	pants_sprite.visible = true
 	if not multiplayer.has_multiplayer_peer():
 		collision_layer = 1
 		collision_mask = 1
@@ -37,11 +48,20 @@ func _ready():
 	_setup_hand()
 	call_deferred("_setup_camera")
 
+func _play_anim(anim_name: String):
+	anim.play(anim_name)
+	if hair_sprite.visible:
+		hair_sprite.play(anim_name)
+	if shirt_sprite.visible:
+		shirt_sprite.play(anim_name)
+	if pants_sprite.visible:
+		pants_sprite.play(anim_name)
+
 func _setup_hand():
 	hand_sprite = Sprite2D.new()
 	hand_sprite.position = Vector2(-10, -16)
-	hand_sprite.z_as_relative = true  # inherits player's z_index
-	hand_sprite.z_index = 0           # 0 relative to parent = same as player
+	hand_sprite.z_as_relative = true
+	hand_sprite.z_index = 0
 	hand_sprite.visible = false
 	hand_sprite.modulate = Color(1, 1, 1, 0)
 	add_child(hand_sprite)
@@ -54,7 +74,7 @@ func _setup_camera():
 	if not camera:
 		camera = Camera2D.new()
 		camera.name = "Camera2D"
-		get_tree().root.add_child(camera)  # add to ROOT not Scene
+		get_tree().root.add_child(camera)
 	camera.enabled = true
 	camera.make_current()
 	camera.global_position = global_position
@@ -70,16 +90,19 @@ func _physics_process(delta):
 		velocity = Vector2.ZERO
 		move_and_slide()
 		if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
-			anim.play("idle")
+			_play_anim("idle")
 		return
 
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		velocity = synced_velocity
 		move_and_slide()
 		if synced_velocity.length() > 0:
-			anim.play("walk_down")
+			_play_anim("walk_down")
 		else:
-			anim.play("idle")
+			_play_anim("idle")
+		hair_sprite.visible = synced_hair
+		shirt_sprite.visible = synced_shirt
+		pants_sprite.visible = synced_pants
 		_update_hand_sprite()
 		return
 
@@ -114,9 +137,9 @@ func _physics_process(delta):
 		if global_position.y < 9999990:
 			direction.y += 1
 	if direction.length() > 0:
-		anim.play("walk_down")
+		_play_anim("walk_down")
 	else:
-		anim.play("idle")
+		_play_anim("idle")
 	direction = direction.normalized()
 	velocity = direction * speed
 	synced_velocity = velocity
@@ -181,20 +204,17 @@ func take_damage(amount: int):
 func die():
 	is_dead = true
 	var scene_node = get_tree().root.get_node("Scene")
-
 	var drops: Array = []
 	for i in Inventory.slots.size():
 		var slot = Inventory.slots[i]
 		if slot["item"] != "":
 			var durability = slot.get("durability", slot["count"] if slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": true, "index": i})
-
 	for i in Inventory.inv_slots.size():
 		var slot = Inventory.inv_slots[i]
 		if slot["item"] != "":
 			var durability = slot.get("durability", slot["count"] if slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": false, "index": i})
-
 	for drop in drops:
 		var angle = randf_range(0, TAU)
 		var radius = randf_range(40, 80)
@@ -206,14 +226,12 @@ func die():
 				scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"])
 		else:
 			scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
-
 	for i in Inventory.slots.size():
 		if Inventory.slots[i]["item"] != "":
 			Inventory.remove_item(i, false)
 	for i in Inventory.inv_slots.size():
 		if Inventory.inv_slots[i]["item"] != "":
 			Inventory.remove_item(i, true)
-
 	global_position = Vector2(0, 0)
 	synced_health = max_health
 	is_dead = false
@@ -253,9 +271,25 @@ func start_chop_cooldown(duration: float):
 func _is_inventory_open() -> bool:
 	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	var wardrobe = get_tree().root.get_node_or_null("Scene/CanvasLayer/Wardrobe_UI")
 	var chat_open = chat != null and chat.is_open
-	return (inv != null and inv.visible) or chat_open
+	return (inv != null and inv.visible) or chat_open or (wardrobe != null and wardrobe.visible)
 
 func _is_chat_open() -> bool:
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	return chat != null and chat.is_open
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_cosmetics_rpc(hair: bool, shirt: bool, pants: bool):
+	synced_hair = hair
+	synced_shirt = shirt
+	synced_pants = pants
+	hair_sprite.visible = hair
+	shirt_sprite.visible = shirt
+	pants_sprite.visible = pants
+
+func apply_cosmetics(hair: bool, shirt: bool, pants: bool):
+	if multiplayer.has_multiplayer_peer():
+		sync_cosmetics_rpc.rpc(hair, shirt, pants)
+	else:
+		sync_cosmetics_rpc(hair, shirt, pants)

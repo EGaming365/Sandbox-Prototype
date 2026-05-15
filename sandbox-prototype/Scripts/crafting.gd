@@ -74,9 +74,7 @@ func _ready():
 	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	img.fill(Color(0.6, 0.4, 0.2))
 	plank_texture = ImageTexture.create_from_image(img)
-	var bench_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	bench_img.fill(Color.RED)
-	bench_texture = ImageTexture.create_from_image(bench_img)
+	bench_texture = load("res://Assets/Crafting_Bench.png")
 	wardrobe_texture = load("res://Assets/Wardrobe.png")
 
 func get_item_texture(item_name: String) -> Texture2D:
@@ -90,9 +88,9 @@ func get_item_texture(item_name: String) -> Texture2D:
 		"Sword":
 			return Inventory.sword_texture
 		"Crafting_Bench":
-			return bench_texture
+			return Inventory.bench_texture
 		"Stone":
-			return stone_texture
+			return Inventory.stone_texture
 		"Pickaxe":
 			return Inventory.pickaxe_texture
 		"Stone Axe":
@@ -102,7 +100,7 @@ func get_item_texture(item_name: String) -> Texture2D:
 		"Stone Pickaxe":
 			return Inventory.stone_pickaxe_texture
 		"Wardrobe":
-			return wardrobe_texture
+			return Inventory.wardrobe_texture
 	return null
 
 func is_near_bench() -> bool:
@@ -218,21 +216,6 @@ func craft(recipe: Dictionary, silent: bool = false):
 					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Stone Pickaxe", 100)
 			else:
 				scene_node.host_spawn_floor_item(drop_pos, "Stone Pickaxe", 100)
-	elif recipe["result"] == "Crafting_Bench":
-		if _has_inventory_space():
-			if silent:
-				Inventory.add_item_with_count_silent("Crafting_Bench", tex, 1)
-			else:
-				Inventory.add_item_with_count("Crafting_Bench", tex, 1)
-		elif player:
-			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
-			if multiplayer.has_multiplayer_peer():
-				if multiplayer.is_server():
-					scene_node.host_spawn_floor_item(drop_pos, "Crafting_Bench", 1)
-				else:
-					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Crafting_Bench", 1)
-			else:
-				scene_node.host_spawn_floor_item(drop_pos, "Crafting_Bench", 1)
 	elif recipe["result"] == "Pickaxe":
 		if _has_inventory_space():
 			if silent:
@@ -313,4 +296,25 @@ func _remove_item(item_name: String, amount: int):
 			remaining -= take
 			if Inventory.inv_slots[i]["count"] <= 0:
 				Inventory.inv_slots[i] = {"item": "", "count": 0, "texture": null}
-	Inventory.inventory_changed.emit()
+
+func _add_result_silent(recipe: Dictionary):
+	var tex = get_item_texture(recipe["result"])
+	var result = recipe["result"]
+	match result:
+		"Axe":
+			Inventory.add_item_with_count_silent(result, tex, 80)
+		"Sword":
+			Inventory.add_item_with_count_silent(result, tex, 30)
+		"Pickaxe":
+			Inventory.add_item_with_count_silent(result, tex, 80)
+		"Stone Axe":
+			Inventory.add_item_with_count_silent(result, tex, 120)
+		"Stone Sword":
+			Inventory.add_item_with_count_silent(result, tex, 40)
+		"Stone Pickaxe":
+			Inventory.add_item_with_count_silent(result, tex, 100)
+		"Wardrobe":
+			Inventory.add_item_with_count_silent(result, tex, 1)
+		_:
+			for i in recipe["result_count"]:
+				Inventory.batch_add_item(result, tex, 1)

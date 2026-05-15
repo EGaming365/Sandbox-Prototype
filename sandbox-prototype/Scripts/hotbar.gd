@@ -77,60 +77,65 @@ func _spawn_drop_stack(player, item_type: String, count: int):
 func update_hotbar():
 	for i in range(10):
 		var slot = slots[i]
+		var data = Inventory.slots[i]
+		var prev_item = slot.get_meta("last_item", "")
+		var prev_count = slot.get_meta("last_count", -1)
+		if prev_item == data["item"] and prev_count == data["count"]:
+			continue
+		slot.set_meta("last_item", data["item"])
+		slot.set_meta("last_count", data["count"])
 		for child in slot.get_children():
 			child.queue_free()
-		var data = Inventory.slots[i]
-		if data["item"] != "":
-			var tex = TextureRect.new()
-			tex.texture = data["texture"]
-			tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			tex.offset_left = 6
-			tex.offset_right = -6
-			tex.offset_top = 6
-			tex.offset_bottom = -6
-			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			slot.add_child(tex)
-
-			if not Inventory.non_stackable_items.has(data["item"]):
-				var label = Label.new()
-				label.text = str(min(data["count"], 99))
-				label.add_theme_font_size_override("font_size", 16)
-				label.add_theme_color_override("font_color", Color.WHITE)
-				label.add_theme_color_override("font_outline_color", Color.BLACK)
-				label.add_theme_constant_override("outline_size", 4)
-				label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-				label.offset_top = -24
-				label.offset_bottom = -16
-				label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				if data["count"] >= 10:
-					label.offset_left = -24
-				else:
-					label.offset_left = -14
-				slot.add_child(label)
-
-			if TOOL_MAX_DURABILITY.has(data["item"]):
-				var max_dur = TOOL_MAX_DURABILITY[data["item"]]
-				var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
-				if pct < 1.0:
-					var bar_bg = ColorRect.new()
-					bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
-					bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-					bar_bg.offset_top = -14
-					bar_bg.offset_bottom = -9
-					bar_bg.offset_left = 7
-					bar_bg.offset_right = -7
-					bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					slot.add_child(bar_bg)
-					var bar = ColorRect.new()
-					bar.color = Color(1.0 - pct, pct, 0.0)
-					bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
-					bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
-					bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
-					bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
-					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					bar_bg.add_child(bar)
+		if data["item"] == "":
+			continue
+		var tex = TextureRect.new()
+		tex.texture = data["texture"]
+		tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tex.offset_left = 6
+		tex.offset_right = -6
+		tex.offset_top = 6
+		tex.offset_bottom = -6
+		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(tex)
+		if not Inventory.non_stackable_items.has(data["item"]):
+			var label = Label.new()
+			label.text = str(min(data["count"], 99))
+			label.add_theme_font_size_override("font_size", 16)
+			label.add_theme_color_override("font_color", Color.WHITE)
+			label.add_theme_color_override("font_outline_color", Color.BLACK)
+			label.add_theme_constant_override("outline_size", 4)
+			label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+			label.offset_top = -24
+			label.offset_bottom = -16
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			if data["count"] >= 10:
+				label.offset_left = -24
+			else:
+				label.offset_left = -14
+			slot.add_child(label)
+		if TOOL_MAX_DURABILITY.has(data["item"]):
+			var max_dur = TOOL_MAX_DURABILITY[data["item"]]
+			var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
+			if pct < 1.0:
+				var bar_bg = ColorRect.new()
+				bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
+				bar_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+				bar_bg.offset_top = -14
+				bar_bg.offset_bottom = -9
+				bar_bg.offset_left = 7
+				bar_bg.offset_right = -7
+				bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				slot.add_child(bar_bg)
+				var bar = ColorRect.new()
+				bar.color = Color(1.0 - pct, pct, 0.0)
+				bar.set_anchor_and_offset(SIDE_LEFT, 0, 0)
+				bar.set_anchor_and_offset(SIDE_TOP, 0, 0)
+				bar.set_anchor_and_offset(SIDE_BOTTOM, 1, 0)
+				bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
+				bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				bar_bg.add_child(bar)
 
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:

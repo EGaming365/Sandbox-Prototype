@@ -6,7 +6,7 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_v6y3b"]
 
 [node name="Stone_Axe" type="Node2D" unique_id=1126891296]
-scale = Vector2(2.9599988, 2.9599988)
+scale = Vector2(2.4987316, 2.4987316)
 script = ExtResource("1_el61o")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=85925888]
