@@ -304,25 +304,50 @@ func remove_rock(rock_id: int):
 func sync_remove_rock(rock_id: int):
 	remove_rock(rock_id)
 
-func host_place_block(item_name: String, pos: Vector2, rot: float = 0.0, tex: Texture2D = null) -> int:
-	var id = next_block_id
-	next_block_id += 1
-
-	if multiplayer.has_multiplayer_peer():
-		place_block_rpc.rpc(id, item_name, pos.x, pos.y, rot)
-	else:
-		_do_place_block(id, item_name, pos.x, pos.y, rot)
-
-	return id
-
 @rpc("authority", "call_local", "reliable")
 func place_block_rpc(block_id: int, item_name: String, pos_x: float, pos_y: float, rot: float = 0.0):
 	_do_place_block(block_id, item_name, pos_x, pos_y, rot)
 
+func host_place_block(item_name: String, pos: Vector2, rot: float = 0.0, tex: Texture2D = null) -> int:
+	var id = next_block_id
+	next_block_id += 1
+	if item_name == "Wardrobe":
+		if multiplayer.has_multiplayer_peer():
+			place_wardrobe_rpc.rpc(id, pos.x, pos.y)
+		else:
+			_do_place_wardrobe(id, pos.x, pos.y)
+		return id
+	if multiplayer.has_multiplayer_peer():
+		place_block_rpc.rpc(id, item_name, pos.x, pos.y, rot)
+	else:
+		_do_place_block(id, item_name, pos.x, pos.y, rot)
+	return id
+
+@rpc("authority", "call_local", "reliable")
+func place_wardrobe_rpc(b_id: int, pos_x: float, pos_y: float):
+	_do_place_wardrobe(b_id, pos_x, pos_y)
+
+func _do_place_wardrobe(b_id: int, pos_x: float, pos_y: float):
+	if placed_blocks.has(b_id):
+		return
+	var wardrobe_scene = preload("res://Scenes/wardrobe.tscn")
+	var wardrobe = wardrobe_scene.instantiate()
+	wardrobe.setup_placed(b_id)
+	placed_blocks[b_id] = wardrobe
+	add_child(wardrobe)
+	wardrobe.global_position = Vector2(pos_x, pos_y)
+
 func _do_place_block(block_id: int, item_name: String, pos_x: float, pos_y: float, rot: float = 0.0):
 	if placed_blocks.has(block_id):
 		return
-
+	if item_name == "Wardrobe":
+		var wardrobe_scene = preload("res://Scenes/wardrobe.tscn")
+		var wardrobe = wardrobe_scene.instantiate()
+		wardrobe.setup_placed(block_id)
+		wardrobe.global_position = Vector2(pos_x, pos_y)
+		placed_blocks[block_id] = wardrobe
+		add_child(wardrobe)
+		return
 	var block_scene = preload("res://Scenes/placed_block.tscn")
 	var block = block_scene.instantiate()
 	block.setup(item_name, _get_item_texture(item_name), block_id, rot)
@@ -369,7 +394,10 @@ func sync_placed_blocks_to_peer(peer_id: int):
 	for block_id in placed_blocks:
 		var block = placed_blocks[block_id]
 		if is_instance_valid(block):
-			place_block_rpc.rpc_id(peer_id, block_id, block.item_name, block.global_position.x, block.global_position.y, block.current_rotation)
+			if block.get("is_placed") == true:
+				place_wardrobe_rpc.rpc_id(peer_id, block_id, block.global_position.x, block.global_position.y)
+			else:
+				place_block_rpc.rpc_id(peer_id, block_id, block.item_name, block.global_position.x, block.global_position.y, block.current_rotation)
 
 func process_block_hit(block_id: int):
 	if not placed_blocks.has(block_id):
@@ -416,8 +444,16 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 	if floor_items.has(item_id):
 		return
 
-	var item_scene
+	if item_type == "Wardrobe":
+		var wardrobe_scene = preload("res://Scenes/wardrobe.tscn")
+		var wardrobe = wardrobe_scene.instantiate()
+		wardrobe.setup_floor(item_id)
+		floor_items[item_id] = wardrobe
+		add_child(wardrobe)
+		wardrobe.global_position = Vector2(pos_x, pos_y)
+		return
 
+	var item_scene
 	match item_type:
 		"Wood":
 			item_scene = preload("res://Scenes/wood.tscn")
@@ -439,20 +475,16 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 			item_scene = preload("res://Scenes/stone_sword.tscn")
 		"Stone Pickaxe":
 			item_scene = preload("res://Scenes/stone_pickaxe.tscn")
-		"Wardrobe":
-			item_scene = preload("res://Scenes/wardrobe.tscn")
 		_:
 			item_scene = preload("res://Scenes/wood.tscn")
 
 	var item = item_scene.instantiate()
 	item.item_id = item_id
-
 	if item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe"]:
 		item.durability = durability
-
-	item.global_position = Vector2(pos_x, pos_y)
 	floor_items[item_id] = item
 	add_child(item)
+	item.global_position = Vector2(pos_x, pos_y)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
@@ -488,6 +520,8 @@ func sync_floor_items_to_peer(peer_id: int):
 			elif script_path.contains("stone"):
 				item_type = "Stone"
 
+			elif script_path.contains("wardrobe"):
+				item_type = "Wardrobe"
 			var dur = item.durability if item.get("durability") != null else 1
 			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
@@ -635,3 +669,15 @@ func consume_pickaxe_on_client():
 			Inventory.remove_item(slot_index, false)
 		else:
 			Inventory.inventory_changed.emit()
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_break_wardrobe(b_id: int, drop_x: float, drop_y: float):
+	if not is_host:
+		return
+	var drop_pos = Vector2(drop_x, drop_y)
+	host_spawn_floor_item(drop_pos, "Wardrobe", 1)
+	for child in get_children():
+		if child.get("block_id") == b_id:
+			if child.has_method("remove_wardrobe_rpc"):
+				child.remove_wardrobe_rpc.rpc(b_id)
+			break

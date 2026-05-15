@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://buu6winar7jsn"]
+
+[ext_resource type="Script" uid="uid://s2le5gapamkt" path="res://Scripts/wardrobe_ui.gd" id="1_bcp8c"]
+
+[node name="Wardrobe_UI" type="Control" unique_id=103554997]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_bcp8c")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=342263597]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=641074274]
+layout_mode = 2
+
+[node name="Tab_Buttons" type="HBoxContainer" parent="PanelContainer/VBoxContainer" unique_id=877642125]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer" unique_id=1478478584]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Left" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=779827430]
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Left" unique_id=1259115923]
+layout_mode = 2
+
+[node name="GridContainer" type="GridContainer" parent="PanelContainer/VBoxContainer/HBoxContainer/Left/ScrollContainer" unique_id=1962635867]
+layout_mode = 2
+
+[node name="Right" type="VBoxContainer" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1750644095]
+layout_mode = 2

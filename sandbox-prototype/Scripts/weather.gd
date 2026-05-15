@@ -11,7 +11,7 @@ enum WeatherType {
 @export var lightning_max_seconds: float = 60.0
 @export var lightning_hit_radius: float = 36.0
 @export var lightning_kill_damage: int = 9999
-@export var lightning_spawn_radius: float = 1200.0
+@export var lightning_spawn_radius: float = 2000.0
 @export var lightning_bolt_height: float = 2200.0
 
 @export var rain_drop_count: int = 420

@@ -1,10 +1,25 @@
 [gd_scene format=3 uid="uid://ducljjqvblluu"]
 
-[ext_resource type="Script" uid="uid://nq3rkmuy4a3h" path="res://Scenes/wardrobe.gd" id="1_flhbc"]
+[ext_resource type="Script" uid="uid://nq3rkmuy4a3h" path="res://Scripts/wardrobe.gd" id="1_flhbc"]
 [ext_resource type="Texture2D" uid="uid://ca7ol3krh3bk4" path="res://Assets/Wardrobe.png" id="2_b1x2a"]
 
-[node name="Wardrobe" type="Node2D" unique_id=119570879]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_flhbc"]
+size = Vector2(20, 9)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_b1x2a"]
+radius = 19.0
+
+[node name="Wardrobe" type="StaticBody2D" unique_id=1486290047]
 script = ExtResource("1_flhbc")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=917602025]
 texture = ExtResource("2_b1x2a")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=705807294]
+position = Vector2(0, 11.5)
+shape = SubResource("RectangleShape2D_flhbc")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=921409511]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1797714748]
+shape = SubResource("CircleShape2D_b1x2a")

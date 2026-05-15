@@ -77,9 +77,7 @@ func _ready():
 	var bench_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 	bench_img.fill(Color.RED)
 	bench_texture = ImageTexture.create_from_image(bench_img)
-	var wardrobe_img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	wardrobe_img.fill(Color(0.4, 0.2, 0.1))
-	wardrobe_texture = ImageTexture.create_from_image(wardrobe_img)
+	wardrobe_texture = load("res://Assets/Wardrobe.png")
 
 func get_item_texture(item_name: String) -> Texture2D:
 	match item_name:

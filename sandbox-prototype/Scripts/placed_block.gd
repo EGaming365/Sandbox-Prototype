@@ -22,7 +22,6 @@ func _get_texture_for_item(item_name: String) -> Texture2D:
 
 func setup(i_name: String, texture: Texture2D, b_id: int, rot: float = 0.0):
 	item_name = i_name
-	# Use provided texture, or generate from item name if null
 	item_texture = texture if texture != null else _get_texture_for_item(i_name)
 	block_id = b_id
 	max_hits = BuildingManager.get_max_hits(item_name)

@@ -36,7 +36,7 @@ func _process(_delta):
 			current_item = item
 			current_texture = slot_data["texture"]
 			if preview:
-				preview.activate(current_texture)
+				preview.activate(current_texture, item)
 	else:
 		if current_item != "":
 			current_item = ""
@@ -52,7 +52,7 @@ func _unhandled_input(event):
 			return
 		if not preview.can_place:
 			return
-		var snapped = preview.get_snapped_mouse_pos()
+		var snapped = preview.get_place_pos()
 		var rot = preview.get_current_rotation()
 		_place_block(current_item, current_texture, snapped, rot)
 

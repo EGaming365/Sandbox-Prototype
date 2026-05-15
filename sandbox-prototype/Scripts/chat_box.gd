@@ -15,6 +15,7 @@ var stone_texture: Texture2D = preload("res://Assets/Stone.png")
 var stone_axe_texture: Texture2D = preload("res://Assets/Stone_Axe.png")
 var stone_sword_texture: Texture2D = preload("res://Assets/Stone_Sword.png")
 var stone_pickaxe_texture: Texture2D = preload("res://Assets/Stone_Pickaxe.png")
+var wardrobe_texture: Texture2D = preload("res://Assets/Wardrobe.png")
 
 @onready var scroll_container: ScrollContainer = $ChatContainer/ScrollContainer
 @onready var messages_container: VBoxContainer = $ChatContainer/ScrollContainer/Messages
@@ -32,15 +33,20 @@ func _handle_command(text: String):
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 4:
-				_add_message("[System] Usage: /give <player_name> <item_name> <amount>")
+			if parts.size() < 3:
+				_add_message("[System] Usage: /give <player_name> <item_name> [amount]")
 				return
-			var amount = parts[parts.size() - 1].to_int()
-			if amount <= 0:
-				_add_message("[System] Amount must be greater than 0.")
-				return
+			var amount = 1
+			var item_name: String
 			var target_name = parts[1]
-			var item_name = " ".join(parts.slice(2, parts.size() - 1))
+			if parts[parts.size() - 1].is_valid_int() and parts.size() >= 4:
+				amount = parts[parts.size() - 1].to_int()
+				if amount <= 0:
+					_add_message("[System] Amount must be greater than 0.")
+					return
+				item_name = " ".join(parts.slice(2, parts.size() - 1))
+			else:
+				item_name = " ".join(parts.slice(2))
 			match item_name.to_lower():
 				"wood": item_name = "Wood"
 				"wood plank": item_name = "Wood Plank"
@@ -49,6 +55,7 @@ func _handle_command(text: String):
 				"crafting bench": item_name = "Crafting_Bench"
 				"stone": item_name = "Stone"
 				"pickaxe": item_name = "Pickaxe"
+				"wardrobe": item_name = "Wardrobe"
 			_give_item_to_player(target_name, item_name, amount)
 		"/weather":
 			if my_steam_id != ADMIN_STEAM_ID:
@@ -76,6 +83,106 @@ func _handle_command(text: String):
 			if multiplayer.has_multiplayer_peer():
 				weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
 			_add_message("[System] Weather set to: " + parts[1].to_lower())
+		"/tp", "/teleport":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 3:
+				_add_message("[System] Usage: /tp <player> <x> <y>  OR  /tp <player> here  OR  /tp <player> <target_player>")
+				return
+			var scene_node = get_tree().root.get_node("Scene")
+
+			# Find the player to teleport
+			var subject_matches = []
+			for child in scene_node.get_children():
+				if child is CharacterBody2D:
+					var peer_id = child.get_multiplayer_authority()
+					var steam_id = my_steam_id if peer_id == multiplayer.get_unique_id() else peer_id
+					var sname = Steam.getFriendPersonaName(steam_id)
+					if sname.to_lower().begins_with(parts[1].to_lower()):
+						subject_matches.append({"node": child, "peer_id": peer_id, "name": sname})
+
+			if subject_matches.size() == 0:
+				_add_message("[System] Player '" + parts[1] + "' not found.")
+				return
+			elif subject_matches.size() > 1:
+				var names = ""
+				for m in subject_matches:
+					names += m["name"] + ", "
+				_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
+				return
+
+			var subject = subject_matches[0]
+			var dest: Vector2
+
+			if parts[2].to_lower() == "here":
+				# Teleport to admin's own position
+				var local_player = _get_local_player()
+				if not local_player:
+					_add_message("[System] Could not find your position.")
+					return
+				dest = local_player.global_position
+			elif parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
+				# Teleport to X Y coords
+				dest = Vector2((parts[2].to_float() * 100) , (parts[3].to_float()) * -100)
+			else:
+				# Teleport to another player by name
+				var target_name = " ".join(parts.slice(2))
+				var target_matches = []
+				for child in scene_node.get_children():
+					if child is CharacterBody2D:
+						var peer_id = child.get_multiplayer_authority()
+						var steam_id = my_steam_id if peer_id == multiplayer.get_unique_id() else peer_id
+						var sname = Steam.getFriendPersonaName(steam_id)
+						if sname.to_lower().begins_with(target_name.to_lower()):
+							target_matches.append({"node": child, "name": sname})
+				if target_matches.size() == 0:
+					_add_message("[System] Target '" + target_name + "' not found. Use: here, X Y coords, or a player name.")
+					return
+				elif target_matches.size() > 1:
+					var names = ""
+					for m in target_matches:
+						names += m["name"] + ", "
+					_add_message("[System] Multiple targets found: " + names.trim_suffix(", ") + ". Be more specific.")
+					return
+				dest = target_matches[0]["node"].global_position
+
+			# Apply teleport — local or RPC
+			if subject["peer_id"] == multiplayer.get_unique_id():
+				subject["node"].global_position = dest
+			else:
+				_rpc_teleport.rpc_id(subject["peer_id"], dest)
+			_add_message("[System] Teleported " + subject["name"] + " to " + str(dest))
+		"/time":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /time <morning|day|evening|night>")
+				return
+			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
+			if not weather_node:
+				_add_message("[System] WeatherSystem not found.")
+				return
+			match parts[1].to_lower():
+				"morning":
+					weather_node.time_of_day = 0.25
+				"day":
+					weather_node.time_of_day = 0.5
+				"evening":
+					weather_node.time_of_day = 0.75
+				"night":
+					weather_node.time_of_day = 0
+				_:
+					var val = parts[1].to_float()
+					if parts[1].is_valid_float() and val >= 0.0 and val < 1.0:
+						weather_node.time_of_day = val
+					else:
+						_add_message("[System] Unknown time. Use: morning, day, evening, night, or a number below 1")
+						return
+			if multiplayer.has_multiplayer_peer():
+				weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+			_add_message("[System] Time set to: " + parts[1].to_lower())
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 	
@@ -138,6 +245,7 @@ func _get_item_texture(item_name: String) -> Texture2D:
 		"stone sword": return stone_sword_texture
 		"stone pickaxe": return stone_pickaxe_texture
 		"stone": return stone_texture
+		"wardrobe": return wardrobe_texture
 	return null
 
 func _do_give_item(item_name: String, amount: int):
@@ -331,3 +439,9 @@ func _add_system_message(msg: String):
 	if my_steam_id != ADMIN_STEAM_ID:
 		return
 	_add_message("[System] " + msg)
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_teleport(dest: Vector2):
+	var local_player = _get_local_player()
+	if local_player:
+		local_player.global_position = dest
