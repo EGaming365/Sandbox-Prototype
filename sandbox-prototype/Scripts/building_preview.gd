@@ -37,10 +37,18 @@ func _ready():
 
 func activate(texture: Texture2D, item_name: String = ""):
 	current_item_name = item_name
-	preview_sprite.texture = texture
+	current_rotation_deg = 0.0
+	if item_name == "Wood Plank":
+		current_rotation_deg = 0.0
+		preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
+		preview_sprite.rotation_degrees = 90.0
+		preview_sprite.flip_h = false
+		preview_sprite.position = Vector2.ZERO
+	else:
+		preview_sprite.texture = texture
 	preview_sprite.scale = ITEM_PLACED_SCALE.get(item_name, DEFAULT_PLACED_SCALE)
-	preview_sprite.offset = Vector2.ZERO  # ← no sprite offset
-	preview_sprite.rotation_degrees = current_rotation_deg
+	preview_sprite.offset = Vector2.ZERO
+	preview_sprite.rotation_degrees = 0.0
 	active = true
 	show()
 
@@ -78,11 +86,45 @@ func _input(event):
 	if (inv and inv.visible) or (chat and chat.is_open):
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
+		if current_item_name != "Wood Plank":
+			return
 		current_rotation_deg += 90.0
 		if current_rotation_deg >= 360.0:
 			current_rotation_deg = 0.0
-		preview_sprite.rotation_degrees = current_rotation_deg
+		_update_plank_preview()
 		get_viewport().set_input_as_handled()
+
+func _update_plank_preview():
+	preview_sprite.flip_h = false
+	preview_sprite.rotation_degrees = 0.0
+	preview_sprite.position = Vector2.ZERO
+	match int(current_rotation_deg):
+		0:
+			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
+			preview_sprite.rotation_degrees = 90.0
+			preview_sprite.flip_h = false
+			preview_sprite.flip_v = true
+			preview_sprite.scale = Vector2(2, -2)
+			preview_sprite.position = Vector2(0, 0)
+		180:
+			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
+			preview_sprite.rotation_degrees = 90.0
+			preview_sprite.flip_h = false
+			preview_sprite.flip_v = true
+			preview_sprite.scale = Vector2(2, 2)
+			preview_sprite.position = Vector2(0, -46)
+		90:
+			preview_sprite.scale = Vector2(2, 2)
+			preview_sprite.flip_h = false
+			preview_sprite.flip_v = false
+			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
+			preview_sprite.position = Vector2(0, 0)
+		270:
+			preview_sprite.scale = Vector2(2, 2)
+			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
+			preview_sprite.flip_h = true
+			preview_sprite.flip_v = true
+			preview_sprite.position = Vector2(-2, 0)
 
 func _process(_delta):
 	if not active:

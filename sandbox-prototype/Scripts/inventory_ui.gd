@@ -294,7 +294,39 @@ func get_hovered_slot() -> int:
 var _last_near_bench: bool = false
 
 func _process(_delta):
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if chat and chat.is_open:
+		return
+
+	if Input.is_action_just_pressed("inventory"):
+		if visible and current_tab == "inventory":
+			toggle()
+		elif visible and current_tab == "recipes":
+			_switch_tab("inventory")
+		else:
+			toggle_to("inventory")
+		get_viewport().set_input_as_handled()
+		return
+
+	if Input.is_action_just_pressed("crafting"):
+		if visible and current_tab == "recipes":
+			toggle()
+		elif visible and current_tab == "inventory":
+			_switch_tab("recipes")
+		else:
+			toggle_to("recipes")
+		get_viewport().set_input_as_handled()
+		return
+
 	if not visible:
+		return
+
+	if Input.is_action_just_pressed("slot_up") or Input.is_action_just_pressed("slot_down"):
+		if current_tab == "inventory":
+			_switch_tab("recipes")
+		else:
+			_switch_tab("inventory")
+		get_viewport().set_input_as_handled()
 		return
 
 	if Input.is_action_just_pressed("exit"):
@@ -302,32 +334,19 @@ func _process(_delta):
 		get_viewport().set_input_as_handled()
 		return
 
-	if Input.is_action_just_pressed("slot_up"):
-		if current_tab == "inventory":
-			_switch_tab("recipes")
-		else:
-			_switch_tab("inventory")
-	if Input.is_action_just_pressed("slot_down"):
-		if current_tab == "inventory":
-			_switch_tab("recipes")
-		else:
-			_switch_tab("inventory")
-
 	var near_bench = Crafting.is_near_bench()
 	if near_bench != _last_near_bench:
 		_last_near_bench = near_bench
-
 		if not near_bench and Crafting.bench_recipes.has(selected_recipe):
 			selected_recipe = {}
-
 		if current_tab == "recipes":
 			_update_recipe_panel()
-
 
 	if not drag_node:
 		if Input.is_action_just_pressed("click"):
 			var inv_panel = $PanelContainer
 			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+			var left_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/LeftUI")
 			var mouse = get_global_mouse_position()
 			var on_inv = inv_panel.get_global_rect().has_point(mouse)
 			var on_hotbar = false
@@ -336,7 +355,10 @@ func _process(_delta):
 					if slot.get_global_rect().grow(6).has_point(mouse):
 						on_hotbar = true
 						break
-			if not on_inv and not on_hotbar:
+			var on_left_ui = false
+			if left_ui:
+				on_left_ui = left_ui.get_node("HBoxContainer/Button2").get_global_rect().has_point(mouse)
+			if not on_inv and not on_hotbar and not on_left_ui:
 				toggle()
 
 	if Input.is_action_just_pressed("drop") and not drag_node and hovered_slot != -1:

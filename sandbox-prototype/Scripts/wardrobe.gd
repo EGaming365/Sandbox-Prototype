@@ -8,6 +8,7 @@ var wardrobe_texture: Texture2D = preload("res://Assets/Wardrobe.png")
 var wardrobe_open_texture: Texture2D = preload("res://Assets/Wardrobe_Open.png")
 
 func _ready():
+	visible = false
 	add_to_group("placed_blocks")
 	add_to_group("trees")
 	$Sprite2D.texture = wardrobe_texture
@@ -21,6 +22,8 @@ func _ready():
 	$Area2D/CollisionShape2D.position = Vector2.ZERO
 	call_deferred("_setup_area")
 	z_index = 2
+	await get_tree().process_frame
+	visible = true
 
 func _setup_area():
 	if is_placed:

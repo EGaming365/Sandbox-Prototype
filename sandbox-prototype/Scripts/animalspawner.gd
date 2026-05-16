@@ -2,7 +2,7 @@ extends Node
 
 const CHICKEN_SCENE := preload("res://scenes/Chicken.tscn")
 
-@export var max_chickens_in_radius: int = 30.0
+@export var max_chickens_in_radius: int = 10.0
 @export var spawn_radius_min: float = 1000.0
 @export var spawn_radius_max: float = 2000.0
 @export var despawn_radius: float = 1600.0

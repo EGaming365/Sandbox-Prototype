@@ -18,7 +18,9 @@
 [ext_resource type="Texture2D" uid="uid://8fv1kmv0dm72" path="res://Assets/New Piskel (4) (1).png" id="15_oisvf"]
 [ext_resource type="PackedScene" uid="uid://buu6winar7jsn" path="res://Scenes/wardrobe_ui.tscn" id="16_81khf"]
 [ext_resource type="Script" uid="uid://btrncygs1p3db" path="res://Scripts/building_preview.gd" id="16_nimp4"]
+[ext_resource type="PackedScene" uid="uid://bkwvihhlv00dt" path="res://Scenes/left_ui.tscn" id="17_3fl7w"]
 [ext_resource type="Script" uid="uid://do2anvpdk4kxf" path="res://Scripts/world_generation.gd" id="18_oisvf"]
+[ext_resource type="PackedScene" uid="uid://b8wirsdffuxwl" path="res://Scenes/right_ui.tscn" id="18_r152n"]
 [ext_resource type="Script" uid="uid://jrkn55j2buqc" path="res://Scripts/weather.gd" id="19_l8vl3"]
 [ext_resource type="Script" uid="uid://ctsjl5ujr4u7f" path="res://Scripts/environment_gen.gd" id="20_b0t05"]
 
@@ -157,6 +159,14 @@ offset_bottom = -20.0
 [node name="Wardrobe_UI" parent="CanvasLayer" unique_id=103554997 instance=ExtResource("16_81khf")]
 metadata/_edit_use_anchors_ = true
 
+[node name="LeftUI" parent="CanvasLayer" unique_id=1615478635 instance=ExtResource("17_3fl7w")]
+offset_left = 14.0
+offset_top = 10.0
+offset_right = 14.0
+offset_bottom = 10.0
+
+[node name="RightUI" parent="CanvasLayer" unique_id=22535782 instance=ExtResource("18_r152n")]
+
 [node name="TileMap" type="TileMap" parent="." unique_id=1504340798]
 z_index = -4096
 y_sort_enabled = true
@@ -178,6 +188,7 @@ script = ExtResource("20_b0t05")
 script = ExtResource("19_l8vl3")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=167471078]
+process_callback = 0
 limit_enabled = false
 
 [connection signal="pressed" from="CanvasLayer/Host_Button" to="." method="_on_host_button_pressed"]

@@ -12,6 +12,7 @@ var check_timer: float = 0.0
 var label: Label = null
 
 func _ready():
+	visible = false
 	crafting_bench_texture = Crafting.bench_texture
 	$Sprite2D.texture = crafting_bench_texture
 	z_index = 2
@@ -26,6 +27,8 @@ func _ready():
 	label.top_level = true
 	add_child(label)
 	_update_label()
+	await get_tree().process_frame
+	visible = true
 
 func _update_label():
 	if label:

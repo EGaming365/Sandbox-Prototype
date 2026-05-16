@@ -251,16 +251,14 @@ func sync_players_to_client(ids: Array[int]):
 func _spawn_player(id: int):
 	if has_node(str(id)):
 		return
-
 	if player_scene == null:
 		print("ERROR: player_scene is null! Assign it in the inspector.")
 		return
-
 	var player = player_scene.instantiate()
 	player.name = str(id)
 	add_child(player)
 	player.set_multiplayer_authority(id, true)
-	player.global_position = Vector2(0, 0)
+	player.global_position = _find_safe_spawn(Vector2(0, 0))
 
 
 func _remove_player(id: int):
@@ -467,9 +465,9 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 		var wardrobe_scene = preload("res://Scenes/wardrobe.tscn")
 		var wardrobe = wardrobe_scene.instantiate()
 		wardrobe.setup_floor(item_id)
+		wardrobe.global_position = Vector2(pos_x, pos_y)
 		floor_items[item_id] = wardrobe
 		add_child(wardrobe)
-		wardrobe.global_position = Vector2(pos_x, pos_y)
 		return
 
 	var item_scene
@@ -501,9 +499,9 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 	item.item_id = item_id
 	if item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe"]:
 		item.durability = durability
+	item.global_position = Vector2(pos_x, pos_y)
 	floor_items[item_id] = item
 	add_child(item)
-	item.global_position = Vector2(pos_x, pos_y)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
@@ -714,7 +712,37 @@ func request_spawn_floor_items_batch(positions_x: Array, positions_y: Array, ite
 
 func host_spawn_chicken(pos: Vector2) -> void:
 	if AnimalSpawner:
-		print("Calling _spawn_chicken at ", pos)
-		AnimalSpawner._spawn_chicken(pos)
-	else:
-		print("AnimalSpawner not found")
+		AnimalSpawner._spawn_chicken(_find_safe_spawn(pos))
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_kill_player(target_id: int):
+	if not is_host:
+		return
+	if has_node(str(target_id)):
+		var target = get_node(str(target_id))
+		if target is CharacterBody2D:
+			deal_damage_to_player.rpc_id(target_id, target.max_health)
+
+func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
+	var space = get_world_2d().direct_space_state
+	var query = PhysicsShapeQueryParameters2D.new()
+	var shape = CircleShape2D.new()
+	shape.radius = 16.0
+	query.shape = shape
+	query.collision_mask = 1
+
+	# Check origin first
+	query.transform = Transform2D(0, origin)
+	if space.intersect_shape(query).size() == 0:
+		return origin
+
+	# Spiral outward until clear
+	for i in max_attempts:
+		var angle = randf_range(0, TAU)
+		var radius = randf_range(60.0, 80.0 + i * 10.0)
+		var candidate = origin + Vector2(cos(angle), sin(angle)) * radius
+		query.transform = Transform2D(0, candidate)
+		if space.intersect_shape(query).size() == 0:
+			return candidate
+
+	return origin + Vector2(randf_range(-200, 200), randf_range(-200, 200))

@@ -59,14 +59,33 @@ func _play_anim(anim_name: String):
 	if pants_sprite.visible:
 		pants_sprite.play(anim_name)
 
+var _hand_scales: Dictionary = {}
+
 func _setup_hand():
 	hand_sprite = Sprite2D.new()
 	hand_sprite.position = Vector2(-10, -16)
 	hand_sprite.z_as_relative = true
 	hand_sprite.z_index = 0
+	hand_sprite.scale = Vector2(0.017, 0.017)
 	hand_sprite.visible = false
 	hand_sprite.modulate = Color(1, 1, 1, 0)
 	add_child(hand_sprite)
+	for item_name in Inventory.TEXTURE_MAP:
+		var tex = Inventory.TEXTURE_MAP[item_name]
+		if tex:
+			var s = tex.get_size()
+			if s.x > 0 and s.y > 0:
+				_hand_scales[item_name] = Vector2(12.0 / s.x, 12.0 / s.y)
+
+func _apply_hand_texture(tex: Texture2D):
+	var scale = _hand_scales.get(synced_held_item, Vector2(0.017, 0.017))
+	hand_sprite.scale = scale
+	hand_sprite.texture = tex
+	hand_sprite.visible = false
+	hand_sprite.modulate = Color(1, 1, 1, 0)
+	RenderingServer.force_draw()
+	hand_sprite.visible = true
+	hand_sprite.modulate = Color(1, 1, 1, 1)
 
 func _setup_camera():
 	var is_local = not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()
@@ -78,18 +97,16 @@ func _setup_camera():
 		camera.name = "Camera2D"
 		get_tree().root.add_child(camera)
 	camera.enabled = true
-	camera.position_smoothing_enabled = false
 	camera.make_current()
 	camera.global_position = global_position
 
 func _process(delta):
+	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
+		camera.global_position = global_position.round()
 	if _is_inventory_open():
 		return
 
 func _physics_process(delta):
-	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
-		camera.global_position = global_position.round()
-
 	if _is_inventory_open():
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -279,37 +296,50 @@ func die():
 	for i in Inventory.inv_slots.size():
 		if Inventory.inv_slots[i]["item"] != "":
 			Inventory.remove_item(i, true)
-	global_position = Vector2(0, 0)
+	global_position = scene_node._find_safe_spawn(Vector2(0, 0))
 	synced_health = max_health
-	is_dead = false
+	var right_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+	if right_ui:
+		right_ui.hunger = 100.0
+		right_ui.thirst = 100.0
+		right_ui.hunger_bar.value = 100.0
+		right_ui.thirst_bar.value = 100.0
+		is_dead = false
+
+var _last_hand_item: String = ""
 
 func _update_hand_sprite():
 	if not hand_sprite:
 		return
 	if synced_held_item == "":
-		hand_sprite.texture = null
-		hand_sprite.visible = false
-		hand_sprite.modulate = Color(1, 1, 1, 0)
+		if _last_hand_item != "":
+			_last_hand_item = ""
+			hand_sprite.texture = null
+			hand_sprite.visible = false
+			hand_sprite.modulate = Color(1, 1, 1, 0)
 		return
-	for slot in Inventory.slots:
-		if slot["item"] == synced_held_item and slot["texture"] != null:
-			_apply_hand_texture(slot["texture"])
-			return
-	for slot in Inventory.inv_slots:
-		if slot["item"] == synced_held_item and slot["texture"] != null:
-			_apply_hand_texture(slot["texture"])
-			return
-	hand_sprite.texture = null
+	if synced_held_item == _last_hand_item:
+		return
 	hand_sprite.visible = false
 	hand_sprite.modulate = Color(1, 1, 1, 0)
-
-func _apply_hand_texture(tex: Texture2D):
-	hand_sprite.texture = tex
-	hand_sprite.visible = true
-	hand_sprite.modulate = Color(1, 1, 1, 1)
+	var tex = Inventory.get_texture(synced_held_item)
+	if tex == null:
+		for slot in Inventory.slots:
+			if slot["item"] == synced_held_item and slot["texture"] != null:
+				tex = slot["texture"]
+				break
+	if tex == null:
+		for slot in Inventory.inv_slots:
+			if slot["item"] == synced_held_item and slot["texture"] != null:
+				tex = slot["texture"]
+				break
+	if tex == null:
+		return
 	var tex_size = tex.get_size()
-	if tex_size.x > 0 and tex_size.y > 0:
-		hand_sprite.scale = Vector2(12.0 / tex_size.x, 12.0 / tex_size.y)
+	if tex_size.x <= 0 or tex_size.y <= 0:
+		return
+	_last_hand_item = synced_held_item
+	_apply_hand_texture(tex)
 
 func start_chop_cooldown(duration: float):
 	chop_cooldown_max = duration

@@ -4,7 +4,7 @@ extends Node2D
 @export var durability: int = 1
 var item_type: String = "Wood Plank"
 var stack_count: int = 1
-var plank_texture: Texture2D
+var plank_texture = preload("res://Assets/Wood_Plank.png")
 var _picked_up: bool = false
 const DESPAWN_TIME = 300.0
 const PICKUP_RANGE = 40.0
@@ -14,9 +14,8 @@ var check_timer: float = 0.0
 var label: Label = null
 
 func _ready():
+	visible = false
 	z_index = 2
-	plank_texture = Crafting.plank_texture
-	$Sprite2D.texture = plank_texture
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
 	label = Label.new()
@@ -29,6 +28,8 @@ func _ready():
 	label.top_level = true
 	add_child(label)
 	_update_label()
+	await get_tree().process_frame
+	visible = true
 
 func _update_label():
 	if label:

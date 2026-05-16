@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://pp7pajcks26w"]
 
-[ext_resource type="Script" uid="uid://sstyfvkdykf4" path="res://Scenes/chicken.gd" id="1_245eq"]
+[ext_resource type="Script" uid="uid://sstyfvkdykf4" path="res://Scripts/chicken.gd" id="1_245eq"]
 [ext_resource type="Texture2D" uid="uid://ppxdkn8r0ymw" path="res://Assets/Chicken-Walk_down.png" id="2_jy3mo"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jy3mo"]

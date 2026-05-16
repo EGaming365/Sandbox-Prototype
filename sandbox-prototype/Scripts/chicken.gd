@@ -1,9 +1,9 @@
 extends Node2D
 
-enum State { WANDER, IDLE, FLEE, DEAD }
+enum State { WANDER, IDLE, FLEE, DEAD, PETTED }
 
 @export var speed_wander: float = 80.0
-@export var speed_flee: float = 80.0
+@export var speed_flee: float = 230.0
 @export var flee_radius: float = 300.0
 @export var health: int = 10
 @export var click_radius: float = 50.0
@@ -14,12 +14,15 @@ var _idle_timer: float = 0.0
 var _player_in_range: bool = false
 var _is_host: bool = false
 var chicken_id: int = -1
+var _stuck_timer: float = 0.0
+var rng := RandomNumberGenerator.new()
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hurtbox: Area2D = $Hurtbox
 @onready var staticbody: StaticBody2D = $StaticBody2D
 
 func _ready() -> void:
+	rng.randomize()
 	sprite.position.y = -30
 	staticbody.position.y = -6
 	z_index = 2
@@ -44,6 +47,20 @@ func _input(event: InputEvent) -> void:
 		return
 	if not event is InputEventMouseButton:
 		return
+
+	if (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
+		var mouse_world: Vector2 = get_global_mouse_position()
+		if (event as InputEventMouseButton).pressed:
+			if global_position.distance_to(mouse_world) > click_radius:
+				return
+			if _player_in_range:
+				_start_petting()
+		else:
+			if state == State.PETTED:
+				state = State.IDLE
+				_idle_timer = randf_range(1.0, 2.0)
+		return
+
 	if not (event as InputEventMouseButton).pressed:
 		return
 	if (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
@@ -92,8 +109,31 @@ func _input(event: InputEvent) -> void:
 	else:
 		take_damage(damage)
 
+func _start_petting() -> void:
+	if state == State.PETTED:
+		return
+	state = State.PETTED
+	sprite.play("idle")
+	_pet_heart_loop()
+
+func _pet_heart_loop() -> void:
+	while state == State.PETTED:
+		var heart = Label.new()
+		heart.text = "❤️"
+		heart.add_theme_font_size_override("font_size", 12)
+		heart.position = Vector2(randf_range(-12, -2), -30)
+		heart.z_index = 10
+		add_child(heart)
+		var tween = create_tween()
+		tween.tween_property(heart, "position:y", heart.position.y - 30, 1.0)
+		tween.parallel().tween_property(heart, "modulate:a", 0.0, 1.0)
+		tween.tween_callback(heart.queue_free)
+		await get_tree().create_timer(0.2).timeout
+
 func _process(delta: float) -> void:
 	if state == State.DEAD:
+		return
+	if state == State.PETTED:
 		return
 	if not _is_host:
 		return
@@ -118,9 +158,11 @@ func _apply_separation() -> void:
 		if dist < 32.0 and dist > 0.0:
 			separation += diff.normalized() * (32.0 - dist)
 	if separation.length() > 0.0:
-		global_position += separation * 0.05
+		_try_move(separation * 0.05)
 
 func _check_flee() -> void:
+	if state == State.PETTED:
+		return
 	var player := _get_nearest_player()
 	if player and global_position.distance_to(player.global_position) < flee_radius:
 		state = State.FLEE
@@ -129,13 +171,21 @@ func _check_flee() -> void:
 		_pick_wander_target()
 
 func _do_wander(delta: float) -> void:
-	var to_target := _wander_target - global_position
-	if to_target.length() < 8.0:
+	if global_position.distance_to(_wander_target) < 8.0:
 		state = State.IDLE
 		_idle_timer = randf_range(1.5, 4.0)
 		sprite.play("idle")
 		return
-	global_position += to_target.normalized() * speed_wander * delta
+	var dir := (_wander_target - global_position).normalized()
+	var prev_pos := global_position
+	_try_move(dir * speed_wander * delta)
+	if global_position.distance_to(prev_pos) < 0.01:
+		_stuck_timer += delta
+		if _stuck_timer >= 0.3:
+			_stuck_timer = 0.0
+			_pick_wander_target()
+	else:
+		_stuck_timer = 0.0
 	sprite.play("walk_down")
 
 func _do_idle(delta: float) -> void:
@@ -151,9 +201,56 @@ func _do_flee(delta: float) -> void:
 		state = State.WANDER
 		_pick_wander_target()
 		return
-	var away := (global_position - player.global_position).normalized()
-	global_position += away * speed_flee * delta
+	var dir := (global_position - player.global_position).normalized()
+	var prev_pos := global_position
+	_try_move(dir * speed_flee * delta)
+	if global_position.distance_to(prev_pos) < 0.01:
+		_stuck_timer += delta
+		if _stuck_timer >= 0.3:
+			_stuck_timer = 0.0
+			var perp := Vector2(-dir.y, dir.x)
+			if rng.randf() > 0.5:
+				perp = -perp
+			_try_move(perp * speed_flee * delta * 3.0)
+	else:
+		_stuck_timer = 0.0
 	sprite.play("walk_down")
+
+func _try_move(delta: Vector2) -> void:
+	var space := get_world_2d().direct_space_state
+	var query := PhysicsShapeQueryParameters2D.new()
+	var shape := CircleShape2D.new()
+	shape.radius = 10.0
+	query.shape = shape
+	query.transform = Transform2D(0, global_position + delta)
+	query.collision_mask = 1
+	var excludes = [staticbody.get_rid()]
+	for p in get_tree().get_nodes_in_group("players"):
+		excludes.append(p.get_rid())
+	query.exclude = excludes
+	var hits := space.intersect_shape(query)
+	var blocked := false
+	for hit in hits:
+		if hit["collider"] != staticbody:
+			blocked = true
+			break
+	if not blocked:
+		global_position += delta
+	else:
+		for i in 8:
+			var rand_dir := Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()
+			var rand_delta := rand_dir * delta.length()
+			query.transform = Transform2D(0, global_position + rand_delta)
+			var rand_hits := space.intersect_shape(query)
+			var rand_blocked := false
+			for hit in rand_hits:
+				if hit["collider"] != staticbody:
+					rand_blocked = true
+					break
+			if not rand_blocked:
+				global_position += rand_delta
+				_wander_target = global_position + rand_dir * 150.0
+				break
 
 func _pick_wander_target() -> void:
 	var offset := Vector2(randf_range(-180.0, 180.0), randf_range(-180.0, 180.0))
@@ -186,7 +283,7 @@ func _sync_state_rpc(px: float, py: float, s: int) -> void:
 	match state:
 		State.WANDER, State.FLEE:
 			sprite.play("walk_down")
-		State.IDLE:
+		State.IDLE, State.PETTED:
 			sprite.play("idle")
 
 @rpc("authority", "call_local", "reliable")

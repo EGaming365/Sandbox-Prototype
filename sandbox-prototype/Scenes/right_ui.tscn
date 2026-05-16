@@ -1,0 +1,69 @@
+[gd_scene format=3 uid="uid://b8wirsdffuxwl"]
+
+[ext_resource type="Script" uid="uid://d3rlcmkr6skcj" path="res://Scripts/right_ui.gd" id="1_8vss2"]
+
+[sub_resource type="CanvasTexture" id="CanvasTexture_hhuao"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hhuao"]
+bg_color = Color(0.47006708, 0.25782835, 4.813075e-08, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8vss2"]
+bg_color = Color(0.89957595, 0.46740788, 0.0017111445, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vet0b"]
+bg_color = Color(0.27165473, 0.62836325, 0.9044512, 1)
+
+[node name="RightUI" type="Control" unique_id=22535782]
+layout_mode = 3
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -54.0
+offset_top = 5.0
+offset_right = -54.0
+offset_bottom = 5.0
+grow_horizontal = 0
+script = ExtResource("1_8vss2")
+
+[node name="TimeIcon" type="TextureRect" parent="." unique_id=1133441370]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 0
+offset_left = -37.0
+offset_top = 5.0
+offset_right = 43.0
+offset_bottom = 85.0
+texture = SubResource("CanvasTexture_hhuao")
+expand_mode = 2
+
+[node name="WeatherIcon" type="TextureRect" parent="." unique_id=1612841291]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 0
+offset_left = -38.0
+offset_top = 36.0
+offset_right = -8.0
+offset_bottom = 66.0
+scale = Vector2(1.8138615, 1.8138615)
+
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1114398660]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 0
+offset_left = -31.0
+offset_top = 103.0
+offset_right = 69.0
+offset_bottom = 303.0
+theme_override_constants/separation = 10
+
+[node name="HungerBar" type="ProgressBar" parent="HBoxContainer" unique_id=335821944]
+custom_minimum_size = Vector2(30, 200)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_hhuao")
+theme_override_styles/fill = SubResource("StyleBoxFlat_8vss2")
+fill_mode = 3
+show_percentage = false
+
+[node name="ThirstBar" type="ProgressBar" parent="HBoxContainer" unique_id=2137977408]
+custom_minimum_size = Vector2(30, 200)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_vet0b")
+fill_mode = 3
+show_percentage = false

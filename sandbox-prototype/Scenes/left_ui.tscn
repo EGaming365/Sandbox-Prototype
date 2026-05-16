@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://bkwvihhlv00dt"]
+
+[ext_resource type="Script" uid="uid://fghdgxrqxtan" path="res://Scripts/left_ui.gd" id="1_617oc"]
+
+[node name="LeftUI" type="Control" unique_id=1615478635]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_617oc")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1315294209]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/separation = 8
+
+[node name="Button" type="Button" parent="HBoxContainer" unique_id=1526215815]
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer/Button" unique_id=1211626874]
+layout_mode = 0
+offset_right = 59.0
+offset_bottom = 39.0
+theme_override_font_sizes/font_size = 12
+text = "Extras"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Button2" type="Button" parent="HBoxContainer" unique_id=952998270]
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer/Button2" unique_id=568741622]
+layout_mode = 0
+offset_right = 60.0
+offset_bottom = 41.0
+theme_override_font_sizes/font_size = 12
+text = "inventory"
+horizontal_alignment = 1
+vertical_alignment = 1

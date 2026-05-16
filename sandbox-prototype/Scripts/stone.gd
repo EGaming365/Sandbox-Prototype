@@ -13,6 +13,7 @@ var check_timer: float = 0.0
 var label: Label = null
 
 func _ready():
+	visible = false
 	z_index = 2
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
@@ -26,6 +27,8 @@ func _ready():
 	label.top_level = true
 	add_child(label)
 	_update_label()
+	await get_tree().process_frame
+	visible = true
 
 func _update_label():
 	if label:

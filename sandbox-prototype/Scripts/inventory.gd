@@ -17,6 +17,10 @@ var stone_sword_texture = preload("res://Assets/Stone_Sword.png")
 var stone_pickaxe_texture = preload("res://Assets/Stone_Pickaxe.png")
 var bench_texture = preload("res://Assets/Crafting_Bench.png")
 var wardrobe_texture = preload("res://Assets/Wardrobe.png")
+var wood_plank_texture = preload("res://Assets/Wood_Plank.png")
+var stone_texture = preload("res://Assets/Stone.png")
+
+var TEXTURE_MAP: Dictionary = {}
 
 var non_stackable_items = ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Wardrobe"]
 var discovered_items: Dictionary = {}
@@ -25,10 +29,40 @@ var _emit_dirty: bool = false
 var _emit_timer: float = 0.0
 
 func _ready():
+	var textures_to_resize = {
+		"Wood": wood_texture,
+		"Axe": axe_texture,
+		"Sword": sword_texture,
+		"Pickaxe": pickaxe_texture,
+		"Stone Axe": stone_axe_texture,
+		"Stone Sword": stone_sword_texture,
+		"Stone Pickaxe": stone_pickaxe_texture,
+		"Crafting_Bench": bench_texture,
+		"Wardrobe": wardrobe_texture,
+		"Wood Plank": wood_plank_texture,
+		"Stone": stone_texture,
+	}
+	
+	TEXTURE_MAP = {}
+	for item_name in textures_to_resize:
+		var tex = textures_to_resize[item_name]
+		if tex:
+			var img = tex.get_image()
+			if img:
+				img.resize(64, 64, Image.INTERPOLATE_NEAREST)
+				TEXTURE_MAP[item_name] = ImageTexture.create_from_image(img)
+			else:
+				TEXTURE_MAP[item_name] = tex
+		else:
+			TEXTURE_MAP[item_name] = tex
+	
 	for i in max_slots:
 		slots.append({"item": "", "count": 0, "texture": null})
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
+
+func get_texture(item_name: String) -> Texture2D:
+	return TEXTURE_MAP.get(item_name, null)
 
 func _process(delta):
 	if _emit_dirty:
@@ -54,6 +88,9 @@ func is_discovered(recipe: Dictionary) -> bool:
 	return true
 
 func add_item(item_name, texture):
+	var tex = get_texture(item_name)
+	if tex == null:
+		tex = texture
 	discover(item_name)
 	var stackable = not non_stackable_items.has(item_name)
 	if stackable:
@@ -71,50 +108,59 @@ func add_item(item_name, texture):
 		if slot["item"] == "":
 			slot["item"] = item_name
 			slot["count"] = 1
-			slot["texture"] = texture
+			slot["texture"] = tex
 			_queue_emit()
 			return
 	for i in unlocked_inv_slots:
 		if inv_slots[i]["item"] == "":
 			inv_slots[i]["item"] = item_name
 			inv_slots[i]["count"] = 1
-			inv_slots[i]["texture"] = texture
+			inv_slots[i]["texture"] = tex
 			_queue_emit()
 			return
 
 func add_item_with_count(item_name: String, texture: Texture2D, count: int):
+	var tex = get_texture(item_name)
+	if tex == null:
+		tex = texture
 	discover(item_name)
 	for slot in slots:
 		if slot["item"] == "":
 			slot["item"] = item_name
 			slot["count"] = count
-			slot["texture"] = texture
+			slot["texture"] = tex
 			inventory_changed.emit()
 			return
 	for i in unlocked_inv_slots:
 		if inv_slots[i]["item"] == "":
 			inv_slots[i]["item"] = item_name
 			inv_slots[i]["count"] = count
-			inv_slots[i]["texture"] = texture
+			inv_slots[i]["texture"] = tex
 			inventory_changed.emit()
 			return
 
 func add_item_with_count_silent(item_name: String, texture: Texture2D, count: int):
+	var tex = get_texture(item_name)
+	if tex == null:
+		tex = texture
 	discover(item_name)
 	for slot in slots:
 		if slot["item"] == "":
 			slot["item"] = item_name
 			slot["count"] = count
-			slot["texture"] = texture
+			slot["texture"] = tex
 			return
 	for i in unlocked_inv_slots:
 		if inv_slots[i]["item"] == "":
 			inv_slots[i]["item"] = item_name
 			inv_slots[i]["count"] = count
-			inv_slots[i]["texture"] = texture
+			inv_slots[i]["texture"] = tex
 			return
 
 func batch_add_item(item_name: String, texture: Texture2D, count: int = 1) -> int:
+	var tex = get_texture(item_name)
+	if tex == null:
+		tex = texture
 	discover(item_name)
 	var remaining = count
 	var stackable = not non_stackable_items.has(item_name)
@@ -140,7 +186,7 @@ func batch_add_item(item_name: String, texture: Texture2D, count: int = 1) -> in
 			var add = min(99, remaining)
 			slot["item"] = item_name
 			slot["count"] = add
-			slot["texture"] = texture
+			slot["texture"] = tex
 			remaining -= add
 	for i in unlocked_inv_slots:
 		if remaining <= 0:
@@ -149,7 +195,7 @@ func batch_add_item(item_name: String, texture: Texture2D, count: int = 1) -> in
 			var add = min(99, remaining)
 			inv_slots[i]["item"] = item_name
 			inv_slots[i]["count"] = add
-			inv_slots[i]["texture"] = texture
+			inv_slots[i]["texture"] = tex
 			remaining -= add
 	return count - remaining
 

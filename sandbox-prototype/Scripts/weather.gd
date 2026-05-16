@@ -29,12 +29,15 @@ enum WeatherType {
 @export var weather_min_seconds: float = 450.0
 @export var weather_max_seconds: float = 1350.0
 @export var initial_weather: WeatherType = WeatherType.CLEAR
+@export var clear_days_before_event: int = 5
 
 var current_weather: WeatherType = WeatherType.CLEAR
 var time_of_day: float = 0.5
 var weather_timer: float = 0.0
 var lightning_timer: float = 0.0
 var lightning_alpha: float = 0.0
+var clear_day_count: int = 0
+var last_day_integer: int = 0
 
 var rng := RandomNumberGenerator.new()
 var canvas_modulate: CanvasModulate
@@ -47,7 +50,6 @@ func _ready():
 	_create_day_night()
 	_create_lightning_flash()
 	call_deferred("_create_rain")
-
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		_set_weather(initial_weather)
 		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
@@ -58,12 +60,22 @@ func _process(delta):
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		_update_day_night(delta)
 		_update_weather_timer(delta)
+		_track_clear_days()
 		if multiplayer.has_multiplayer_peer():
 			sync_weather_state.rpc(current_weather, time_of_day, weather_timer)
 	else:
 		_apply_day_night_color()
-
 	_update_lightning(delta)
+
+func _track_clear_days():
+	var current_day = int(time_of_day * 1000) % 1000
+	var day_integer = int(time_of_day)
+	if day_integer != last_day_integer:
+		last_day_integer = day_integer
+		if current_weather == WeatherType.CLEAR:
+			clear_day_count += 1
+		else:
+			clear_day_count = 0
 
 func _create_day_night():
 	canvas_modulate = CanvasModulate.new()
@@ -97,7 +109,6 @@ func _create_lightning_flash():
 	lightning_flash_layer = CanvasLayer.new()
 	lightning_flash_layer.name = "LightningFlashLayer"
 	lightning_flash_layer.layer = 110
-
 	lightning_flash = ColorRect.new()
 	lightning_flash.name = "LightningFlash"
 	lightning_flash.color = Color(1, 1, 1, 0)
@@ -116,13 +127,11 @@ func _update_day_night(delta):
 func _apply_day_night_color():
 	if not canvas_modulate:
 		return
-
 	var night_color = Color(0.16, 0.20, 0.34)
 	var morning_color = Color(1.0, 0.86, 0.62)
 	var day_color = Color(1.0, 0.98, 0.9)
 	var evening_color = Color(0.95, 0.55, 0.35)
 	var tint: Color
-
 	if time_of_day < 0.20:
 		tint = night_color
 	elif time_of_day < 0.35:
@@ -138,7 +147,6 @@ func _apply_day_night_color():
 		tint = evening_color.lerp(night_color, t)
 	else:
 		tint = night_color
-
 	if current_weather == WeatherType.RAIN:
 		tint = tint.darkened(0.12)
 	elif current_weather == WeatherType.THUNDER:
@@ -146,7 +154,6 @@ func _apply_day_night_color():
 	elif current_weather == WeatherType.THUNDERSTORM:
 		tint = tint.darkened(0.38)
 		tint = tint.lerp(Color(0.1, 0.13, 0.22), 0.35)
-
 	canvas_modulate.color = tint
 
 func _update_weather_timer(delta):
@@ -155,6 +162,17 @@ func _update_weather_timer(delta):
 		_pick_next_weather()
 
 func _pick_next_weather():
+	if clear_day_count >= clear_days_before_event:
+		clear_day_count = 0
+		var roll = rng.randi_range(1, 3)
+		if roll == 1:
+			_set_weather(WeatherType.RAIN)
+		elif roll == 2:
+			_set_weather(WeatherType.THUNDER)
+		else:
+			_set_weather(WeatherType.THUNDERSTORM)
+		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
+		return
 	var roll = rng.randi_range(1, 100)
 	if roll <= 80:
 		_set_weather(WeatherType.CLEAR)
@@ -168,13 +186,11 @@ func _pick_next_weather():
 
 func _update_lightning(delta):
 	var is_electric = current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
-
 	if not is_electric:
 		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
 		if lightning_flash and lightning_flash_enabled:
 			lightning_flash.color = Color(1, 1, 1, lightning_alpha)
 		return
-
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		lightning_timer -= delta
 		if lightning_timer <= 0.0:
@@ -205,7 +221,6 @@ func _update_lightning(delta):
 				else:
 					lightning_strike_rpc(strike_pos.x, strike_pos.y)
 				lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
-
 	lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
 	if lightning_flash and lightning_flash_enabled:
 		lightning_flash.color = Color(1, 1, 1, lightning_alpha)
@@ -255,15 +270,12 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
 		return
-
 	var space = get_world_2d().direct_space_state
-
 	for player in get_tree().get_nodes_in_group("players"):
 		if not is_instance_valid(player):
 			continue
 		if player.global_position.distance_to(world_pos) > lightning_hit_radius:
 			continue
-
 		var query = PhysicsPointQueryParameters2D.new()
 		query.position = player.global_position
 		query.collision_mask = 4
@@ -271,12 +283,10 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 		var overlaps = space.intersect_point(query)
 		if overlaps.size() > 0:
 			continue
-
 		var player_id = player.name.to_int()
 		var player_name = Steam.getFriendPersonaName(player_id) if multiplayer.has_multiplayer_peer() else "Player"
 		if player_name == "" or player_name == null:
 			player_name = "Player"
-
 		if multiplayer.has_multiplayer_peer():
 			if player_id == multiplayer.get_unique_id():
 				player.take_damage(lightning_kill_damage)
@@ -284,15 +294,12 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 				scene_node.deal_damage_to_player.rpc_id(player_id, lightning_kill_damage)
 		else:
 			player.take_damage(lightning_kill_damage)
-
 		var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 		if chat:
 			if multiplayer.has_multiplayer_peer():
 				chat._broadcast_message.rpc(player_name + " was struck by the gods")
 			else:
 				chat._add_message(player_name + " was struck by the gods")
-
-	# kill any chickens in range
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		if not is_instance_valid(chicken):
 			continue

@@ -10,9 +10,12 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
 func _ready():
+	visible = false
 	z_index = 2
 	despawn_timer = DESPAWN_TIME + randf_range(-30.0, 30.0)
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
+	await get_tree().process_frame
+	visible = true
 
 func _process(delta):
 	if _picked_up:

@@ -206,6 +206,41 @@ func _handle_command(text: String):
 			var display_x = spawn_pos.x / 100.0
 			var display_y = spawn_pos.y / -100.0
 			_add_message("[System] Spawned chicken at (" + str(display_x).pad_zeros(1) + ", " + str(display_y).pad_zeros(1) + ")")
+		"/kill":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /kill <player_name>")
+				return
+			var scene_node = get_tree().root.get_node("Scene")
+			var target_name = " ".join(parts.slice(1))
+			var matches = []
+			for child in scene_node.get_children():
+				if child is CharacterBody2D:
+					var peer_id = child.get_multiplayer_authority()
+					var steam_id = my_steam_id if peer_id == multiplayer.get_unique_id() else peer_id
+					var sname = Steam.getFriendPersonaName(steam_id)
+					if sname.to_lower().begins_with(target_name.to_lower()):
+						matches.append({"node": child, "peer_id": peer_id, "name": sname})
+			if matches.size() == 0:
+				_add_message("[System] Player '" + target_name + "' not found.")
+				return
+			elif matches.size() > 1:
+				var names = ""
+				for m in matches:
+					names += m["name"] + ", "
+				_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
+				return
+			var target = matches[0]
+			if target["peer_id"] == multiplayer.get_unique_id():
+				target["node"].take_damage(target["node"].synced_health)
+			else:
+				if multiplayer.has_multiplayer_peer():
+					scene_node.request_kill_player.rpc_id(1, target["peer_id"])
+				else:
+					target["node"].take_damage(target["node"].synced_health)
+			_add_message("[System] Killed " + target["name"])
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 	
@@ -468,3 +503,9 @@ func _rpc_teleport(dest: Vector2):
 	var local_player = _get_local_player()
 	if local_player:
 		local_player.global_position = dest
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_kill_player():
+	var local_player = _get_local_player()
+	if local_player:
+		local_player.take_damage(local_player.synced_health)

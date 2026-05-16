@@ -7,12 +7,13 @@ var hits: int = 0
 var max_hits: int = 1
 var current_rotation: float = 0.0
 
-func _get_texture_for_item(item_name: String) -> Texture2D:
-	match item_name:
+var plank_h = preload("res://Assets/Wood_Plank.png")
+var plank_v = preload("res://Assets/Wood_Plank_Rotated.png")
+
+func _get_texture_for_item(i_name: String) -> Texture2D:
+	match i_name:
 		"Wood Plank":
-			var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-			img.fill(Color.WHITE)
-			return ImageTexture.create_from_image(img)
+			return plank_h
 		"Crafting_Bench":
 			var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 			img.fill(Color.RED)
@@ -47,26 +48,46 @@ func _update_collision_for_rotation():
 	if not shape:
 		return
 	var rot = fmod(abs(current_rotation), 360.0)
-	if rot < 45 or rot >= 315:
-		# Horizontal — full body collision
-		shape.size = Vector2(64, 14)
-		$CollisionShape2D.position = Vector2(0, 0)
-		$Sprite2D.rotation_degrees = 0
-	elif rot >= 45 and rot < 135:
-		# Vertical — thin strip at bottom only
+	if item_name == "Wood Plank":
+		match int(rot):
+			0:
+				$Sprite2D.texture = plank_v
+				$Sprite2D.rotation_degrees = 90.0
+				$Sprite2D.flip_h = false
+				$Sprite2D.flip_v = true
+				$Sprite2D.scale = Vector2(2, -2)
+				$Sprite2D.position = Vector2(0, 0)
+				shape.size = Vector2(64, 14)
+			90:
+				$Sprite2D.texture = plank_v
+				$Sprite2D.rotation_degrees = 0.0
+				$Sprite2D.flip_h = false
+				$Sprite2D.flip_v = false
+				$Sprite2D.scale = Vector2(2, 2)
+				$Sprite2D.position = Vector2(0, 0)
+				shape.size = Vector2(14, 64)
+			180:
+				$Sprite2D.texture = plank_v
+				$Sprite2D.rotation_degrees = 90.0
+				$Sprite2D.flip_h = false
+				$Sprite2D.flip_v = false
+				$Sprite2D.scale = Vector2(2, 2)
+				$Sprite2D.position = Vector2(0, -46)
+				shape.size = Vector2(64, 14)
+			270:
+				$Sprite2D.texture = plank_v
+				$Sprite2D.rotation_degrees = 0.0
+				$Sprite2D.flip_h = true
+				$Sprite2D.flip_v = true
+				$Sprite2D.scale = Vector2(2, 2)
+				$Sprite2D.position = Vector2(-2, 0)
+				shape.size = Vector2(14, 64)
+	else:
+		$Sprite2D.rotation_degrees = 0.0
+		$Sprite2D.flip_h = false
+		$Sprite2D.position = Vector2(0, 0)
 		shape.size = Vector2(64, 64)
-		$CollisionShape2D.position = Vector2(0, 16)
-		$Sprite2D.rotation_degrees = 90
-	elif rot >= 135 and rot < 225:
-		# 180 — full body collision
-		shape.size = Vector2(64, 14)
 		$CollisionShape2D.position = Vector2(0, 0)
-		$Sprite2D.rotation_degrees = 180
-	elif rot >= 225 and rot < 315:
-		# Vertical 270 — thin strip at bottom only
-		shape.size = Vector2(64, 64)
-		$CollisionShape2D.position = Vector2(0, 16)
-		$Sprite2D.rotation_degrees = 270
 
 func _process(_delta):
 	pass

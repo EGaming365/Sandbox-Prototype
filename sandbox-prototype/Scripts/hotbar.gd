@@ -29,7 +29,19 @@ func _ready():
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
 	_ready_slots()
 	Inventory.inventory_changed.connect(update_hotbar)
+	_prewarm_textures()
 	update_hotbar()
+
+func _prewarm_textures():
+	var dummy = TextureRect.new()
+	dummy.visible = false
+	add_child(dummy)
+	for i in range(10):
+		var tex = Inventory.slots[i].get("texture")
+		if tex:
+			dummy.texture = tex
+	await get_tree().process_frame
+	dummy.queue_free()
 
 func get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
@@ -88,17 +100,17 @@ func update_hotbar():
 			child.queue_free()
 		if data["item"] == "":
 			continue
-		var tex = TextureRect.new()
-		tex.texture = data["texture"]
-		tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		tex.offset_left = 6
-		tex.offset_right = -6
-		tex.offset_top = 6
-		tex.offset_bottom = -6
-		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot.add_child(tex)
+		var tex = Inventory.get_texture(data["item"])
+		if tex == null:
+			tex = data["texture"]
+		var tex_rect = TextureRect.new()
+		tex_rect.texture = tex
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex_rect.size = Vector2(slot.size.x - 12, slot.size.y - 12)
+		tex_rect.position = Vector2(6, 6)
+		slot.add_child(tex_rect)
 		if not Inventory.non_stackable_items.has(data["item"]):
 			var label = Label.new()
 			label.text = str(min(data["count"], 99))
@@ -225,15 +237,6 @@ func _process(delta: float) -> void:
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	if chat and chat.is_open:
 		return
-
-	if Input.is_action_just_pressed("inventory"):
-		var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-		if inv_ui:
-			inv_ui.toggle_to("inventory")
-	if Input.is_action_just_pressed("crafting"):
-		var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-		if inv_ui:
-			inv_ui.toggle_to("recipes")
 
 	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	var inv_open = inv_ui and inv_ui.visible
