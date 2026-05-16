@@ -38,7 +38,7 @@ func _ready():
 	shirt_sprite.visible = true
 	pants_sprite.visible = true
 	collision_layer = 1
-	collision_mask = 1 
+	collision_mask = 1
 	if not multiplayer.has_multiplayer_peer():
 		collision_layer = 1
 		collision_mask = 1
@@ -49,7 +49,6 @@ func _ready():
 		$CollisionShape2D.disabled = true
 	_setup_hand()
 	call_deferred("_setup_camera")
-	
 
 func _play_anim(anim_name: String):
 	anim.play(anim_name)
@@ -79,16 +78,18 @@ func _setup_camera():
 		camera.name = "Camera2D"
 		get_tree().root.add_child(camera)
 	camera.enabled = true
+	camera.position_smoothing_enabled = false
 	camera.make_current()
 	camera.global_position = global_position
 
 func _process(delta):
-	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
-		camera.global_position = global_position
 	if _is_inventory_open():
 		return
 
 func _physics_process(delta):
+	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
+		camera.global_position = global_position.round()
+
 	if _is_inventory_open():
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -110,14 +111,19 @@ func _physics_process(delta):
 		return
 
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+		var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
+
 		if chop_cooldown_timer > 0:
 			chop_cooldown_timer = max(chop_cooldown_timer - delta, 0.0)
 			var pct = chop_cooldown_timer / chop_cooldown_max if chop_cooldown_max > 0 else 0.0
-			var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
 			if cursor:
 				cursor.show_cooldown(pct)
+
 		if attack_cooldown > 0:
 			attack_cooldown = max(attack_cooldown - delta, 0.0)
+			if cursor:
+				cursor.show_cooldown(attack_cooldown / ATTACK_COOLDOWN_MAX)
+
 		var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 		if hotbar:
 			var slot = Inventory.slots[hotbar.current_slot - 1]
@@ -164,11 +170,14 @@ func _input(event):
 	if not (is_multiplayer_authority() or not multiplayer.has_multiplayer_peer()):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		if synced_held_item == "Sword" and attack_cooldown <= 0.0:
+		if synced_held_item == "Sword" and chop_cooldown_timer <= 0.0 and attack_cooldown <= 0.0:
 			_try_attack()
 
 func _try_attack():
 	attack_cooldown = ATTACK_COOLDOWN_MAX
+	var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
+	if cursor:
+		cursor.show_cooldown(1.0)
 	var scene_node = get_tree().root.get_node("Scene")
 	var mouse_world_pos = get_global_mouse_position()
 	for child in scene_node.get_children():
@@ -178,12 +187,10 @@ func _try_attack():
 			continue
 		var dist_to_player = global_position.distance_to(child.global_position)
 		var dist_to_mouse = mouse_world_pos.distance_to(child.global_position)
-		# must be within attack range of player AND clicking near the chicken
 		if dist_to_player > ATTACK_RANGE:
 			continue
 		if dist_to_mouse > 40.0:
 			continue
-
 		if child.is_in_group("players"):
 			if multiplayer.has_multiplayer_peer():
 				var target_id = child.name.to_int()
@@ -192,7 +199,6 @@ func _try_attack():
 				child.take_damage(SWORD_DAMAGE)
 			_consume_sword_durability()
 			break
-
 		elif child.is_in_group("chickens"):
 			child.take_damage(SWORD_DAMAGE)
 			_consume_sword_durability()
@@ -234,17 +240,39 @@ func die():
 		if slot["item"] != "":
 			var durability = slot.get("durability", slot["count"] if slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": false, "index": i})
+
 	for drop in drops:
-		var angle = randf_range(0, TAU)
-		var radius = randf_range(40, 80)
-		var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
-		if multiplayer.has_multiplayer_peer():
-			if multiplayer.is_server():
-				scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
+		var is_tool = Inventory.non_stackable_items.has(drop["item"])
+		if is_tool:
+			var angle = randf_range(0, TAU)
+			var radius = randf_range(40, 80)
+			var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"])
 			else:
-				scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"])
+				scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
 		else:
-			scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
+			var positions_x: Array = []
+			var positions_y: Array = []
+			for i in drop["count"]:
+				var angle = randf_range(0, TAU)
+				var radius = randf_range(40, 80)
+				var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
+				positions_x.append(drop_pos.x)
+				positions_y.append(drop_pos.y)
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					for i in positions_x.size():
+						scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1)
+				else:
+					scene_node.request_spawn_floor_items_batch.rpc_id(1, positions_x, positions_y, drop["item"], 1)
+			else:
+				for i in positions_x.size():
+					scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1)
+
 	for i in Inventory.slots.size():
 		if Inventory.slots[i]["item"] != "":
 			Inventory.remove_item(i, false)

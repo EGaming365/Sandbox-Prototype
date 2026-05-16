@@ -194,7 +194,7 @@ func _handle_command(text: String):
 				return
 			var spawn_pos = Vector2.ZERO
 			if parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
-				spawn_pos = Vector2(parts[2].to_float(), parts[3].to_float())
+				spawn_pos = Vector2((parts[2].to_float() * 100), (parts[3].to_float()) * -100 )
 			else:
 				var local_player = _get_local_player()
 				if local_player:

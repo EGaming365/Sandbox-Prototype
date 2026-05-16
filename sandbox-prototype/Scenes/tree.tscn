@@ -10,7 +10,7 @@ size = Vector2(27.708334, 28.125)
 radius = 28.549454
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_l7sa7"]
-size = Vector2(18.566599, 2.2093697)
+size = Vector2(18.566599, 3.7950463)
 
 [node name="Tree" type="Node2D" unique_id=53906318]
 z_index = 1
@@ -39,7 +39,7 @@ shape = SubResource("CircleShape2D_l7sa7")
 position = Vector2(0, -15.041668)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1155343725]
-position = Vector2(-0.20833334, 14.208336)
+position = Vector2(0, 15.592174)
 scale = Vector2(0.6488612, -0.6194949)
 shape = SubResource("RectangleShape2D_l7sa7")
 

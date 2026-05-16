@@ -178,6 +178,7 @@ script = ExtResource("20_b0t05")
 script = ExtResource("19_l8vl3")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=167471078]
+limit_enabled = false
 
 [connection signal="pressed" from="CanvasLayer/Host_Button" to="." method="_on_host_button_pressed"]
 [connection signal="pressed" from="CanvasLayer/Join_Button" to="." method="_on_join_button_pressed"]

@@ -8,7 +8,7 @@ enum WeatherType {
 }
 
 @export var lightning_render_padding: float = 500.0
-@export var lightning_flash_enabled: bool = false
+@export var lightning_flash_enabled: bool = true
 @export var lightning_min_seconds: float = 25.0
 @export var lightning_max_seconds: float = 60.0
 @export var lightning_hit_radius: float = 36.0

@@ -7,7 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://vbilywhaghmb" path="res://Assets/Pants_Basic.png" id="5_3smsa"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v0iea"]
-size = Vector2(16.666653, 13.333339)
+size = Vector2(16.666653, 6.6392403)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_x3wgy"]
 atlas = ExtResource("2_cvnsp")
@@ -233,7 +233,7 @@ scale = Vector2(2.2592921, 2.2592921)
 script = ExtResource("1_v0iea")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=511479757]
-position = Vector2(2.483527e-07, -5.8333254)
+position = Vector2(2.483527e-07, -3.3196259)
 scale = Vector2(1.0000008, 1.0000008)
 shape = SubResource("RectangleShape2D_v0iea")
 

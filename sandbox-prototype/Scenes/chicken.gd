@@ -2,9 +2,9 @@ extends Node2D
 
 enum State { WANDER, IDLE, FLEE, DEAD }
 
-@export var speed_wander: float = 60.0
-@export var speed_flee: float = 130.0
-@export var flee_radius: float = 150.0
+@export var speed_wander: float = 80.0
+@export var speed_flee: float = 80.0
+@export var flee_radius: float = 300.0
 @export var health: int = 10
 @export var click_radius: float = 50.0
 
@@ -17,8 +17,11 @@ var chicken_id: int = -1
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hurtbox: Area2D = $Hurtbox
+@onready var staticbody: StaticBody2D = $StaticBody2D
 
 func _ready() -> void:
+	sprite.position.y = -30
+	staticbody.position.y = -6
 	z_index = 2
 	add_to_group("chickens")
 	sprite.visible = true
@@ -66,7 +69,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if not _player_in_range:
 		return
-	if player.attack_cooldown > 0.0:
+	if player.attack_cooldown > 0.0 or player.chop_cooldown_timer > 0.0:
 		return
 
 	var damage: int = 0
@@ -104,6 +107,8 @@ func _process(delta: float) -> void:
 		_sync_state_rpc.rpc(global_position.x, global_position.y, int(state))
 
 func _apply_separation() -> void:
+	if state == State.FLEE:
+		return
 	var separation := Vector2.ZERO
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		if chicken == self:

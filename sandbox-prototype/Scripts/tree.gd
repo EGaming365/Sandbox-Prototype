@@ -39,7 +39,7 @@ func _process(_delta):
 		held_item = slot["item"]
 	var scene_node = get_tree().root.get_node("Scene")
 	var local_player = hotbar.get_local_player() if hotbar else null
-	if local_player and local_player.chop_cooldown_timer > 0:
+	if local_player and (local_player.chop_cooldown_timer > 0 or local_player.attack_cooldown > 0):
 		return
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		scene_node.request_chop_env_tree.rpc_id(1, env_id, held_item)
