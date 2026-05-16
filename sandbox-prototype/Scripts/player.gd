@@ -19,7 +19,7 @@ var hand_sprite: Sprite2D = null
 var max_health: int = 10
 var is_dead: bool = false
 var attack_cooldown: float = 0.0
-const ATTACK_COOLDOWN_MAX: float = 0.8
+const ATTACK_COOLDOWN_MAX: float = 1.5
 const ATTACK_RANGE: float = 80.0
 const SWORD_DAMAGE: int = 2
 const FEET_OFFSET: float = 1.0
@@ -37,6 +37,8 @@ func _ready():
 	hair_sprite.visible = true
 	shirt_sprite.visible = true
 	pants_sprite.visible = true
+	collision_layer = 1
+	collision_mask = 1 
 	if not multiplayer.has_multiplayer_peer():
 		collision_layer = 1
 		collision_mask = 1
@@ -47,6 +49,7 @@ func _ready():
 		$CollisionShape2D.disabled = true
 	_setup_hand()
 	call_deferred("_setup_camera")
+	
 
 func _play_anim(anim_name: String):
 	anim.play(anim_name)
@@ -167,17 +170,33 @@ func _input(event):
 func _try_attack():
 	attack_cooldown = ATTACK_COOLDOWN_MAX
 	var scene_node = get_tree().root.get_node("Scene")
+	var mouse_world_pos = get_global_mouse_position()
 	for child in scene_node.get_children():
-		if child is CharacterBody2D and child != self:
-			var dist = global_position.distance_to(child.global_position)
-			if dist <= ATTACK_RANGE:
+		if child == self:
+			continue
+		if not child is Node2D:
+			continue
+		var dist_to_player = global_position.distance_to(child.global_position)
+		var dist_to_mouse = mouse_world_pos.distance_to(child.global_position)
+		# must be within attack range of player AND clicking near the chicken
+		if dist_to_player > ATTACK_RANGE:
+			continue
+		if dist_to_mouse > 40.0:
+			continue
+
+		if child.is_in_group("players"):
+			if multiplayer.has_multiplayer_peer():
 				var target_id = child.name.to_int()
-				if multiplayer.has_multiplayer_peer():
-					scene_node.request_deal_damage.rpc_id(1, target_id, SWORD_DAMAGE)
-				else:
-					child.take_damage(SWORD_DAMAGE)
-				_consume_sword_durability()
-				break
+				scene_node.request_deal_damage.rpc_id(1, target_id, SWORD_DAMAGE)
+			else:
+				child.take_damage(SWORD_DAMAGE)
+			_consume_sword_durability()
+			break
+
+		elif child.is_in_group("chickens"):
+			child.take_damage(SWORD_DAMAGE)
+			_consume_sword_durability()
+			break
 
 func _consume_sword_durability():
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")

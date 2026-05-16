@@ -7,12 +7,17 @@ enum WeatherType {
 	THUNDERSTORM
 }
 
+@export var lightning_render_padding: float = 500.0
+@export var lightning_flash_enabled: bool = false
 @export var lightning_min_seconds: float = 25.0
 @export var lightning_max_seconds: float = 60.0
 @export var lightning_hit_radius: float = 36.0
 @export var lightning_kill_damage: int = 9999
-@export var lightning_spawn_radius: float = 2000.0
+@export var lightning_spawn_radius: float = 1500.0
 @export var lightning_bolt_height: float = 2200.0
+@export var lightning_min_strike_gap: float = 50.0
+@export var min_strike_count: float = 1
+@export var max_strike_count: float = 3
 
 @export var rain_drop_count: int = 420
 @export var rain_min_speed: float = 620.0
@@ -140,8 +145,6 @@ func _apply_day_night_color():
 		tint = tint.darkened(0.24)
 	elif current_weather == WeatherType.THUNDERSTORM:
 		tint = tint.darkened(0.38)
-	elif current_weather == WeatherType.THUNDERSTORM:
-		tint = tint.darkened(0.38)
 		tint = tint.lerp(Color(0.1, 0.13, 0.22), 0.35)
 
 	canvas_modulate.color = tint
@@ -167,8 +170,8 @@ func _update_lightning(delta):
 	var is_electric = current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
 
 	if not is_electric:
-		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 5.0)
-		if lightning_flash:
+		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
+		if lightning_flash and lightning_flash_enabled:
 			lightning_flash.color = Color(1, 1, 1, lightning_alpha)
 		return
 
@@ -176,9 +179,20 @@ func _update_lightning(delta):
 		lightning_timer -= delta
 		if lightning_timer <= 0.0:
 			if current_weather == WeatherType.THUNDERSTORM:
-				var strike_count = rng.randi_range(1, 3)
-				for i in range(strike_count):
-					var strike_pos = _get_random_lightning_world_position()
+				var strike_count = rng.randi_range(min_strike_count, max_strike_count)
+				var chosen_positions: Array[Vector2] = []
+				var attempts := 0
+				while chosen_positions.size() < strike_count and attempts < 30:
+					attempts += 1
+					var candidate := _get_random_lightning_world_position()
+					var too_close := false
+					for existing in chosen_positions:
+						if candidate.distance_to(existing) < lightning_min_strike_gap:
+							too_close = true
+							break
+					if not too_close:
+						chosen_positions.append(candidate)
+				for strike_pos in chosen_positions:
 					if multiplayer.has_multiplayer_peer():
 						lightning_strike_rpc.rpc(strike_pos.x, strike_pos.y)
 					else:
@@ -192,8 +206,8 @@ func _update_lightning(delta):
 					lightning_strike_rpc(strike_pos.x, strike_pos.y)
 				lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
 
-	lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 3.5)
-	if lightning_flash:
+	lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
+	if lightning_flash and lightning_flash_enabled:
 		lightning_flash.color = Color(1, 1, 1, lightning_alpha)
 
 @rpc("authority", "call_remote", "reliable")
@@ -219,8 +233,8 @@ func _get_random_lightning_world_position() -> Vector2:
 
 func _show_lightning_strike(world_pos: Vector2):
 	var bolt = Line2D.new()
-	bolt.width = 5.0
-	bolt.default_color = Color(0.8, 0.9, 1.0, 1.0)
+	bolt.width = 7.0
+	bolt.default_color = Color(0.9, 0.95, 1.0, 1.0)
 	bolt.z_index = 100
 	bolt.global_position = world_pos
 	bolt.points = [
@@ -231,7 +245,7 @@ func _show_lightning_strike(world_pos: Vector2):
 		Vector2.ZERO
 	]
 	add_child(bolt)
-	await get_tree().create_timer(0.16).timeout
+	await get_tree().create_timer(0.45).timeout
 	if is_instance_valid(bolt):
 		bolt.queue_free()
 
@@ -278,6 +292,13 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 			else:
 				chat._add_message(player_name + " was struck by the gods")
 
+	# kill any chickens in range
+	for chicken in get_tree().get_nodes_in_group("chickens"):
+		if not is_instance_valid(chicken):
+			continue
+		if chicken.global_position.distance_to(world_pos) <= lightning_hit_radius:
+			chicken.take_damage(9999)
+
 func _get_local_player():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
@@ -294,7 +315,8 @@ func _get_local_player():
 @rpc("authority", "call_local", "reliable")
 func lightning_strike_rpc(pos_x: float, pos_y: float):
 	var strike_pos = Vector2(pos_x, pos_y)
-	lightning_alpha = rng.randf_range(0.55, 0.85)
+	if lightning_flash_enabled:
+		lightning_alpha = rng.randf_range(0.55, 0.85)
 	if _is_position_on_screen(strike_pos):
 		_show_lightning_strike(strike_pos)
 	_kill_players_hit_by_lightning(strike_pos)
@@ -305,5 +327,5 @@ func _is_position_on_screen(world_pos: Vector2) -> bool:
 		return false
 	var screen_size = get_viewport().get_visible_rect().size
 	var cam_pos = camera.get_screen_center_position()
-	var screen_rect = Rect2(cam_pos - screen_size / 2.0, screen_size)
+	var screen_rect = Rect2(cam_pos - screen_size / 2.0 - Vector2(lightning_render_padding, lightning_render_padding), screen_size + Vector2(lightning_render_padding * 2.0, lightning_render_padding * 2.0))
 	return screen_rect.has_point(world_pos)

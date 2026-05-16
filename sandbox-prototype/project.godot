@@ -20,6 +20,7 @@ config/icon="res://Assets/icon.svg"
 Inventory="*uid://ysbl5sgnspai"
 Crafting="*uid://cx7qqws6ginpx"
 BuildingManager="*uid://bapqqvvyq1ewe"
+AnimalSpawner="*uid://dngajdl8sw05c"
 
 [display]
 
