@@ -92,7 +92,6 @@ func _handle_command(text: String):
 				return
 			var scene_node = get_tree().root.get_node("Scene")
 
-			# Find the player to teleport
 			var subject_matches = []
 			for child in scene_node.get_children():
 				if child is CharacterBody2D:
@@ -116,17 +115,14 @@ func _handle_command(text: String):
 			var dest: Vector2
 
 			if parts[2].to_lower() == "here":
-				# Teleport to admin's own position
 				var local_player = _get_local_player()
 				if not local_player:
 					_add_message("[System] Could not find your position.")
 					return
 				dest = local_player.global_position
 			elif parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
-				# Teleport to X Y coords
 				dest = Vector2((parts[2].to_float() * 100) , (parts[3].to_float()) * -100)
 			else:
-				# Teleport to another player by name
 				var target_name = " ".join(parts.slice(2))
 				var target_matches = []
 				for child in scene_node.get_children():
@@ -147,7 +143,6 @@ func _handle_command(text: String):
 					return
 				dest = target_matches[0]["node"].global_position
 
-			# Apply teleport — local or RPC
 			if subject["peer_id"] == multiplayer.get_unique_id():
 				subject["node"].global_position = dest
 			else:
@@ -183,6 +178,34 @@ func _handle_command(text: String):
 			if multiplayer.has_multiplayer_peer():
 				weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
 			_add_message("[System] Time set to: " + parts[1].to_lower())
+		"/spawn":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /spawn <chicken> [x] [y]")
+				return
+			if parts[1].to_lower() != "chicken":
+				_add_message("[System] Can only spawn: chicken")
+				return
+			var scene_node = get_tree().root.get_node_or_null("Scene")
+			if not scene_node:
+				_add_message("[System] Scene not found.")
+				return
+			var spawn_pos = Vector2.ZERO
+			if parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
+				spawn_pos = Vector2(parts[2].to_float(), parts[3].to_float())
+			else:
+				var local_player = _get_local_player()
+				if local_player:
+					spawn_pos = local_player.global_position
+			if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+				scene_node.host_spawn_chicken(spawn_pos)
+			elif not multiplayer.has_multiplayer_peer():
+				scene_node.host_spawn_chicken(spawn_pos)
+			var display_x = spawn_pos.x / 100.0
+			var display_y = spawn_pos.y / -100.0
+			_add_message("[System] Spawned chicken at (" + str(display_x).pad_zeros(1) + ", " + str(display_y).pad_zeros(1) + ")")
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 	

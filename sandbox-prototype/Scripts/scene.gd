@@ -711,3 +711,10 @@ func request_spawn_floor_items_batch(positions_x: Array, positions_y: Array, ite
 		return
 	for i in positions_x.size():
 		host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, durability)
+
+func host_spawn_chicken(pos: Vector2) -> void:
+	if AnimalSpawner:
+		print("Calling _spawn_chicken at ", pos)
+		AnimalSpawner._spawn_chicken(pos)
+	else:
+		print("AnimalSpawner not found")

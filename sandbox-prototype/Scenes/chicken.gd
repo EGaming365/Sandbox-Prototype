@@ -12,17 +12,21 @@ var state: State = State.WANDER
 var _wander_target: Vector2 = Vector2.ZERO
 var _idle_timer: float = 0.0
 var _player_in_range: bool = false
+var _is_host: bool = false
+var chicken_id: int = -1
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hurtbox: Area2D = $Hurtbox
 
 func _ready() -> void:
+	z_index = 2
 	add_to_group("chickens")
 	sprite.visible = true
 	sprite.modulate = Color(1, 1, 1, 1)
 	hurtbox.body_entered.connect(_on_body_entered)
 	hurtbox.body_exited.connect(_on_body_exited)
 	_pick_wander_target()
+	_is_host = not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
 
 func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("players"):
@@ -43,8 +47,7 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var mouse_world: Vector2 = get_global_mouse_position()
-	var dist_to_mouse := global_position.distance_to(mouse_world)
-	if dist_to_mouse > click_radius:
+	if global_position.distance_to(mouse_world) > click_radius:
 		return
 
 	var player: Node = null
@@ -61,10 +64,8 @@ func _input(event: InputEvent) -> void:
 	var slot = Inventory.slots[hotbar.current_slot - 1]
 	if slot["item"] != "Sword" and slot["item"] != "Stone Sword":
 		return
-
 	if not _player_in_range:
 		return
-
 	if player.attack_cooldown > 0.0:
 		return
 
@@ -77,14 +78,21 @@ func _input(event: InputEvent) -> void:
 		return
 
 	player.attack_cooldown = player.ATTACK_COOLDOWN_MAX
-	take_damage(damage)
 	player._consume_sword_durability()
+
 	var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
 	if cursor:
 		cursor.show_cooldown(player.ATTACK_COOLDOWN_MAX)
 
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		_request_damage_rpc.rpc_id(1, chicken_id, damage)
+	else:
+		take_damage(damage)
+
 func _process(delta: float) -> void:
 	if state == State.DEAD:
+		return
+	if not _is_host:
 		return
 	_apply_separation()
 	_check_flee()
@@ -92,6 +100,8 @@ func _process(delta: float) -> void:
 		State.WANDER: _do_wander(delta)
 		State.IDLE:   _do_idle(delta)
 		State.FLEE:   _do_flee(delta)
+	if multiplayer.has_multiplayer_peer():
+		_sync_state_rpc.rpc(global_position.x, global_position.y, int(state))
 
 func _apply_separation() -> void:
 	var separation := Vector2.ZERO
@@ -155,11 +165,43 @@ func _get_nearest_player() -> CharacterBody2D:
 				nearest = p
 	return nearest
 
+@rpc("any_peer", "call_remote", "reliable")
+func _request_damage_rpc(target_chicken_id: int, amount: int) -> void:
+	if not multiplayer.is_server():
+		return
+	for chicken in get_tree().get_nodes_in_group("chickens"):
+		if chicken.get("chicken_id") == target_chicken_id:
+			chicken.take_damage(amount)
+			return
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _sync_state_rpc(px: float, py: float, s: int) -> void:
+	global_position = Vector2(px, py)
+	state = s as State
+	match state:
+		State.WANDER, State.FLEE:
+			sprite.play("walk_down")
+		State.IDLE:
+			sprite.play("idle")
+
+@rpc("authority", "call_local", "reliable")
+func _sync_flash_hit_rpc() -> void:
+	_flash_hit()
+
+@rpc("authority", "call_local", "reliable")
+func _sync_die_rpc() -> void:
+	_play_die_sequence()
+
 func take_damage(amount: int) -> void:
 	if state == State.DEAD:
 		return
+	if not _is_host:
+		return
 	health -= amount
-	_flash_hit()
+	if multiplayer.has_multiplayer_peer():
+		_sync_flash_hit_rpc.rpc()
+	else:
+		_flash_hit()
 	if health <= 0:
 		_die()
 
@@ -173,6 +215,12 @@ func _flash_hit() -> void:
 	sprite.modulate = Color(1, 1, 1, 1)
 
 func _die() -> void:
+	if multiplayer.has_multiplayer_peer():
+		_sync_die_rpc.rpc()
+	else:
+		_play_die_sequence()
+
+func _play_die_sequence() -> void:
 	state = State.DEAD
 	sprite.modulate = Color(1, 0.1, 0.1, 1)
 	var tween = create_tween()

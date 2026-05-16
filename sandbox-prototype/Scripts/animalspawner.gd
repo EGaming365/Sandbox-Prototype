@@ -2,7 +2,7 @@ extends Node
 
 const CHICKEN_SCENE := preload("res://scenes/Chicken.tscn")
 
-@export var max_chickens_in_radius: int = 20
+@export var max_chickens_in_radius: int = 0
 @export var spawn_radius_min: float = 1000.0
 @export var spawn_radius_max: float = 2000.0
 @export var despawn_radius: float = 1600.0
@@ -12,6 +12,7 @@ var _scene_node: Node = null
 var _out_of_range_timers: Dictionary = {}
 var _spawn_timer: Timer
 var _despawn_timer: Timer
+var _next_chicken_id: int = 0
 
 func _ready() -> void:
 	_spawn_timer = Timer.new()
@@ -67,6 +68,8 @@ func _on_spawn_tick() -> void:
 			_spawn_chicken(pos)
 
 func _check_despawn() -> void:
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		return
 	var center := _get_player_center()
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		var c := chicken as Node2D
@@ -86,7 +89,10 @@ func _check_despawn() -> void:
 			_out_of_range_timers.erase(key)
 
 func _spawn_chicken(pos: Vector2) -> void:
+	print("Spawning chicken as child of: ", _scene_node.name)
 	var chicken = CHICKEN_SCENE.instantiate()
+	chicken.chicken_id = _next_chicken_id
+	_next_chicken_id += 1
 	chicken.global_position = pos
 	_scene_node.add_child(chicken)
 
