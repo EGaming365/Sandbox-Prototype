@@ -12,7 +12,15 @@ extends CharacterBody2D
 @export var synced_hair: bool = true
 @export var synced_shirt: bool = true
 @export var synced_pants: bool = true
+@export var respawn_delay: float = 1.2
+@export var death_shrink_time: float = 0.65
 
+var damage_flash_tween: Tween = null
+var death_tween: Tween = null
+var base_anim_scale: Vector2
+var base_hair_scale: Vector2
+var base_shirt_scale: Vector2
+var base_pants_scale: Vector2
 var chop_cooldown_timer: float = 0.0
 var chop_cooldown_max: float = 1.5
 var hand_sprite: Sprite2D = null
@@ -24,6 +32,17 @@ const ATTACK_RANGE: float = 80.0
 const SWORD_DAMAGE: int = 2
 const FEET_OFFSET: float = 1.0
 var camera: Camera2D = null
+
+var sink_depth: float = 0.0
+var drowning_damage_timer: float = 0.0
+var is_drowning_dead: bool = false
+var drowning_timer: float = 0.0
+var drowning_dead: bool = false
+
+const DROWN_TIME: float = 4.0
+const SINK_SPEED: float = 0.22
+const SINK_RECOVER_SPEED: float = 0.55
+const DROWN_DEPTH_TO_DIE: float = 1.0
 
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
@@ -37,6 +56,10 @@ func _ready():
 	hair_sprite.visible = true
 	shirt_sprite.visible = true
 	pants_sprite.visible = true
+	base_anim_scale = anim.scale
+	base_hair_scale = hair_sprite.scale
+	base_shirt_scale = shirt_sprite.scale
+	base_pants_scale = pants_sprite.scale
 	collision_layer = 1
 	collision_mask = 1
 	if not multiplayer.has_multiplayer_peer():
@@ -101,12 +124,17 @@ func _setup_camera():
 	camera.global_position = global_position
 
 func _process(delta):
-	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
-		camera.global_position = global_position.round()
 	if _is_inventory_open():
 		return
 
 func _physics_process(delta):
+	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
+		camera.global_position = global_position
+	if is_dead:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+	_update_drowning(delta)
 	if _is_inventory_open():
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -182,6 +210,8 @@ func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String)
 	synced_held_item = held
 
 func _input(event):
+	if is_dead:
+		return
 	if _is_inventory_open():
 		return
 	if not (is_multiplayer_authority() or not multiplayer.has_multiplayer_peer()):
@@ -239,9 +269,13 @@ func take_damage(amount: int):
 		return
 	if is_dead:
 		return
+
 	synced_health = max(synced_health - amount, 0)
+
 	if synced_health <= 0:
 		die()
+	else:
+		_flash_damage()
 
 func die():
 	is_dead = true
@@ -296,15 +330,7 @@ func die():
 	for i in Inventory.inv_slots.size():
 		if Inventory.inv_slots[i]["item"] != "":
 			Inventory.remove_item(i, true)
-	global_position = scene_node._find_safe_spawn(Vector2(0, 0))
-	synced_health = max_health
-	var right_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
-	if right_ui:
-		right_ui.hunger = 100.0
-		right_ui.thirst = 100.0
-		right_ui.hunger_bar.value = 100.0
-		right_ui.thirst_bar.value = 100.0
-		is_dead = false
+	await _play_death_respawn_sequence(scene_node)
 
 var _last_hand_item: String = ""
 
@@ -370,3 +396,128 @@ func apply_cosmetics(hair: bool, shirt: bool, pants: bool):
 		sync_cosmetics_rpc.rpc(hair, shirt, pants)
 	else:
 		sync_cosmetics_rpc(hair, shirt, pants)
+
+func _update_drowning(delta: float):
+	if is_dead:
+		return
+	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
+		return
+
+	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+
+	if in_water:
+		drowning_timer += delta
+	else:
+		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
+
+	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
+	_set_drowning_alpha(alpha)
+	if multiplayer.has_multiplayer_peer():
+		sync_drowning_alpha_rpc.rpc(alpha)
+
+	if drowning_timer >= DROWN_TIME and not drowning_dead:
+		drowning_dead = true
+		_send_death_message("drowned")
+		take_damage(max_health)
+	elif drowning_timer <= 0.0:
+		drowning_dead = false
+
+
+func _set_drowning_alpha(alpha: float):
+	anim.modulate.a = alpha
+	hair_sprite.modulate.a = alpha
+	shirt_sprite.modulate.a = alpha
+	pants_sprite.modulate.a = alpha
+	if hand_sprite:
+		hand_sprite.modulate.a = alpha
+
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_drowning_alpha_rpc(alpha: float):
+	_set_drowning_alpha(alpha)
+
+
+func _send_death_message(cause: String):
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if not chat:
+		return
+
+	var player_name = "Player"
+	if multiplayer.has_multiplayer_peer():
+		player_name = Steam.getFriendPersonaName(Steam.getSteamID())
+
+	var msg = player_name + " " + cause
+
+	if multiplayer.has_multiplayer_peer():
+		chat._broadcast_message.rpc(msg)
+	else:
+		chat._add_message(msg)
+
+func _play_death_respawn_sequence(scene_node):
+	if death_tween:
+		death_tween.kill()
+
+	velocity = Vector2.ZERO
+	$CollisionShape2D.disabled = true
+
+	anim.modulate = Color(1, 0.05, 0.05, 1)
+	hair_sprite.modulate = Color(1, 0.05, 0.05, 1)
+	shirt_sprite.modulate = Color(1, 0.05, 0.05, 1)
+	pants_sprite.modulate = Color(1, 0.05, 0.05, 1)
+
+	death_tween = create_tween()
+	death_tween.set_parallel(true)
+	death_tween.tween_property(anim, "scale", base_anim_scale * 0.1, death_shrink_time)
+	death_tween.tween_property(hair_sprite, "scale", base_hair_scale * 0.1, death_shrink_time)
+	death_tween.tween_property(shirt_sprite, "scale", base_shirt_scale * 0.1, death_shrink_time)
+	death_tween.tween_property(pants_sprite, "scale", base_pants_scale * 0.1, death_shrink_time)
+	death_tween.tween_property(anim, "modulate:a", 0.0, death_shrink_time)
+	death_tween.tween_property(hair_sprite, "modulate:a", 0.0, death_shrink_time)
+	death_tween.tween_property(shirt_sprite, "modulate:a", 0.0, death_shrink_time)
+	death_tween.tween_property(pants_sprite, "modulate:a", 0.0, death_shrink_time)
+
+	await death_tween.finished
+	await get_tree().create_timer(respawn_delay).timeout
+
+	global_position = scene_node._find_safe_spawn(Vector2(0, 0))
+	synced_health = max_health
+
+	var right_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+	if right_ui:
+		right_ui.hunger = 100.0
+		right_ui.thirst = 100.0
+		right_ui.hunger_bar.value = 100.0
+		right_ui.thirst_bar.value = 100.0
+
+	anim.scale = base_anim_scale
+	hair_sprite.scale = base_hair_scale
+	shirt_sprite.scale = base_shirt_scale
+	pants_sprite.scale = base_pants_scale
+
+	anim.modulate = Color(1, 1, 1, 1)
+	hair_sprite.modulate = Color(1, 1, 1, 1)
+	shirt_sprite.modulate = Color(1, 1, 1, 1)
+	pants_sprite.modulate = Color(1, 1, 1, 1)
+
+	$CollisionShape2D.disabled = false
+	is_dead = false
+
+func _flash_damage():
+	if damage_flash_tween:
+		damage_flash_tween.kill()
+
+	damage_flash_tween = create_tween()
+
+	anim.modulate = Color(1, 0.15, 0.15, 1)
+	hair_sprite.modulate = Color(1, 0.15, 0.15, 1)
+	shirt_sprite.modulate = Color(1, 0.15, 0.15, 1)
+	pants_sprite.modulate = Color(1, 0.15, 0.15, 1)
+
+	damage_flash_tween.tween_interval(0.08)
+	damage_flash_tween.tween_callback(func():
+		anim.modulate = Color(1, 1, 1, 1)
+		hair_sprite.modulate = Color(1, 1, 1, 1)
+		shirt_sprite.modulate = Color(1, 1, 1, 1)
+		pants_sprite.modulate = Color(1, 1, 1, 1)
+	)

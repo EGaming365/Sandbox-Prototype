@@ -38,11 +38,20 @@ expand_mode = 2
 [node name="WeatherIcon" type="TextureRect" parent="." unique_id=1612841291]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 0
-offset_left = -38.0
-offset_top = 36.0
-offset_right = -8.0
-offset_bottom = 66.0
+offset_left = -55.0
+offset_top = 42.0
+offset_right = -25.0
+offset_bottom = 72.0
 scale = Vector2(1.8138615, 1.8138615)
+
+[node name="DisastorIcon" type="TextureRect" parent="." unique_id=753065032]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 0
+offset_left = 12.0
+offset_top = 56.000004
+offset_right = 42.0
+offset_bottom = 86.00001
+scale = Vector2(1.1713771, 1.1713771)
 
 [node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1114398660]
 custom_minimum_size = Vector2(100, 100)

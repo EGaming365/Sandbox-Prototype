@@ -17,6 +17,21 @@ var chicken_id: int = -1
 var _stuck_timer: float = 0.0
 var rng := RandomNumberGenerator.new()
 
+var _blocked_escape_timer: float = 0.0
+const BLOCKED_ESCAPE_TIME: float = 1.2
+const ESCAPE_SEARCH_RADIUS: float = 180.0
+const ESCAPE_ATTEMPTS: int = 16
+
+var sink_depth: float = 0.0
+var is_drowning_dead: bool = false
+var drowning_timer: float = 0.0
+var drowning_dead: bool = false
+
+const DROWN_TIME: float = 4.0
+const SINK_SPEED: float = 0.22
+const SINK_RECOVER_SPEED: float = 0.55
+const DROWN_DEPTH_TO_DIE: float = 1.0
+
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hurtbox: Area2D = $Hurtbox
 @onready var staticbody: StaticBody2D = $StaticBody2D
@@ -131,6 +146,7 @@ func _pet_heart_loop() -> void:
 		await get_tree().create_timer(0.2).timeout
 
 func _process(delta: float) -> void:
+	_update_drowning(delta)
 	if state == State.DEAD:
 		return
 	if state == State.PETTED:
@@ -217,40 +233,38 @@ func _do_flee(delta: float) -> void:
 	sprite.play("walk_down")
 
 func _try_move(delta: Vector2) -> void:
-	var space := get_world_2d().direct_space_state
-	var query := PhysicsShapeQueryParameters2D.new()
-	var shape := CircleShape2D.new()
-	shape.radius = 10.0
-	query.shape = shape
-	query.transform = Transform2D(0, global_position + delta)
-	query.collision_mask = 1
-	var excludes = [staticbody.get_rid()]
-	for p in get_tree().get_nodes_in_group("players"):
-		excludes.append(p.get_rid())
-	query.exclude = excludes
-	var hits := space.intersect_shape(query)
-	var blocked := false
-	for hit in hits:
-		if hit["collider"] != staticbody:
-			blocked = true
-			break
-	if not blocked:
-		global_position += delta
-	else:
-		for i in 8:
-			var rand_dir := Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()
-			var rand_delta := rand_dir * delta.length()
-			query.transform = Transform2D(0, global_position + rand_delta)
-			var rand_hits := space.intersect_shape(query)
-			var rand_blocked := false
-			for hit in rand_hits:
-				if hit["collider"] != staticbody:
-					rand_blocked = true
-					break
-			if not rand_blocked:
-				global_position += rand_delta
-				_wander_target = global_position + rand_dir * 150.0
-				break
+	if delta.length() <= 0.001:
+		return
+
+	var target = global_position + delta
+
+	if _is_position_clear(target):
+		global_position = target
+		_blocked_escape_timer = 0.0
+		return
+
+	_blocked_escape_timer += get_process_delta_time()
+
+	var slide_dirs = [
+		Vector2(delta.x, 0),
+		Vector2(0, delta.y),
+		Vector2(-delta.y, delta.x).normalized() * delta.length(),
+		Vector2(delta.y, -delta.x).normalized() * delta.length()
+	]
+
+	for slide in slide_dirs:
+		if slide.length() <= 0.001:
+			continue
+		var slide_target = global_position + slide
+		if _is_position_clear(slide_target):
+			global_position = slide_target
+			_wander_target = global_position + slide.normalized() * 160.0
+			_blocked_escape_timer = 0.0
+			return
+
+	if _blocked_escape_timer >= BLOCKED_ESCAPE_TIME:
+		if _escape_from_blocked_position():
+			_blocked_escape_timer = 0.0
 
 func _pick_wander_target() -> void:
 	var offset := Vector2(randf_range(-180.0, 180.0), randf_range(-180.0, 180.0))
@@ -330,3 +344,72 @@ func _play_die_sequence() -> void:
 	tween.parallel().tween_property(sprite, "modulate", Color(1, 0.1, 0.1, 0), 0.4)
 	await tween.finished
 	queue_free()
+
+func _update_drowning(delta: float) -> void:
+	if state == State.DEAD:
+		return
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		return
+
+	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+
+	if in_water:
+		drowning_timer += delta
+	else:
+		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
+
+	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
+	_set_drowning_alpha(alpha)
+	if multiplayer.has_multiplayer_peer():
+		_sync_drowning_alpha_rpc.rpc(alpha)
+
+	if drowning_timer >= DROWN_TIME and not drowning_dead:
+		drowning_dead = true
+		take_damage(9999)
+	elif drowning_timer <= 0.0:
+		drowning_dead = false
+
+
+func _set_drowning_alpha(alpha: float) -> void:
+	sprite.modulate.a = alpha
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _sync_drowning_alpha_rpc(alpha: float) -> void:
+	_set_drowning_alpha(alpha)
+
+func _is_position_clear(pos: Vector2) -> bool:
+	var space := get_world_2d().direct_space_state
+	var query := PhysicsShapeQueryParameters2D.new()
+	var shape := CircleShape2D.new()
+	shape.radius = 10.0
+	query.shape = shape
+	query.transform = Transform2D(0, pos)
+	query.collision_mask = 1
+
+	var excludes = [staticbody.get_rid()]
+	for p in get_tree().get_nodes_in_group("players"):
+		excludes.append(p.get_rid())
+	query.exclude = excludes
+
+	var hits := space.intersect_shape(query)
+	for hit in hits:
+		if hit["collider"] != staticbody:
+			return false
+
+	return true
+
+
+func _escape_from_blocked_position() -> bool:
+	for i in ESCAPE_ATTEMPTS:
+		var angle = rng.randf_range(0.0, TAU)
+		var dist = rng.randf_range(48.0, ESCAPE_SEARCH_RADIUS)
+		var candidate = global_position + Vector2(cos(angle), sin(angle)) * dist
+
+		if _is_position_clear(candidate):
+			global_position = candidate
+			_pick_wander_target()
+			return true
+
+	return false

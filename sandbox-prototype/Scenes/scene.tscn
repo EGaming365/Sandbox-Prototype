@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" uid="uid://b8wirsdffuxwl" path="res://Scenes/right_ui.tscn" id="18_r152n"]
 [ext_resource type="Script" uid="uid://jrkn55j2buqc" path="res://Scripts/weather.gd" id="19_l8vl3"]
 [ext_resource type="Script" uid="uid://ctsjl5ujr4u7f" path="res://Scripts/environment_gen.gd" id="20_b0t05"]
+[ext_resource type="Texture2D" uid="uid://bvsbfi2l2rg6v" path="res://Assets/New Piskel (19).png" id="20_r152n"]
 
 [sub_resource type="Gradient" id="Gradient_l8vl3"]
 
@@ -61,8 +62,17 @@ texture = ExtResource("15_oisvf")
 3:3/0 = 0
 2:3/0 = 0
 
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_u8y8g"]
+resource_name = "Water Tiles"
+texture = ExtResource("20_r152n")
+0:0/0 = 0
+1:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+
 [sub_resource type="TileSet" id="TileSet_6yy46"]
 sources/0 = SubResource("TileSetAtlasSource_l8vl3")
+sources/1 = SubResource("TileSetAtlasSource_u8y8g")
 
 [node name="Scene" type="Node2D" unique_id=399292761]
 y_sort_enabled = true

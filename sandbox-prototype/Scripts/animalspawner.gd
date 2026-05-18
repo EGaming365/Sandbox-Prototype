@@ -1,6 +1,6 @@
 extends Node
 
-const CHICKEN_SCENE := preload("res://scenes/Chicken.tscn")
+const CHICKEN_SCENE := preload("res://Scenes/chicken.tscn")
 
 @export var max_chickens_in_radius: int = 10.0
 @export var spawn_radius_min: float = 1000.0
@@ -103,12 +103,20 @@ func _random_spawn_pos() -> Vector2:
 		var dist := randf_range(spawn_radius_min, spawn_radius_max)
 		var pos := center + Vector2(cos(angle), sin(angle)) * dist
 		var too_close := false
+
 		for chicken in get_tree().get_nodes_in_group("chickens"):
 			if pos.distance_to((chicken as Node2D).global_position) < 100.0:
 				too_close = true
 				break
-		if not too_close:
-			return pos
+
+		if too_close:
+			continue
+
+		if not _is_spawn_pos_clear(pos):
+			continue
+
+		return pos
+
 	return Vector2.ZERO
 
 func _get_player_center() -> Vector2:
@@ -119,3 +127,14 @@ func _get_player_center() -> Vector2:
 	for p in players:
 		sum += (p as Node2D).global_position
 	return sum / players.size()
+
+func _is_spawn_pos_clear(pos: Vector2) -> bool:
+	var space: PhysicsDirectSpaceState2D = _scene_node.get_world_2d().direct_space_state
+	var query := PhysicsShapeQueryParameters2D.new()
+	var shape := CircleShape2D.new()
+	shape.radius = 14.0
+	query.shape = shape
+	query.transform = Transform2D(0, pos)
+	query.collision_mask = 1
+
+	return space.intersect_shape(query).is_empty()
