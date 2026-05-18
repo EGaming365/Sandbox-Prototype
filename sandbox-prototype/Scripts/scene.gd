@@ -149,7 +149,6 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	if has_node("1"):
 		get_node("1").name = str(multiplayer.get_unique_id())
 		get_node(str(multiplayer.get_unique_id())).set_multiplayer_authority(multiplayer.get_unique_id(), true)
-
 	else:
 		_spawn_player(multiplayer.get_unique_id())
 
@@ -260,11 +259,9 @@ func _spawn_player(id: int):
 	player.set_multiplayer_authority(id, true)
 	player.global_position = _find_safe_spawn(Vector2(0, 0))
 
-
 func _remove_player(id: int):
 	if not has_node(str(id)):
 		return
-
 	get_node(str(id)).queue_free()
 
 @rpc("authority", "call_remote", "reliable")
@@ -348,7 +345,7 @@ func _do_place_block(block_id: int, item_name: String, pos_x: float, pos_y: floa
 		return
 	var block_scene = preload("res://Scenes/placed_block.tscn")
 	var block = block_scene.instantiate()
-	block.setup(item_name, _get_item_texture(item_name), block_id, rot)
+	block.setup(item_name, _get_item_texture(item_name), block_id, 0.0)
 	block.global_position = Vector2(pos_x, pos_y)
 	placed_blocks[block_id] = block
 	add_child(block)
@@ -357,11 +354,9 @@ func _get_item_texture(item_name: String) -> Texture2D:
 	for slot in Inventory.slots:
 		if slot["item"] == item_name and slot["texture"] != null:
 			return slot["texture"]
-
 	for slot in Inventory.inv_slots:
 		if slot["item"] == item_name and slot["texture"] != null:
 			return slot["texture"]
-
 	return last_placed_texture
 
 func remove_placed_block(block_id: int):
@@ -378,14 +373,12 @@ func sync_remove_placed_block(block_id: int):
 func request_place_block(item_name: String, pos_x: float, pos_y: float, rot: float = 0.0):
 	if not is_host:
 		return
-
 	host_place_block(item_name, Vector2(pos_x, pos_y), rot)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_break_block(block_id: int):
 	if not is_host:
 		return
-
 	process_block_hit(block_id)
 
 func sync_placed_blocks_to_peer(peer_id: int):
@@ -395,7 +388,7 @@ func sync_placed_blocks_to_peer(peer_id: int):
 			if block.get_script() and block.get_script().resource_path.contains("wardrobe"):
 				place_wardrobe_rpc.rpc_id(peer_id, block_id, block.global_position.x, block.global_position.y)
 			else:
-				place_block_rpc.rpc_id(peer_id, block_id, block.item_name, block.global_position.x, block.global_position.y, block.current_rotation)
+				place_block_rpc.rpc_id(peer_id, block_id, block.item_name, block.global_position.x, block.global_position.y, 0.0)
 
 func process_block_hit(block_id: int):
 	if not placed_blocks.has(block_id):
@@ -417,7 +410,6 @@ func process_block_hit(block_id: int):
 func register_block_hit(block_id: int):
 	if not is_host:
 		return
-
 	process_block_hit(block_id)
 
 func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
@@ -507,7 +499,6 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
 	if not is_host:
 		return
-
 	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability)
 
 func sync_floor_items_to_peer(peer_id: int):
@@ -536,9 +527,9 @@ func sync_floor_items_to_peer(peer_id: int):
 				item_type = "Crafting_Bench"
 			elif script_path.contains("stone"):
 				item_type = "Stone"
-
 			elif script_path.contains("wardrobe"):
 				item_type = "Wardrobe"
+
 			var dur = item.durability if item.get("durability") != null else 1
 			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
@@ -556,7 +547,6 @@ func sync_remove_floor_item(item_id: int):
 func request_remove_floor_item(item_id: int):
 	if not is_host:
 		return
-
 	sync_remove_floor_item.rpc(item_id)
 
 func _notification(what):
@@ -603,11 +593,36 @@ func _on_join_button_pressed():
 func request_deal_damage(target_id: int, amount: int):
 	if not is_host:
 		return
-
 	if has_node(str(target_id)):
 		var target = get_node(str(target_id))
 		if target is CharacterBody2D:
 			deal_damage_to_player.rpc_id(target_id, amount)
+
+@rpc("authority", "call_local", "reliable")
+func enemy_attack_player(amount: int, enemy_id: int):
+	for child in get_children():
+		if child is CharacterBody2D:
+			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
+				var enemy = _find_night_enemy(enemy_id)
+				if child.has_method("defend_enemy_attack"):
+					child.defend_enemy_attack(amount, enemy)
+				else:
+					child.take_damage(amount)
+				break
+
+func _find_night_enemy(enemy_id: int) -> Node:
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if enemy.get("enemy_id") == enemy_id:
+			return enemy
+	return null
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_damage_night_enemy(enemy_id: int, amount: int):
+	if not is_host:
+		return
+	var enemy = _find_night_enemy(enemy_id)
+	if enemy and enemy.has_method("take_damage"):
+		enemy.take_damage(amount)
 
 @rpc("authority", "call_remote", "reliable")
 func deal_damage_to_player(amount: int):
@@ -731,12 +746,10 @@ func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
 	query.shape = shape
 	query.collision_mask = 1
 
-	# Check origin first
 	query.transform = Transform2D(0, origin)
 	if space.intersect_shape(query).size() == 0:
 		return origin
 
-	# Spiral outward until clear
 	for i in max_attempts:
 		var angle = randf_range(0, TAU)
 		var radius = randf_range(60.0, 80.0 + i * 10.0)

@@ -17,7 +17,7 @@ var stone_sword_texture = preload("res://Assets/Stone_Sword.png")
 var stone_pickaxe_texture = preload("res://Assets/Stone_Pickaxe.png")
 var bench_texture = preload("res://Assets/Crafting_Bench.png")
 var wardrobe_texture = preload("res://Assets/Wardrobe.png")
-var wood_plank_texture = preload("res://Assets/Wood_Plank.png")
+var wood_plank_texture = preload("res://Assets/Wood_Planks.png")
 var stone_texture = preload("res://Assets/Stone.png")
 
 var TEXTURE_MAP: Dictionary = {}

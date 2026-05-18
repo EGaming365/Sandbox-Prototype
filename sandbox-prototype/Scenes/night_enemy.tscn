@@ -1,0 +1,86 @@
+[gd_scene format=3 uid="uid://b70x50vbfkvak"]
+
+[ext_resource type="Script" uid="uid://bm0i6qr32t8v" path="res://Scenes/night_enemy.gd" id="1_72esr"]
+[ext_resource type="Texture2D" uid="uid://ppxdkn8r0ymw" path="res://Assets/Chicken-Walk_down.png" id="2_pdra7"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jy3mo"]
+atlas = ExtResource("2_pdra7")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7h841"]
+atlas = ExtResource("2_pdra7")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jayuq"]
+atlas = ExtResource("2_pdra7")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x7ecu"]
+atlas = ExtResource("2_pdra7")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qaoqc"]
+atlas = ExtResource("2_pdra7")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_c736p"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jy3mo")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7h841")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jayuq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x7ecu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qaoqc")
+}],
+"loop": true,
+"name": &"walk_down",
+"speed": 5.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_7h841"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_jy3mo"]
+radius = 3.4526784
+
+[node name="Night_Enemy" type="Node2D" unique_id=1909601307]
+position = Vector2(-2, -35)
+scale = Vector2(3.8094907, 3.8094907)
+script = ExtResource("1_72esr")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=442200863]
+texture_filter = 1
+texture_repeat = 1
+position = Vector2(-16.01264, -22.575197)
+sprite_frames = SubResource("SpriteFrames_c736p")
+animation = &"idle"
+centered = false
+
+[node name="Hurtbox" type="Area2D" parent="." unique_id=124015480]
+position = Vector2(0.5250047, 3.874302e-07)
+scale = Vector2(1.2754577, 1.2754577)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=115365795]
+position = Vector2(-4.4703484e-07, 7.748604e-07)
+scale = Vector2(3.3860805, 3.3860805)
+shape = SubResource("CircleShape2D_7h841")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=1076281710]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1284627389]
+position = Vector2(0.52500457, 4.9875436)
+scale = Vector2(0.25707147, 0.25707147)
+shape = SubResource("CircleShape2D_jy3mo")

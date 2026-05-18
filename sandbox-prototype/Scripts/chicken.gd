@@ -66,6 +66,11 @@ func _input(event: InputEvent) -> void:
 	if (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
 		var mouse_world: Vector2 = get_global_mouse_position()
 		if (event as InputEventMouseButton).pressed:
+			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+			if hotbar:
+				var slot = Inventory.slots[hotbar.current_slot - 1]
+				if slot["item"] == "Sword" or slot["item"] == "Stone Sword":
+					return
 			if global_position.distance_to(mouse_world) > click_radius:
 				return
 			if _player_in_range:

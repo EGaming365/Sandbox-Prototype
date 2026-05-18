@@ -1,8 +1,10 @@
 extends Node
 
 const CHICKEN_SCENE := preload("res://Scenes/chicken.tscn")
+const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 
 @export var max_chickens_in_radius: int = 10.0
+@export var max_night_enemies_in_radius: int = 4
 @export var spawn_radius_min: float = 1000.0
 @export var spawn_radius_max: float = 2000.0
 @export var despawn_radius: float = 1600.0
@@ -13,6 +15,7 @@ var _out_of_range_timers: Dictionary = {}
 var _spawn_timer: Timer
 var _despawn_timer: Timer
 var _next_chicken_id: int = 0
+var _next_night_enemy_id: int = 0
 
 func _ready() -> void:
 	_spawn_timer = Timer.new()
@@ -61,11 +64,17 @@ func _on_spawn_tick() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
 	var in_radius := _count_chickens_in_radius()
-	var needed := max_chickens_in_radius - in_radius
+	var needed = max(max_chickens_in_radius - in_radius, 0)
 	for i in needed:
 		var pos := _random_spawn_pos()
 		if pos != Vector2.ZERO:
 			_spawn_chicken(pos)
+	if _is_night():
+		var enemies_needed = max(max_night_enemies_in_radius - _count_night_enemies_in_radius(), 0)
+		for i in enemies_needed:
+			var pos := _random_spawn_pos("night_enemies")
+			if pos != Vector2.ZERO:
+				_spawn_night_enemy(pos)
 
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
@@ -87,6 +96,12 @@ func _check_despawn() -> void:
 	for key in _out_of_range_timers.keys():
 		if not is_instance_valid(key):
 			_out_of_range_timers.erase(key)
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		var e := enemy as Node2D
+		if not is_instance_valid(e):
+			continue
+		if not _is_night() or center.distance_to(e.global_position) > despawn_radius:
+			e.queue_free()
 
 func _spawn_chicken(pos: Vector2) -> void:
 	print("Spawning chicken as child of: ", _scene_node.name)
@@ -96,7 +111,23 @@ func _spawn_chicken(pos: Vector2) -> void:
 	chicken.global_position = pos
 	_scene_node.add_child(chicken)
 
-func _random_spawn_pos() -> Vector2:
+func _spawn_night_enemy(pos: Vector2) -> void:
+	var enemy = NIGHT_ENEMY_SCENE.instantiate()
+	enemy.enemy_id = _next_night_enemy_id
+	_next_night_enemy_id += 1
+	enemy.global_position = pos
+	_scene_node.add_child(enemy)
+
+func _count_night_enemies_in_radius() -> int:
+	var center := _get_player_center()
+	var count := 0
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy):
+			if center.distance_to((enemy as Node2D).global_position) <= despawn_radius:
+				count += 1
+	return count
+
+func _random_spawn_pos(avoid_group: String = "chickens") -> Vector2:
 	var center := _get_player_center()
 	for i in 30:
 		var angle := randf_range(0.0, TAU)
@@ -104,8 +135,8 @@ func _random_spawn_pos() -> Vector2:
 		var pos := center + Vector2(cos(angle), sin(angle)) * dist
 		var too_close := false
 
-		for chicken in get_tree().get_nodes_in_group("chickens"):
-			if pos.distance_to((chicken as Node2D).global_position) < 100.0:
+		for existing in get_tree().get_nodes_in_group(avoid_group):
+			if pos.distance_to((existing as Node2D).global_position) < 100.0:
 				too_close = true
 				break
 
@@ -138,3 +169,7 @@ func _is_spawn_pos_clear(pos: Vector2) -> bool:
 	query.collision_mask = 1
 
 	return space.intersect_shape(query).is_empty()
+
+func _is_night() -> bool:
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	return weather != null and weather.has_method("is_night") and weather.is_night()

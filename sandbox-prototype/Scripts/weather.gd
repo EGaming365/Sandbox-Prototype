@@ -161,6 +161,9 @@ func _update_weather_timer(delta):
 	if weather_timer <= 0.0:
 		_pick_next_weather()
 
+func is_night() -> bool:
+	return time_of_day < 0.20 or time_of_day >= 0.82
+
 func _pick_next_weather():
 	if clear_day_count >= clear_days_before_event:
 		clear_day_count = 0

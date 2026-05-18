@@ -1,11 +1,15 @@
 extends Node2D
+
 @export var item_id: int = -1
 @export var durability: int = 30
+
 var sword_texture = preload("res://Assets/Sword.png")
 var _picked_up: bool = false
+
 const DESPAWN_TIME = 300.0
 const PICKUP_RANGE = 40.0
 const CHECK_INTERVAL = 0.1
+
 var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
@@ -28,6 +32,7 @@ func _process(delta):
 	if check_timer > 0.0:
 		return
 	check_timer = CHECK_INTERVAL
+
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node or not scene_node.local_player:
 		return
@@ -35,7 +40,9 @@ func _process(delta):
 		if _is_inventory_full("Sword"):
 			return
 		_picked_up = true
-		Inventory.batch_add_item("Sword", sword_texture, durability)
+		# FIX: use add_item_with_count so durability is stored correctly in slot["count"]
+		# batch_add_item was incorrectly stacking tool durability values
+		Inventory.add_item_with_count("Sword", sword_texture, durability)
 		Inventory.request_inventory_update()
 		if multiplayer.has_multiplayer_peer():
 			if multiplayer.is_server():

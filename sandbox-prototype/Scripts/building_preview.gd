@@ -5,15 +5,13 @@ const PLACE_RANGE = 300.0
 
 const ITEM_PLACED_SCALE = {
 	"Wardrobe": Vector2(3.2, 3.2),
+	"Crafting_Bench": Vector2(2, 2),
 }
-const DEFAULT_PLACED_SCALE = Vector2(2, 2)
-
-const ITEM_PREVIEW_OFFSET = {
-	"Wardrobe": Vector2(0, -48),
-}
+const DEFAULT_PLACED_SCALE = Vector2(1, 1)
 
 const ITEM_SPAWN_OFFSET = {
 	"Wardrobe": Vector2(0, -48),
+	"Crafting_Bench": Vector2(0, -24),
 }
 
 var preview_sprite: Sprite2D
@@ -38,17 +36,13 @@ func _ready():
 func activate(texture: Texture2D, item_name: String = ""):
 	current_item_name = item_name
 	current_rotation_deg = 0.0
-	if item_name == "Wood Plank":
-		current_rotation_deg = 0.0
-		preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
-		preview_sprite.rotation_degrees = 90.0
-		preview_sprite.flip_h = false
-		preview_sprite.position = Vector2.ZERO
-	else:
-		preview_sprite.texture = texture
+	preview_sprite.texture = texture
 	preview_sprite.scale = ITEM_PLACED_SCALE.get(item_name, DEFAULT_PLACED_SCALE)
 	preview_sprite.offset = Vector2.ZERO
 	preview_sprite.rotation_degrees = 0.0
+	preview_sprite.flip_h = false
+	preview_sprite.flip_v = false
+	preview_sprite.position = Vector2.ZERO
 	active = true
 	show()
 
@@ -78,53 +72,8 @@ func get_local_player() -> Node:
 func get_current_rotation() -> float:
 	return current_rotation_deg
 
-func _input(event):
-	if not active:
-		return
-	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if (inv and inv.visible) or (chat and chat.is_open):
-		return
-	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
-		if current_item_name != "Wood Plank":
-			return
-		current_rotation_deg += 90.0
-		if current_rotation_deg >= 360.0:
-			current_rotation_deg = 0.0
-		_update_plank_preview()
-		get_viewport().set_input_as_handled()
-
-func _update_plank_preview():
-	preview_sprite.flip_h = false
-	preview_sprite.rotation_degrees = 0.0
-	preview_sprite.position = Vector2.ZERO
-	match int(current_rotation_deg):
-		0:
-			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
-			preview_sprite.rotation_degrees = 90.0
-			preview_sprite.flip_h = false
-			preview_sprite.flip_v = true
-			preview_sprite.scale = Vector2(2, -2)
-			preview_sprite.position = Vector2(0, 0)
-		180:
-			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
-			preview_sprite.rotation_degrees = 90.0
-			preview_sprite.flip_h = false
-			preview_sprite.flip_v = true
-			preview_sprite.scale = Vector2(2, 2)
-			preview_sprite.position = Vector2(0, -46)
-		90:
-			preview_sprite.scale = Vector2(2, 2)
-			preview_sprite.flip_h = false
-			preview_sprite.flip_v = false
-			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
-			preview_sprite.position = Vector2(0, 0)
-		270:
-			preview_sprite.scale = Vector2(2, 2)
-			preview_sprite.texture = load("res://Assets/Wood_Plank_Rotated.png")
-			preview_sprite.flip_h = true
-			preview_sprite.flip_v = true
-			preview_sprite.position = Vector2(-2, 0)
+func _input(_event):
+	pass
 
 func _process(_delta):
 	if not active:
@@ -151,5 +100,17 @@ func _is_occupied(pos: Vector2) -> bool:
 				Vector2(192, 140)
 			)
 			if tree_rect.has_point(pos):
+				return true
+	for player in get_tree().get_nodes_in_group("players"):
+		if is_instance_valid(player):
+			if (player as Node2D).global_position.distance_to(pos) < 24.0:
+				return true
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy):
+			if (enemy as Node2D).global_position.distance_to(pos) < 24.0:
+				return true
+	for chicken in get_tree().get_nodes_in_group("chickens"):
+		if is_instance_valid(chicken):
+			if (chicken as Node2D).global_position.distance_to(pos) < 24.0:
 				return true
 	return false

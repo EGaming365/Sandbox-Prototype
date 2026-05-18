@@ -70,10 +70,7 @@ func _ready():
 	stone_axe_texture = load("res://Assets/Stone_Axe.png")
 	stone_sword_texture = load("res://Assets/Stone_Sword.png")
 	stone_pickaxe_texture = load("res://Assets/Stone_Pickaxe.png")
-	# No real assets for these, keep placeholders
-	var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-	img.fill(Color(0.6, 0.4, 0.2))
-	plank_texture = ImageTexture.create_from_image(img)
+	plank_texture = load("res://Assets/Wood_Planks.png")
 	bench_texture = load("res://Assets/Crafting_Bench.png")
 	wardrobe_texture = load("res://Assets/Wardrobe.png")
 
