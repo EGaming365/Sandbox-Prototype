@@ -228,8 +228,10 @@ func _update_lightning(delta):
 	if lightning_flash and lightning_flash_enabled:
 		lightning_flash.color = Color(1, 1, 1, lightning_alpha)
 
-@rpc("authority", "call_remote", "reliable")
+@rpc("any_peer", "call_remote", "reliable")
 func sync_weather_state(weather: int, synced_time: float, timer: float):
+	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		return
 	current_weather = weather
 	time_of_day = synced_time
 	weather_timer = timer

@@ -9,34 +9,31 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v0iea"]
 size = Vector2(16.666653, 6.6392403)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_x3wgy"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_fkybt"]
 atlas = ExtResource("2_cvnsp")
 region = Rect2(0, 0, 32, 32)
 
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_cvnsp"]
-load_path = "res://.godot/imported/Player-Walk (1).png-9625d8eeeb7541b11bb983474d46e5ef.ctex"
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_6t5aa"]
-atlas = SubResource("CompressedTexture2D_cvnsp")
+[sub_resource type="AtlasTexture" id="AtlasTexture_x3wgy"]
+atlas = ExtResource("2_cvnsp")
 region = Rect2(32, 0, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_vgqql"]
-atlas = SubResource("CompressedTexture2D_cvnsp")
+[sub_resource type="AtlasTexture" id="AtlasTexture_3smsa"]
+atlas = ExtResource("2_cvnsp")
 region = Rect2(0, 32, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_fkybt"]
-atlas = SubResource("CompressedTexture2D_cvnsp")
+[sub_resource type="AtlasTexture" id="AtlasTexture_igrcy"]
+atlas = ExtResource("2_cvnsp")
 region = Rect2(32, 32, 32, 32)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_3smsa"]
-atlas = SubResource("CompressedTexture2D_cvnsp")
+[sub_resource type="AtlasTexture" id="AtlasTexture_fs7ks"]
+atlas = ExtResource("2_cvnsp")
 region = Rect2(0, 0, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_3smsa"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_x3wgy")
+"texture": SubResource("AtlasTexture_fkybt")
 }],
 "loop": true,
 "name": &"idle",
@@ -44,16 +41,16 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_6t5aa")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_vgqql")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_fkybt")
+"texture": SubResource("AtlasTexture_x3wgy")
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_3smsa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_igrcy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fs7ks")
 }],
 "loop": true,
 "name": &"walk_down",
@@ -61,27 +58,24 @@ animations = [{
 }]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_cvnsp"]
-properties/0/path = NodePath(".:position")
+properties/0/path = NodePath(".:synced_velocity")
 properties/0/spawn = true
 properties/0/replication_mode = 1
-properties/1/path = NodePath(".:synced_velocity")
+properties/1/path = NodePath(".:synced_held_item")
 properties/1/spawn = true
 properties/1/replication_mode = 1
-properties/2/path = NodePath(".:synced_held_item")
+properties/2/path = NodePath(".:synced_health")
 properties/2/spawn = true
 properties/2/replication_mode = 1
-properties/3/path = NodePath(".:synced_health")
+properties/3/path = NodePath(".:synced_hair")
 properties/3/spawn = true
 properties/3/replication_mode = 1
-properties/4/path = NodePath(".:synced_hair")
+properties/4/path = NodePath(".:synced_shirt")
 properties/4/spawn = true
 properties/4/replication_mode = 1
-properties/5/path = NodePath(".:synced_shirt")
+properties/5/path = NodePath(".:synced_pants")
 properties/5/spawn = true
 properties/5/replication_mode = 1
-properties/6/path = NodePath(".:synced_pants")
-properties/6/spawn = true
-properties/6/replication_mode = 1
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8erm5"]
 atlas = ExtResource("3_fkybt")

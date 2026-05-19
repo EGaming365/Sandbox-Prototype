@@ -334,6 +334,19 @@ func _process(delta: float) -> void:
 	else:
 		self.hide()
 
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and not drag_node:
+		var slot_index = current_slot - 1
+		var data = Inventory.slots[slot_index]
+		if data["item"] == "Chicken_Raw" and data["count"] > 0:
+			var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+			if hud:
+				hud.hunger = clamp(hud.hunger + 30.0, 0.0, 100.0)
+			if data["count"] <= 1:
+				Inventory.remove_item(slot_index, false)
+			else:
+				Inventory.slots[slot_index]["count"] -= 1
+				Inventory.inventory_changed.emit()
+
 	if Input.is_action_just_pressed("drop") and not drag_node:
 		drop_hold_timer = 0.0
 		drop_hold_triggered = false

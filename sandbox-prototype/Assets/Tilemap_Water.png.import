@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://8fv1kmv0dm72"
-path="res://.godot/imported/New Piskel (4) (1).png-bf688a6551ebe0b04ae3f01bcd77b0f7.ctex"
+uid="uid://bvsbfi2l2rg6v"
+path="res://.godot/imported/Tilemap_Water.png-63eb5830e3a967ff3f93db2e7e410903.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/New Piskel (4) (1).png"
-dest_files=["res://.godot/imported/New Piskel (4) (1).png-bf688a6551ebe0b04ae3f01bcd77b0f7.ctex"]
+source_file="res://Assets/Tilemap_Water.png"
+dest_files=["res://.godot/imported/Tilemap_Water.png-63eb5830e3a967ff3f93db2e7e410903.ctex"]
 
 [params]
 

@@ -1,5 +1,6 @@
 extends Node2D
 
+var peer_to_steam_id: Dictionary = {}
 var lobby_id: int = 0
 var peer: SteamMultiplayerPeer
 @export var player_scene: PackedScene
@@ -39,7 +40,6 @@ func _ready():
 func _process(_delta):
 	Steam.run_callbacks()
 	local_player = null
-
 	for child in get_children():
 		if child is CharacterBody2D:
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
@@ -51,12 +51,9 @@ func _sync_world_to_peer(peer_id: int):
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if not world_gen:
 		return
-
 	if world_gen.world_seed == 0:
 		world_gen.world_seed = randi()
-
 	synced_world_seed = world_gen.world_seed
-
 	sync_world_rpc.rpc_id(
 		peer_id,
 		synced_world_seed,
@@ -66,29 +63,27 @@ func _sync_world_to_peer(peer_id: int):
 		destroyed_env_objects,
 		env_object_hits
 	)
-
 	if env_gen:
 		env_gen.set_world_seed(synced_world_seed)
 
-@rpc("authority", "call_remote", "reliable")
+@rpc("any_peer", "call_remote", "reliable")
 func sync_world_rpc(seed: int, synced_tile_size: int, frequency: float, threshold: float, destroyed: Dictionary, hits: Dictionary):
+	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		return
 	var world_gen = get_node_or_null("WorldGen")
 	var env_gen = get_node_or_null("EnvironmentGen")
-
 	if world_gen:
 		world_gen.set_world_settings(seed, synced_tile_size, frequency, threshold)
-
 	if env_gen:
 		env_gen.set_world_seed(seed)
+		await get_tree().process_frame
 		env_gen.apply_env_state(destroyed, hits)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_hit_env_object(env_id: String, damage: int, max_hits: int):
 	if multiplayer.has_multiplayer_peer() and not is_host:
 		return
-
 	var current_hits = int(env_object_hits.get(env_id, 0)) + damage
-
 	if current_hits >= max_hits:
 		destroyed_env_objects[env_id] = true
 		env_object_hits.erase(env_id)
@@ -101,7 +96,6 @@ func request_hit_env_object(env_id: String, damage: int, max_hits: int):
 func sync_destroy_env_object(env_id: String):
 	destroyed_env_objects[env_id] = true
 	env_object_hits.erase(env_id)
-
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if env_gen:
 		env_gen.mark_destroyed(env_id)
@@ -109,7 +103,6 @@ func sync_destroy_env_object(env_id: String):
 @rpc("authority", "call_local", "reliable")
 func sync_env_object_hits(env_id: String, hits: int):
 	env_object_hits[env_id] = hits
-
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if env_gen:
 		env_gen.set_object_hits(env_id, hits)
@@ -121,7 +114,6 @@ func join_lobby(new_lobby_id: int):
 func host_lobby():
 	if is_host:
 		return
-
 	is_host = true
 	Steam.initRelayNetworkAccess()
 	await get_tree().create_timer(2.0).timeout
@@ -131,56 +123,48 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	if result != 1:
 		is_host = false
 		return
-
 	lobby_id = new_lobby_id
 	peer = SteamMultiplayerPeer.new()
 	peer.create_host()
 	multiplayer.multiplayer_peer = peer
-
 	if not signals_connected:
 		multiplayer.peer_connected.connect(_on_peer_connected)
 		multiplayer.peer_disconnected.connect(_remove_player)
 		signals_connected = true
-
 	DisplayServer.clipboard_set(str(lobby_id))
 	print("Lobby Created, Lobby id: ", lobby_id)
 	print("Lobby ID copied to clipboard!")
-
 	if has_node("1"):
 		get_node("1").name = str(multiplayer.get_unique_id())
 		get_node(str(multiplayer.get_unique_id())).set_multiplayer_authority(multiplayer.get_unique_id(), true)
 	else:
 		_spawn_player(multiplayer.get_unique_id())
-
 	var world_gen = get_node_or_null("WorldGen")
 	if world_gen:
 		if world_gen.world_seed == 0:
 			world_gen.world_seed = randi()
 		synced_world_seed = world_gen.world_seed
-
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if env_gen:
 		env_gen.set_world_seed(synced_world_seed)
+	# Register host's own steam ID
+	peer_to_steam_id[multiplayer.get_unique_id()] = Steam.getSteamID()
 
 func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, response: int):
 	print("Lobby joined response: ", response)
 	if not is_joining:
 		return
-
 	lobby_id = new_lobby_id
 	await get_tree().create_timer(1.0).timeout
 	_clear_world_state()
 	_clear_inventory()
-
 	peer = SteamMultiplayerPeer.new()
 	peer.server_relay = true
 	peer.create_client(Steam.getLobbyOwner(lobby_id))
 	multiplayer.multiplayer_peer = peer
-
 	is_joining = false
 	multiplayer.server_disconnected.connect(_on_host_disconnected)
 	multiplayer.peer_disconnected.connect(_remove_player)
-
 	if has_node("1"):
 		var player = get_node("1")
 		player.name = str(multiplayer.get_unique_id())
@@ -188,23 +172,28 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
-
 	_spawn_player(id)
 	_sync_world_to_peer(id)
 	var weather = get_node_or_null("Weather")
 	if weather:
 		weather.sync_weather_state.rpc_id(id, weather.current_weather, weather.time_of_day, weather.weather_timer)
-
-	await get_tree().create_timer(0.5).timeout
-
+	await get_tree().create_timer(2.0).timeout
+	if not multiplayer.get_peers().has(id):
+		return
 	var ids_to_send: Array[int] = []
 	for child in get_children():
 		if child.name.is_valid_int():
 			ids_to_send.append(child.name.to_int())
-
 	sync_players_to_client.rpc_id(id, ids_to_send)
 	sync_floor_items_to_peer(id)
 	sync_placed_blocks_to_peer(id)
+	sync_chickens_and_enemies_to_peer(id)
+	var chat = get_node_or_null("CanvasLayer/Chat_Box")
+	if chat:
+		var player_name = Steam.getFriendPersonaName(id)
+		if player_name == "" or player_name == null:
+			player_name = "A player"
+		chat._broadcast_message.rpc(player_name + " joined the world")
 
 func _on_host_disconnected():
 	get_tree().quit()
@@ -214,32 +203,26 @@ func _clear_world_state():
 		if is_instance_valid(floor_items[item_id]):
 			floor_items[item_id].queue_free()
 	floor_items.clear()
-
 	for block_id in placed_blocks:
 		if is_instance_valid(placed_blocks[block_id]):
 			placed_blocks[block_id].queue_free()
 	placed_blocks.clear()
-
 	for tree_id in trees:
 		if is_instance_valid(trees[tree_id]):
 			trees[tree_id].queue_free()
 	trees.clear()
-
 	for rock_id in rocks:
 		if is_instance_valid(rocks[rock_id]):
 			rocks[rock_id].queue_free()
 	rocks.clear()
-
 	destroyed_env_objects.clear()
 	env_object_hits.clear()
 
 func _clear_inventory():
 	for i in Inventory.slots.size():
 		Inventory.slots[i] = {"item": "", "count": 0, "texture": null}
-
 	for i in Inventory.inv_slots.size():
 		Inventory.inv_slots[i] = {"item": "", "count": 0, "texture": null}
-
 	Inventory.inventory_changed.emit()
 
 @rpc("authority", "call_remote", "reliable")
@@ -382,6 +365,8 @@ func request_break_block(block_id: int):
 	process_block_hit(block_id)
 
 func sync_placed_blocks_to_peer(peer_id: int):
+	if not multiplayer.get_peers().has(peer_id):
+		return
 	for block_id in placed_blocks:
 		var block = placed_blocks[block_id]
 		if is_instance_valid(block):
@@ -430,7 +415,6 @@ func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability:
 				item.stack_count += 1
 				item._update_label()
 			return item_id
-
 	var id = next_item_id
 	next_item_id += 1
 	if multiplayer.has_multiplayer_peer():
@@ -452,7 +436,6 @@ func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: S
 func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 60):
 	if floor_items.has(item_id):
 		return
-
 	if item_type == "Wardrobe":
 		var wardrobe_scene = preload("res://Scenes/wardrobe.tscn")
 		var wardrobe = wardrobe_scene.instantiate()
@@ -461,7 +444,6 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 		floor_items[item_id] = wardrobe
 		add_child(wardrobe)
 		return
-
 	var item_scene
 	match item_type:
 		"Wood":
@@ -484,9 +466,10 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 			item_scene = preload("res://Scenes/stone_sword.tscn")
 		"Stone Pickaxe":
 			item_scene = preload("res://Scenes/stone_pickaxe.tscn")
+		"Chicken_Raw":
+			item_scene = preload("res://Scenes/chicken_raw.tscn")
 		_:
 			item_scene = preload("res://Scenes/wood.tscn")
-
 	var item = item_scene.instantiate()
 	item.item_id = item_id
 	if item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe"]:
@@ -502,13 +485,14 @@ func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "W
 	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability)
 
 func sync_floor_items_to_peer(peer_id: int):
+	if not multiplayer.get_peers().has(peer_id):
+		return
 	for item_id in floor_items:
 		var item = floor_items[item_id]
 		if is_instance_valid(item):
 			var pos = item.global_position
 			var script_path = item.get_script().resource_path
 			var item_type = "Wood"
-
 			if script_path.contains("wooden_plank"):
 				item_type = "Wood Plank"
 			elif script_path.contains("wooden_axe"):
@@ -529,7 +513,8 @@ func sync_floor_items_to_peer(peer_id: int):
 				item_type = "Stone"
 			elif script_path.contains("wardrobe"):
 				item_type = "Wardrobe"
-
+			elif script_path.contains("chicken_raw"):
+				item_type = "Chicken_Raw"
 			var dur = item.durability if item.get("durability") != null else 1
 			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
 
@@ -563,30 +548,23 @@ func _on_id_prompt_text_changed(new_text):
 
 func _on_join_button_pressed():
 	var new_lobby_id = id_prompt.text.to_int()
-
 	if lobby_id != 0:
 		Steam.leaveLobby(lobby_id)
 		lobby_id = 0
-
 		if multiplayer.multiplayer_peer:
 			multiplayer.multiplayer_peer = null
-
 		is_host = false
 		_clear_world_state()
 		_clear_inventory()
-
 		var to_remove = []
 		for child in get_children():
 			if child.name.is_valid_int():
 				to_remove.append(child)
-
 		for child in to_remove:
 			child.queue_free()
-
 		await get_tree().process_frame
 		await get_tree().process_frame
 		_spawn_player(1)
-
 	join_lobby(new_lobby_id)
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -636,18 +614,14 @@ func deal_damage_to_player(amount: int):
 func request_chop_env_tree(env_id: String, held_item: String):
 	if not is_host:
 		return
-
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if not env_gen:
 		return
-
 	if not env_gen.active_objects.has(env_id):
 		return
-
 	var tree = env_gen.active_objects[env_id]
 	if not is_instance_valid(tree):
 		return
-
 	var sender_id = multiplayer.get_remote_sender_id()
 	tree.do_chop(sender_id, held_item)
 
@@ -656,10 +630,8 @@ func consume_axe_on_client():
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
 		return
-
 	var slot_index = hotbar.current_slot - 1
 	var current = Inventory.slots[slot_index]
-
 	if current["item"] in ["Axe", "Stone Axe"]:
 		current["count"] -= 1
 		if current["count"] <= 0:
@@ -671,18 +643,14 @@ func consume_axe_on_client():
 func request_mine_env_rock(env_id: String, held_item: String):
 	if not is_host:
 		return
-
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if not env_gen:
 		return
-
 	if not env_gen.active_objects.has(env_id):
 		return
-
 	var rock = env_gen.active_objects[env_id]
 	if not is_instance_valid(rock):
 		return
-
 	var sender_id = multiplayer.get_remote_sender_id()
 	rock.do_mine(sender_id, held_item)
 
@@ -691,10 +659,8 @@ func consume_pickaxe_on_client():
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
 		return
-
 	var slot_index = hotbar.current_slot - 1
 	var current = Inventory.slots[slot_index]
-
 	if current["item"] in ["Pickaxe", "Stone Pickaxe"]:
 		current["count"] -= 1
 		if current["count"] <= 0:
@@ -745,11 +711,9 @@ func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
 	shape.radius = 16.0
 	query.shape = shape
 	query.collision_mask = 1
-
 	query.transform = Transform2D(0, origin)
 	if space.intersect_shape(query).size() == 0:
 		return origin
-
 	for i in max_attempts:
 		var angle = randf_range(0, TAU)
 		var radius = randf_range(60.0, 80.0 + i * 10.0)
@@ -757,5 +721,122 @@ func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
 		query.transform = Transform2D(0, candidate)
 		if space.intersect_shape(query).size() == 0:
 			return candidate
-
 	return origin + Vector2(randf_range(-200, 200), randf_range(-200, 200))
+
+func sync_chickens_and_enemies_to_peer(peer_id: int):
+	if not multiplayer.get_peers().has(peer_id):
+		return
+	for chicken in get_tree().get_nodes_in_group("chickens"):
+		if is_instance_valid(chicken):
+			spawn_chicken_on_client_rpc.rpc_id(peer_id, chicken.global_position.x, chicken.global_position.y, chicken.chicken_id)
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy):
+			spawn_enemy_on_client_rpc.rpc_id(peer_id, enemy.global_position.x, enemy.global_position.y, enemy.enemy_id)
+
+@rpc("authority", "call_remote", "reliable")
+func spawn_chicken_on_client_rpc(px: float, py: float, cid: int):
+	var node_name = "Chicken_" + str(cid)
+	if has_node(node_name):
+		return
+	var chicken_scene = preload("res://Scenes/chicken.tscn")
+	var chicken = chicken_scene.instantiate()
+	chicken.chicken_id = cid
+	chicken.name = node_name
+	chicken.global_position = Vector2(px, py)
+	chicken.set_multiplayer_authority(1)
+	add_child(chicken)
+	chicken.set_meta("sync_ready", false)
+	await get_tree().create_timer(2.0).timeout
+	if is_instance_valid(chicken):
+		chicken.set_meta("sync_ready", true)
+
+@rpc("authority", "call_remote", "reliable")
+func spawn_enemy_on_client_rpc(px: float, py: float, eid: int):
+	var node_name = "Enemy_" + str(eid)
+	if has_node(node_name):
+		return
+	var enemy_scene = preload("res://Scenes/night_enemy.tscn")
+	var enemy = enemy_scene.instantiate()
+	enemy.enemy_id = eid
+	enemy.name = node_name
+	enemy.global_position = Vector2(px, py)
+	enemy.set_multiplayer_authority(1)
+	add_child(enemy)
+	enemy.set_meta("sync_ready", false)
+	await get_tree().create_timer(2.0).timeout
+	if is_instance_valid(enemy):
+		enemy.set_meta("sync_ready", true)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_respawn(player_id: int):
+	if not is_host:
+		return
+	var spawn_pos = _find_safe_spawn(Vector2(0, 0))
+	send_respawn_position.rpc_id(player_id, spawn_pos.x, spawn_pos.y)
+
+@rpc("authority", "call_remote", "reliable")
+func send_respawn_position(px: float, py: float):
+	var spawn_pos = Vector2(px, py)
+	for child in get_children():
+		if child is CharacterBody2D:
+			if child.is_multiplayer_authority():
+				child._do_respawn(spawn_pos)
+				break
+
+@rpc("any_peer", "call_remote", "reliable")
+func register_steam_id(steam_id: int):
+	if not is_host:
+		return
+	var sender = multiplayer.get_remote_sender_id()
+	peer_to_steam_id[sender] = steam_id
+	sync_peer_steam_ids.rpc(peer_to_steam_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_peer_steam_ids(mapping: Dictionary):
+	peer_to_steam_id = mapping
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_chicken_state_rpc(cid: int, px: float, py: float, s: int) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(cid))
+	if not chicken or not is_instance_valid(chicken):
+		return
+	if not chicken.get_meta("sync_ready", false):
+		return
+	chicken.global_position = Vector2(px, py)
+	chicken.state = s
+	match s:
+		0, 2: chicken.sprite.play("walk_down")
+		1, 4: chicken.sprite.play("idle")
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_enemy_state_rpc(eid: int, px: float, py: float, s: int, h: int) -> void:
+	var enemy = get_node_or_null("Enemy_" + str(eid))
+	if not enemy or not is_instance_valid(enemy):
+		return
+	if not enemy.get_meta("sync_ready", false):
+		return
+	enemy.global_position = Vector2(px, py)
+	enemy.state = s
+	enemy.health = h
+	if s == 0:
+		enemy.sprite.play("walk_down")
+	else:
+		enemy.sprite.play("idle")
+
+@rpc("authority", "call_local", "reliable")
+func chicken_flash_hit_rpc(cid: int) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(cid))
+	if chicken and is_instance_valid(chicken):
+		chicken._flash_hit()
+
+@rpc("authority", "call_local", "reliable")
+func chicken_die_rpc(cid: int) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(cid))
+	if chicken and is_instance_valid(chicken):
+		chicken._play_die_sequence()
+
+@rpc("authority", "call_local", "reliable")
+func chicken_drowning_alpha_rpc(cid: int, alpha: float) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(cid))
+	if chicken and is_instance_valid(chicken):
+		chicken._set_drowning_alpha(alpha)

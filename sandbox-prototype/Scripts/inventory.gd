@@ -19,6 +19,8 @@ var bench_texture = preload("res://Assets/Crafting_Bench.png")
 var wardrobe_texture = preload("res://Assets/Wardrobe.png")
 var wood_plank_texture = preload("res://Assets/Wood_Planks.png")
 var stone_texture = preload("res://Assets/Stone.png")
+var chicken_raw_texture = preload("res://Assets/Chicken_Raw.png")
+
 
 var TEXTURE_MAP: Dictionary = {}
 
@@ -41,6 +43,7 @@ func _ready():
 		"Wardrobe": wardrobe_texture,
 		"Wood Plank": wood_plank_texture,
 		"Stone": stone_texture,
+		"Chicken_Raw": chicken_raw_texture,
 	}
 	
 	TEXTURE_MAP = {}

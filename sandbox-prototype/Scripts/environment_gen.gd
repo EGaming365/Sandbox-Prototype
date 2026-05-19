@@ -40,6 +40,38 @@ var _object_spawn_queue: Array = []
 var _packed_tree_scene: PackedScene = null
 var _packed_rock_scene: PackedScene = null
 
+var _world_state_received: bool = false
+
+func _process(delta):
+	_process_load_queue()
+	_process_object_spawn_queue()
+
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		if not _world_state_received:
+			return
+
+	update_timer -= delta
+	if update_timer > 0.0:
+		return
+	update_timer = update_interval
+	if not _refresh_references():
+		return
+	_update_chunks_around_player()
+
+func apply_env_state(destroyed: Dictionary, hits: Dictionary):
+	_world_state_received = true
+	destroyed_env_objects = destroyed.duplicate(true)
+	env_object_hits = hits.duplicate(true)
+	for env_id in destroyed_env_objects.keys():
+		_despawn_object(env_id)
+	for env_id in env_object_hits.keys():
+		set_object_hits(env_id, env_object_hits[env_id])
+
+func set_world_seed(seed: int):
+	world_seed = seed
+	_world_state_received = false
+	_unload_all_chunks()
+
 func _ready():
 	scene_node = get_tree().root.get_node_or_null("Scene")
 	world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
@@ -50,23 +82,11 @@ func _ready():
 	await get_tree().process_frame
 	await get_tree().process_frame
 
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		return
+
 	if world_gen and world_gen.get("world_seed") != null:
 		world_seed = world_gen.world_seed
-
-func _process(delta):
-	_process_load_queue()
-	_process_object_spawn_queue()
-
-	update_timer -= delta
-	if update_timer > 0.0:
-		return
-
-	update_timer = update_interval
-
-	if not _refresh_references():
-		return
-
-	_update_chunks_around_player()
 
 func _process_load_queue():
 	if _chunk_load_queue.is_empty():
@@ -111,20 +131,6 @@ func _refresh_references() -> bool:
 				break
 
 	return local_player != null
-
-func set_world_seed(seed: int):
-	world_seed = seed
-	_unload_all_chunks()
-
-func apply_env_state(destroyed: Dictionary, hits: Dictionary):
-	destroyed_env_objects = destroyed.duplicate(true)
-	env_object_hits = hits.duplicate(true)
-
-	for env_id in destroyed_env_objects.keys():
-		_despawn_object(env_id)
-
-	for env_id in env_object_hits.keys():
-		set_object_hits(env_id, env_object_hits[env_id])
 
 func mark_destroyed(env_id: String):
 	destroyed_env_objects[env_id] = true

@@ -24,6 +24,17 @@ var wardrobe_texture: Texture2D = preload("res://Assets/Wardrobe.png")
 
 var _chat_close_cooldown: float = 0.0
 
+func _get_steam_name_for_peer(peer_id: int) -> String:
+	var my_steam_id = Steam.getSteamID()
+	if peer_id == multiplayer.get_unique_id():
+		return Steam.getFriendPersonaName(my_steam_id)
+	var scene_node = get_tree().root.get_node_or_null("Scene")
+	if scene_node:
+		var steam_id = scene_node.peer_to_steam_id.get(peer_id, 0)
+		if steam_id != 0:
+			return Steam.getFriendPersonaName(steam_id)
+	return "Unknown"
+
 func _handle_command(text: String):
 	var parts = text.split(" ")
 	var cmd = parts[0].to_lower()
@@ -91,16 +102,13 @@ func _handle_command(text: String):
 				_add_message("[System] Usage: /tp <player> <x> <y>  OR  /tp <player> here  OR  /tp <player> <target_player>")
 				return
 			var scene_node = get_tree().root.get_node("Scene")
-
 			var subject_matches = []
 			for child in scene_node.get_children():
 				if child is CharacterBody2D:
 					var peer_id = child.get_multiplayer_authority()
-					var steam_id = my_steam_id if peer_id == multiplayer.get_unique_id() else peer_id
-					var sname = Steam.getFriendPersonaName(steam_id)
+					var sname = _get_steam_name_for_peer(peer_id)
 					if sname.to_lower().begins_with(parts[1].to_lower()):
 						subject_matches.append({"node": child, "peer_id": peer_id, "name": sname})
-
 			if subject_matches.size() == 0:
 				_add_message("[System] Player '" + parts[1] + "' not found.")
 				return
@@ -110,10 +118,8 @@ func _handle_command(text: String):
 					names += m["name"] + ", "
 				_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
 				return
-
 			var subject = subject_matches[0]
 			var dest: Vector2
-
 			if parts[2].to_lower() == "here":
 				var local_player = _get_local_player()
 				if not local_player:
@@ -121,15 +127,14 @@ func _handle_command(text: String):
 					return
 				dest = local_player.global_position
 			elif parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
-				dest = Vector2((parts[2].to_float() * 100) , (parts[3].to_float()) * -100)
+				dest = Vector2((parts[2].to_float() * 100), (parts[3].to_float()) * -100)
 			else:
 				var target_name = " ".join(parts.slice(2))
 				var target_matches = []
 				for child in scene_node.get_children():
 					if child is CharacterBody2D:
 						var peer_id = child.get_multiplayer_authority()
-						var steam_id = my_steam_id if peer_id == multiplayer.get_unique_id() else peer_id
-						var sname = Steam.getFriendPersonaName(steam_id)
+						var sname = _get_steam_name_for_peer(peer_id)
 						if sname.to_lower().begins_with(target_name.to_lower()):
 							target_matches.append({"node": child, "name": sname})
 				if target_matches.size() == 0:
@@ -142,7 +147,6 @@ func _handle_command(text: String):
 					_add_message("[System] Multiple targets found: " + names.trim_suffix(", ") + ". Be more specific.")
 					return
 				dest = target_matches[0]["node"].global_position
-
 			if subject["peer_id"] == multiplayer.get_unique_id():
 				subject["node"].global_position = dest
 			else:
@@ -194,7 +198,7 @@ func _handle_command(text: String):
 				return
 			var spawn_pos = Vector2.ZERO
 			if parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
-				spawn_pos = Vector2((parts[2].to_float() * 100), (parts[3].to_float()) * -100 )
+				spawn_pos = Vector2((parts[2].to_float() * 100), (parts[3].to_float()) * -100)
 			else:
 				var local_player = _get_local_player()
 				if local_player:
@@ -219,8 +223,7 @@ func _handle_command(text: String):
 			for child in scene_node.get_children():
 				if child is CharacterBody2D:
 					var peer_id = child.get_multiplayer_authority()
-					var steam_id = my_steam_id if peer_id == multiplayer.get_unique_id() else peer_id
-					var sname = Steam.getFriendPersonaName(steam_id)
+					var sname = _get_steam_name_for_peer(peer_id)
 					if sname.to_lower().begins_with(target_name.to_lower()):
 						matches.append({"node": child, "peer_id": peer_id, "name": sname})
 			if matches.size() == 0:
@@ -243,7 +246,7 @@ func _handle_command(text: String):
 			_add_message("[System] Killed " + target["name"])
 		_:
 			_add_message("[System] Unknown command: " + cmd)
-	
+
 func _give_item_to_player(target_name: String, item_name: String, amount: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	var target_peer_id: int = -1
@@ -263,8 +266,7 @@ func _give_item_to_player(target_name: String, item_name: String, amount: int):
 	for child in scene_node.get_children():
 		if child is CharacterBody2D:
 			var peer_id = child.get_multiplayer_authority()
-			var steam_id = my_steam_id if peer_id == multiplayer.get_unique_id() else peer_id
-			var sname = Steam.getFriendPersonaName(steam_id)
+			var sname = _get_steam_name_for_peer(peer_id)
 			if sname.to_lower().begins_with(target_name.to_lower()):
 				matches.append({"peer_id": peer_id, "name": sname})
 
@@ -313,7 +315,6 @@ func _do_give_item(item_name: String, amount: int):
 		img.fill(Color.WHITE)
 		tex = ImageTexture.create_from_image(img)
 	const UNLOCKED_INV_SLOTS = 20
-
 	if item_name in ["Axe", "Sword"]:
 		var dur = 80 if item_name == "Axe" else 30
 		for i in amount:
@@ -369,7 +370,6 @@ func _do_give_item(item_name: String, amount: int):
 				slot["count"] = add
 				slot["texture"] = tex
 				remaining -= add
-
 	Inventory.inventory_changed.emit()
 	Inventory.discover(item_name)
 

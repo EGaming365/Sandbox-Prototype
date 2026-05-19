@@ -7,7 +7,7 @@ var hits: int = 0
 var max_hits: int = 1
 var current_rotation: float = 0.0
 
-var plank_tex = preload("res://Assets/wood_planks.png")
+var plank_tex = preload("res://Assets/Wood_Planks.png")
 
 func _get_texture_for_item(i_name: String) -> Texture2D:
 	match i_name:

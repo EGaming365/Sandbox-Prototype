@@ -8,14 +8,14 @@
 [ext_resource type="Script" uid="uid://vn6diravdbul" path="res://Scripts/cursor.gd" id="6_f6sb3"]
 [ext_resource type="Script" uid="uid://dmlup58hnarqb" path="res://Scripts/host_button.gd" id="7_lnogb"]
 [ext_resource type="Script" uid="uid://bbhs2nr03ahu5" path="res://Scripts/join_button.gd" id="8_20iik"]
-[ext_resource type="Texture2D" uid="uid://b4pl1s84epyk6" path="res://Assets/New Piskel.png" id="8_f6sb3"]
+[ext_resource type="Texture2D" uid="uid://b4pl1s84epyk6" path="res://Assets/Cursor_Basic.png" id="8_f6sb3"]
 [ext_resource type="Script" uid="uid://87lun52q0mes" path="res://Scripts/id_prompt.gd" id="9_rcvm1"]
 [ext_resource type="PackedScene" uid="uid://euarixd5132k" path="res://Scenes/crafting_menu.tscn" id="10_20iik"]
 [ext_resource type="PackedScene" uid="uid://dyt3sf1v3eg7p" path="res://Scenes/inventory_ui.tscn" id="11_rcvm1"]
 [ext_resource type="Script" uid="uid://lxoxflac3ghp" path="res://Scripts/block_placer.gd" id="12_usre1"]
 [ext_resource type="Script" uid="uid://bt5j7q2nekadg" path="res://Scripts/hearts.gd" id="13_nimp4"]
 [ext_resource type="PackedScene" uid="uid://dakryvklm668i" path="res://Scenes/chat_box.tscn" id="14_oisvf"]
-[ext_resource type="Texture2D" uid="uid://8fv1kmv0dm72" path="res://Assets/New Piskel (4) (1).png" id="15_oisvf"]
+[ext_resource type="Texture2D" uid="uid://8fv1kmv0dm72" path="res://Assets/Tilemap_Land.png" id="15_oisvf"]
 [ext_resource type="PackedScene" uid="uid://buu6winar7jsn" path="res://Scenes/wardrobe_ui.tscn" id="16_81khf"]
 [ext_resource type="Script" uid="uid://btrncygs1p3db" path="res://Scripts/building_preview.gd" id="16_nimp4"]
 [ext_resource type="PackedScene" uid="uid://bkwvihhlv00dt" path="res://Scenes/left_ui.tscn" id="17_3fl7w"]
@@ -23,7 +23,7 @@
 [ext_resource type="PackedScene" uid="uid://b8wirsdffuxwl" path="res://Scenes/right_ui.tscn" id="18_r152n"]
 [ext_resource type="Script" uid="uid://jrkn55j2buqc" path="res://Scripts/weather.gd" id="19_l8vl3"]
 [ext_resource type="Script" uid="uid://ctsjl5ujr4u7f" path="res://Scripts/environment_gen.gd" id="20_b0t05"]
-[ext_resource type="Texture2D" uid="uid://bvsbfi2l2rg6v" path="res://Assets/New Piskel (19).png" id="20_r152n"]
+[ext_resource type="Texture2D" uid="uid://bvsbfi2l2rg6v" path="res://Assets/Tilemap_Water.png" id="20_r152n"]
 
 [sub_resource type="Gradient" id="Gradient_l8vl3"]
 
@@ -108,10 +108,10 @@ grow_vertical = 0
 size_flags_vertical = 8
 
 [node name="Coordinates" type="Label" parent="CanvasLayer" unique_id=1913608569]
-offset_left = 5.0
-offset_top = 4.0
-offset_right = 45.0
-offset_bottom = 27.0
+offset_left = 101.0
+offset_top = 63.0
+offset_right = 141.0
+offset_bottom = 86.0
 script = ExtResource("3_ubbiv")
 
 [node name="Cursor" type="Sprite2D" parent="CanvasLayer" unique_id=711093833]

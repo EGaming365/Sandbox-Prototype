@@ -82,6 +82,16 @@ func _ready():
 		collision_layer = 0
 		collision_mask = 0
 		$CollisionShape2D.disabled = true
+	if multiplayer.has_multiplayer_peer() and is_multiplayer_authority():
+		await get_tree().process_frame
+		var scene_node = get_tree().root.get_node_or_null("Scene")
+		if scene_node:
+			if multiplayer.is_server():
+				# Host registers directly without RPC
+				scene_node.peer_to_steam_id[multiplayer.get_unique_id()] = Steam.getSteamID()
+				scene_node.sync_peer_steam_ids.rpc(scene_node.peer_to_steam_id)
+			else:
+				scene_node.register_steam_id.rpc_id(1, Steam.getSteamID())
 	_setup_hand()
 	call_deferred("_setup_camera")
 
@@ -228,12 +238,6 @@ func _physics_process(delta):
 
 	if multiplayer.has_multiplayer_peer():
 		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
-
-@rpc("authority", "call_remote", "unreliable_ordered")
-func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String):
-	global_position = Vector2(px, py)
-	synced_velocity = Vector2(vx, vy)
-	synced_held_item = held
 
 func _input(event):
 	if is_dead:
@@ -606,17 +610,23 @@ func _update_drowning(delta: float):
 		drowning_dead = false
 
 func _set_drowning_alpha(alpha: float):
-	anim.modulate.a = alpha
-	hair_sprite.modulate.a = alpha
-	shirt_sprite.modulate.a = alpha
-	pants_sprite.modulate.a = alpha
+	var c = anim.modulate
+	anim.modulate = Color(c.r, c.g, c.b, alpha)
+	c = hair_sprite.modulate
+	hair_sprite.modulate = Color(c.r, c.g, c.b, alpha)
+	c = shirt_sprite.modulate
+	shirt_sprite.modulate = Color(c.r, c.g, c.b, alpha)
+	c = pants_sprite.modulate
+	pants_sprite.modulate = Color(c.r, c.g, c.b, alpha)
 	if hand_sprite:
-		hand_sprite.modulate.a = alpha
+		c = hand_sprite.modulate
+		hand_sprite.modulate = Color(c.r, c.g, c.b, alpha)
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func sync_drowning_alpha_rpc(alpha: float):
+	if is_multiplayer_authority():
+		return
 	_set_drowning_alpha(alpha)
-
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	if not chat:
@@ -631,6 +641,9 @@ func _send_death_message(cause: String):
 		chat._add_message(msg)
 
 func _play_death_respawn_sequence(scene_node):
+	drowning_timer = 0.0
+	drowning_dead = false
+
 	if death_tween:
 		death_tween.kill()
 
@@ -639,7 +652,7 @@ func _play_death_respawn_sequence(scene_node):
 	if hand_sprite:
 		hand_sprite.visible = false
 		hand_sprite.modulate = Color(1, 1, 1, 0)
-		_last_hand_item = ""  # force re-apply on respawn
+		_last_hand_item = ""
 
 	anim.modulate = Color(1, 0.05, 0.05, 1)
 	hair_sprite.modulate = Color(1, 0.05, 0.05, 1)
@@ -660,15 +673,39 @@ func _play_death_respawn_sequence(scene_node):
 	await death_tween.finished
 	await get_tree().create_timer(respawn_delay).timeout
 
-	global_position = scene_node._find_safe_spawn(Vector2(0, 0))
+	if not is_instance_valid(self):
+		return
+
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		if scene_node:
+			scene_node.request_respawn.rpc_id(1, name.to_int())
+	else:
+		_do_respawn(get_tree().root.get_node("Scene")._find_safe_spawn(Vector2(0, 0)))
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_respawn_position_rpc():
+	if not multiplayer.is_server():
+		return
+	var scene_node = get_tree().root.get_node_or_null("Scene")
+	if not scene_node:
+		return
+	var spawn_pos = scene_node._find_safe_spawn(Vector2(0, 0))
+	var sender = multiplayer.get_remote_sender_id()
+	receive_respawn_position_rpc.rpc_id(sender, spawn_pos.x, spawn_pos.y)
+
+@rpc("any_peer", "call_remote", "reliable")
+func receive_respawn_position_rpc(px: float, py: float):
+	_do_respawn(Vector2(px, py))
+
+func _do_respawn(spawn_pos: Vector2):
+	drowning_timer = 0.0
+	drowning_dead = false
+	global_position = spawn_pos
 	synced_health = max_health
 
 	var right_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
 	if right_ui:
-		right_ui.hunger = 100.0
-		right_ui.thirst = 100.0
-		right_ui.hunger_bar.value = 100.0
-		right_ui.thirst_bar.value = 100.0
+		right_ui.reset_stats()
 
 	anim.scale = base_anim_scale
 	hair_sprite.scale = base_hair_scale
@@ -680,9 +717,11 @@ func _play_death_respawn_sequence(scene_node):
 	shirt_sprite.modulate = Color(1, 1, 1, 1)
 	pants_sprite.modulate = Color(1, 1, 1, 1)
 
+	if multiplayer.has_multiplayer_peer():
+		sync_drowning_alpha_rpc.rpc(1.0)
+
 	$CollisionShape2D.disabled = false
 	is_dead = false
-	# Hand sprite will re-appear automatically via _update_hand_sprite on next frame
 
 func _flash_damage():
 	if damage_flash_tween:
@@ -702,3 +741,11 @@ func _flash_damage():
 		shirt_sprite.modulate = Color(1, 1, 1, 1)
 		pants_sprite.modulate = Color(1, 1, 1, 1)
 	)
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String):
+	if is_multiplayer_authority():
+		return
+	global_position = Vector2(px, py)
+	synced_velocity = Vector2(vx, vy)
+	synced_held_item = held

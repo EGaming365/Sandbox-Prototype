@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dned0ebvgr03j"
-path="res://.godot/imported/New Piskel (4).png-35294df11d6c0b20f47a783c7c5f57f4.ctex"
+uid="uid://b4pl1s84epyk6"
+path="res://.godot/imported/Cursor_Basic.png-4f50ae1f447d309c688f4d06ff4c2866.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/New Piskel (4).png"
-dest_files=["res://.godot/imported/New Piskel (4).png-35294df11d6c0b20f47a783c7c5f57f4.ctex"]
+source_file="res://Assets/Cursor_Basic.png"
+dest_files=["res://.godot/imported/Cursor_Basic.png-4f50ae1f447d309c688f4d06ff4c2866.ctex"]
 
 [params]
 

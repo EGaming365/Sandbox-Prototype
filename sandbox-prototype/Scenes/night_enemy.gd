@@ -21,7 +21,6 @@ var charge_timer: float = 0.0
 var dash_timer: float = 0.0
 var dash_direction: Vector2 = Vector2.ZERO
 var dash_origin: Vector2 = Vector2.ZERO
-var _is_host: bool = false
 var _blocked_escape_timer: float = 0.0
 var rng := RandomNumberGenerator.new()
 
@@ -35,20 +34,22 @@ const SEPARATION_FORCE: float = 600.0
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var staticbody: StaticBody2D = $StaticBody2D
 
+func _is_host() -> bool:
+	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
+
 func _ready() -> void:
 	rng.randomize()
 	z_index = 2
 	add_to_group("night_enemies")
 	sprite.position.y = -30
 	staticbody.position.y = -6
-	_is_host = not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
 	sprite.play("walk_down")
 	attack_cooldown = rng.randf_range(0.5, attack_cooldown_max)
 
 func _process(delta: float) -> void:
 	if state == State.DEAD:
 		return
-	if not _is_host:
+	if not _is_host():
 		return
 	if despawn_when_day and not _is_night():
 		_die()
@@ -99,8 +100,11 @@ func _process(delta: float) -> void:
 		State.COOLDOWN:
 			pass
 
-	if multiplayer.has_multiplayer_peer():
-		_sync_state_rpc.rpc(global_position.x, global_position.y, int(state), health)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
+		if is_inside_tree() and get_meta("sync_ready", false):
+			var scene = get_tree().root.get_node_or_null("Scene")
+			if scene:
+				scene.sync_enemy_state_rpc.rpc(enemy_id, global_position.x, global_position.y, int(state), health)
 
 func _is_position_clear_for_dash(pos: Vector2) -> bool:
 	var space := get_world_2d().direct_space_state
@@ -235,7 +239,7 @@ func _clear_charge_glow() -> void:
 func take_damage(amount: int) -> void:
 	if state == State.DEAD:
 		return
-	if not _is_host:
+	if not _is_host():
 		return
 	health -= amount
 	if multiplayer.has_multiplayer_peer():
@@ -337,20 +341,6 @@ func _escape_from_blocked_position() -> bool:
 			global_position = candidate
 			return true
 	return false
-
-@rpc("authority", "call_remote", "unreliable_ordered")
-func _sync_state_rpc(px: float, py: float, s: int, synced_health: int) -> void:
-	global_position = Vector2(px, py)
-	state = s as State
-	health = synced_health
-	if state == State.CHASE:
-		sprite.play("walk_down")
-		_reset_visuals()
-	elif state == State.COOLDOWN:
-		sprite.play("idle")
-		_reset_visuals()
-	else:
-		sprite.play("idle")
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _sync_charge_glow_rpc(pct: float) -> void:

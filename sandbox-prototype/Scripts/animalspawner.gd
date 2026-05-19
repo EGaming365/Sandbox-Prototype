@@ -63,28 +63,42 @@ func _on_spawn_tick() -> void:
 		return
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
+	var players := get_tree().get_nodes_in_group("players")
+	if players.is_empty():
+		return
+	# Check spawn need per player
 	var in_radius := _count_chickens_in_radius()
 	var needed = max(max_chickens_in_radius - in_radius, 0)
 	for i in needed:
-		var pos := _random_spawn_pos()
+		# Pick a random player to spawn near
+		var target_player = players[randi() % players.size()]
+		var pos := _random_spawn_pos_near((target_player as Node2D).global_position)
 		if pos != Vector2.ZERO:
 			_spawn_chicken(pos)
 	if _is_night():
 		var enemies_needed = max(max_night_enemies_in_radius - _count_night_enemies_in_radius(), 0)
 		for i in enemies_needed:
-			var pos := _random_spawn_pos("night_enemies")
+			var target_player = players[randi() % players.size()]
+			var pos := _random_spawn_pos_near((target_player as Node2D).global_position, "night_enemies")
 			if pos != Vector2.ZERO:
 				_spawn_night_enemy(pos)
 
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
-	var center := _get_player_center()
+	var players := get_tree().get_nodes_in_group("players")
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		var c := chicken as Node2D
 		if not is_instance_valid(c):
 			continue
-		if center.distance_to(c.global_position) > despawn_radius:
+		# Only despawn if ALL players are out of range
+		var all_out_of_range := true
+		for p in players:
+			if is_instance_valid(p):
+				if (p as Node2D).global_position.distance_to(c.global_position) <= despawn_radius:
+					all_out_of_range = false
+					break
+		if all_out_of_range:
 			if not _out_of_range_timers.has(c):
 				_out_of_range_timers[c] = 0.0
 			_out_of_range_timers[c] += 5.0
@@ -100,23 +114,49 @@ func _check_despawn() -> void:
 		var e := enemy as Node2D
 		if not is_instance_valid(e):
 			continue
-		if not _is_night() or center.distance_to(e.global_position) > despawn_radius:
+		if not _is_night():
+			e.queue_free()
+			continue
+		var all_out := true
+		for p in players:
+			if is_instance_valid(p):
+				if (p as Node2D).global_position.distance_to(e.global_position) <= despawn_radius:
+					all_out = false
+					break
+		if all_out:
 			e.queue_free()
 
 func _spawn_chicken(pos: Vector2) -> void:
-	print("Spawning chicken as child of: ", _scene_node.name)
 	var chicken = CHICKEN_SCENE.instantiate()
 	chicken.chicken_id = _next_chicken_id
+	chicken.name = "Chicken_" + str(_next_chicken_id)
 	_next_chicken_id += 1
 	chicken.global_position = pos
+	chicken.set_meta("sync_ready", false)
 	_scene_node.add_child(chicken)
+	chicken.set_multiplayer_authority(1)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
+		_scene_node.spawn_chicken_on_client_rpc.rpc(chicken.global_position.x, chicken.global_position.y, chicken.chicken_id)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(chicken):
+		chicken.set_meta("sync_ready", true)
 
 func _spawn_night_enemy(pos: Vector2) -> void:
 	var enemy = NIGHT_ENEMY_SCENE.instantiate()
 	enemy.enemy_id = _next_night_enemy_id
+	enemy.name = "Enemy_" + str(_next_night_enemy_id)
 	_next_night_enemy_id += 1
 	enemy.global_position = pos
+	enemy.set_meta("sync_ready", false)
 	_scene_node.add_child(enemy)
+	enemy.set_multiplayer_authority(1)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
+		_scene_node.spawn_enemy_on_client_rpc.rpc(enemy.global_position.x, enemy.global_position.y, enemy.enemy_id)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(enemy):
+		enemy.set_meta("sync_ready", true)
 
 func _count_night_enemies_in_radius() -> int:
 	var center := _get_player_center()
@@ -151,13 +191,23 @@ func _random_spawn_pos(avoid_group: String = "chickens") -> Vector2:
 	return Vector2.ZERO
 
 func _get_player_center() -> Vector2:
-	var players := get_tree().get_nodes_in_group("players")
-	if players.is_empty():
-		return Vector2.ZERO
-	var sum := Vector2.ZERO
-	for p in players:
-		sum += (p as Node2D).global_position
-	return sum / players.size()
+	if multiplayer.has_multiplayer_peer():
+		# Use all players' positions for spawn/despawn so none get despawned unfairly
+		var players := get_tree().get_nodes_in_group("players")
+		if players.is_empty():
+			return Vector2.ZERO
+		var furthest_dist := 0.0
+		var best_pos := Vector2.ZERO
+		# Find the player furthest from origin as reference
+		for p in players:
+			if is_instance_valid(p):
+				best_pos += (p as Node2D).global_position
+		return best_pos / players.size()
+	else:
+		var players := get_tree().get_nodes_in_group("players")
+		if players.is_empty():
+			return Vector2.ZERO
+		return (players[0] as Node2D).global_position
 
 func _is_spawn_pos_clear(pos: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = _scene_node.get_world_2d().direct_space_state
@@ -173,3 +223,20 @@ func _is_spawn_pos_clear(pos: Vector2) -> bool:
 func _is_night() -> bool:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	return weather != null and weather.has_method("is_night") and weather.is_night()
+
+func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -> Vector2:
+	for i in 30:
+		var angle := randf_range(0.0, TAU)
+		var dist := randf_range(spawn_radius_min, spawn_radius_max)
+		var pos := center + Vector2(cos(angle), sin(angle)) * dist
+		var too_close := false
+		for existing in get_tree().get_nodes_in_group(avoid_group):
+			if pos.distance_to((existing as Node2D).global_position) < 100.0:
+				too_close = true
+				break
+		if too_close:
+			continue
+		if not _is_spawn_pos_clear(pos):
+			continue
+		return pos
+	return Vector2.ZERO

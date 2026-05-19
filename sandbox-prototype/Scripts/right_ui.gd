@@ -8,7 +8,7 @@ extends Control
 
 var tex_clear = preload("res://Assets/Weather_Clear.png")
 var tex_rain = preload("res://Assets/Weather_Rain.png")
-var tex_thunder = preload("res://Assets/Weather_thunder.png")
+var tex_thunder = preload("res://Assets/Weather_Thunder.png")
 var tex_thunderstorm = preload("res://Assets/Weather_Thunderstorm.png")
 var tex_day = preload("res://Assets/Time_Day.png")
 var tex_night = preload("res://Assets/Time_Night.png")
@@ -42,7 +42,6 @@ func _process(delta):
 				weather_icon.texture = tex_thunder
 			3:
 				weather_icon.texture = tex_thunderstorm
-
 		var t = weather_node.time_of_day
 		if t >= 0.65 and t < 0.82:
 			time_icon.texture = tex_evening
@@ -53,11 +52,17 @@ func _process(delta):
 		else:
 			time_icon.texture = tex_night
 
-	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
-	var player = hotbar.get_local_player() if hotbar else null
+	# Always drain hunger and thirst regardless of player found
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
-
 	var in_water = false
+
+	var player: CharacterBody2D = null
+	for p in get_tree().get_nodes_in_group("players"):
+		if p is CharacterBody2D:
+			if not multiplayer.has_multiplayer_peer() or p.is_multiplayer_authority():
+				player = p
+				break
+
 	if player and world_gen and world_gen.has_method("is_water_at"):
 		in_water = world_gen.is_water_at(player.global_position)
 
@@ -69,18 +74,23 @@ func _process(delta):
 
 	hunger = clamp(hunger, 0.0, 100.0)
 	thirst = clamp(thirst, 0.0, 100.0)
-	hunger_bar.value = hunger
-	thirst_bar.value = thirst
+	if is_instance_valid(hunger_bar):
+		hunger_bar.value = hunger
+	if is_instance_valid(thirst_bar):
+		thirst_bar.value = thirst
 
 	if hunger > 0.0 and thirst > 0.0:
 		damage_timer = 0.0
 		death_message_sent = false
 		return
 
+	# Only deal damage if we actually have the player
+	if player == null:
+		return
+
 	damage_timer += delta
 	if damage_timer < damage_interval:
 		return
-
 	damage_timer = 0.0
 
 	var death_cause := ""
@@ -91,13 +101,11 @@ func _process(delta):
 	else:
 		death_cause = "hunger"
 
-	if player:
-		var prev_health = player.synced_health
-		player.take_damage(1)
-
-		if not death_message_sent and (player.synced_health <= 0 or prev_health <= 1):
-			death_message_sent = true
-			_send_death_message(death_cause)
+	var prev_health = player.synced_health
+	player.take_damage(1)
+	if not death_message_sent and (player.synced_health <= 0 or prev_health <= 1):
+		death_message_sent = true
+		_send_death_message(death_cause)
 
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -111,3 +119,9 @@ func _send_death_message(cause: String):
 		chat._broadcast_message.rpc(msg)
 	else:
 		chat._add_message(msg)
+
+func reset_stats():
+	hunger = 100.0
+	thirst = 100.0
+	hunger_bar.value = 100.0
+	thirst_bar.value = 100.0
