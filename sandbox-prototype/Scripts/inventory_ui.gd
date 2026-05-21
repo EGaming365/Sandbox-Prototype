@@ -295,7 +295,7 @@ var _last_near_bench: bool = false
 
 func _process(_delta):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if chat and chat.is_open:
+	if chat and chat.get("is_open"):
 		return
 
 	if Input.is_action_just_pressed("inventory"):

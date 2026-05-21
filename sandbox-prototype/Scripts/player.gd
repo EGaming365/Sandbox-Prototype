@@ -561,7 +561,7 @@ func _is_inventory_open() -> bool:
 	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	var wardrobe = get_tree().root.get_node_or_null("Scene/CanvasLayer/Wardrobe_UI")
-	var chat_open = chat != null and chat.is_open
+	var chat_open = chat != null and chat.get("is_open")
 	return (inv != null and inv.visible) or chat_open or (wardrobe != null and wardrobe.visible)
 
 func _is_chat_open() -> bool:

@@ -130,8 +130,8 @@ func _get_local_player():
 	if not scene_node:
 		return null
 
-	if scene_node.local_player:
-		return scene_node.local_player
+	if scene_node.get("local_player"):
+		return scene_node.get("local_player")
 
 	for child in scene_node.get_children():
 		if child is CharacterBody2D:
@@ -143,7 +143,6 @@ func _get_local_player():
 func _update_chunks_around_player():
 	if not tilemap:
 		return
-
 	var player = _get_local_player()
 	if not player:
 		return

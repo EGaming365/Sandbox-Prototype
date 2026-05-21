@@ -5,7 +5,7 @@ enum State { CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
 @export var enemy_id: int = -1
 @export var speed: float = 170.0
 @export var health: int = 10
-@export var attack_damage: int = 2
+@export var attack_damage: int = 1
 @export var attack_range: float = 200.0
 @export var attack_cooldown_max: float = 3.5
 @export var charge_time: float = 1.2

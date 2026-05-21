@@ -112,7 +112,7 @@ func _send_death_message(cause: String):
 	if not chat:
 		return
 
-	var player_name = Steam.getFriendPersonaName(Steam.getSteamID()) if multiplayer.has_multiplayer_peer() else "Player"
+	var player_name = Steam.getFriendPersonaName(Steam.getSteamID()) if (multiplayer.has_multiplayer_peer() and Steam != null) else "Player"
 	var msg = player_name + " died of " + cause
 
 	if multiplayer.has_multiplayer_peer():
