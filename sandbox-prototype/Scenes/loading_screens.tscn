@@ -1,0 +1,43 @@
+[gd_scene format=3 uid="uid://bntvgvq510n6m"]
+
+[ext_resource type="Script" uid="uid://dmtmgw20j564f" path="res://loading_screens.gd" id="1_goviw"]
+
+[node name="Loading_Screens" type="CanvasLayer" unique_id=1310011039]
+script = ExtResource("1_goviw")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=777782570]
+root_node = NodePath("../VBoxContainer")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1720804446]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 990.0
+offset_top = 582.0
+offset_right = 1030.0
+offset_bottom = 622.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(-50.553825, -29.395832)
+color = Color(0, 0, 0, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1144459325]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -25.0
+offset_right = 20.0
+offset_bottom = 25.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer" unique_id=1170931222]
+layout_mode = 2
+
+[node name="SubLabel" type="Label" parent="VBoxContainer" unique_id=1245102015]
+layout_mode = 2

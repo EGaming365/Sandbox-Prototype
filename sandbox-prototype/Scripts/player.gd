@@ -32,29 +32,23 @@ const ATTACK_RANGE: float = 120.0
 const SWORD_DAMAGE: int = 2
 const STONE_SWORD_DAMAGE: int = 4
 
-# Parry / block constants
-# The parry window opens when the enemy enters the final PARRY_WINDOW seconds of
-# its charge glow (right-click starts a timer; if the dash lands inside that window
-# it counts as a perfect parry).
-const PARRY_WINDOW: float = 0.16  # tighter parry window
+const PARRY_WINDOW: float = 0.16
 const PARRY_DURABILITY_COST: int = 1
 const BLOCK_DURABILITY_COST: int = 4
-const PARRY_COUNTER_DAMAGE: int = 9999  # one-shots any night enemy
+const PARRY_COUNTER_DAMAGE: int = 9999
 
-# After releasing block the player cannot re-block for this duration.
-# This stops spam-parrying by repeatedly tapping right-click.
 const BLOCK_COOLDOWN_MAX: float = 0.6
 
 const FEET_OFFSET: float = 1.0
 var camera: Camera2D = null
 var is_blocking: bool = false
 var parry_timer: float = 0.0
-var block_cooldown: float = 0.0   # counts DOWN; player can't block while > 0
-var _parry_just_landed: bool = false  # prevents _stop_blocking re-applying cooldown after a parry
+var block_cooldown: float = 0.0
+var _parry_just_landed: bool = false
 
 var drowning_timer: float = 0.0
 var drowning_dead: bool = false
-const DROWN_TIME: float = 4.0
+const DROWN_TIME: float = 8.0
 
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
@@ -87,7 +81,6 @@ func _ready():
 		var scene_node = get_tree().root.get_node_or_null("Scene")
 		if scene_node:
 			if multiplayer.is_server():
-				# Host registers directly without RPC
 				scene_node.peer_to_steam_id[multiplayer.get_unique_id()] = Steam.getSteamID()
 				scene_node.sync_peer_steam_ids.rpc(scene_node.peer_to_steam_id)
 			else:
@@ -193,15 +186,12 @@ func _physics_process(delta):
 
 		if parry_timer > 0.0:
 			parry_timer = max(parry_timer - delta, 0.0)
-			# Turn off highlight as soon as parry window closes
 			if parry_timer <= 0.0:
 				_set_parry_highlight(false)
 
-		# Tick down the block cooldown (spam prevention)
 		if block_cooldown > 0.0:
 			block_cooldown = max(block_cooldown - delta, 0.0)
 
-		# Auto-release block if mouse is no longer held
 		if is_blocking and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 			_stop_blocking()
 
@@ -251,18 +241,15 @@ func _input(event):
 			_try_attack()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 		if event.pressed and _is_holding_sword():
-			# Only allow blocking if the cooldown has expired
 			if block_cooldown <= 0.0:
 				_start_blocking()
 		elif not event.pressed:
 			_stop_blocking()
 
 func _try_attack():
-	# Cooldown and cursor are only applied if something is actually hit
 	var scene_node = get_tree().root.get_node("Scene")
 	var mouse_world_pos = get_global_mouse_position()
 
-	# ── Night enemies: group search, nearest within range ───────────────────
 	var best_enemy: Node = null
 	var best_dist: float = ATTACK_RANGE + 1.0
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
@@ -283,14 +270,13 @@ func _try_attack():
 		_consume_sword_durability()
 		return
 
-	# ── Chickens and players ────────────────────────────────────────────────
 	for child in scene_node.get_children():
 		if child == self:
 			continue
 		if not child is Node2D:
 			continue
 		var dist_to_player: float = global_position.distance_to(child.global_position)
-		var dist_to_mouse: float  = mouse_world_pos.distance_to(child.global_position)
+		var dist_to_mouse: float = mouse_world_pos.distance_to(child.global_position)
 		if dist_to_player > ATTACK_RANGE:
 			continue
 		if dist_to_mouse > 60.0:
@@ -332,16 +318,13 @@ func _consume_sword_durability(amount: int = 1) -> bool:
 	return false
 
 func _kill_chicken(chicken: Node2D) -> void:
-	# Spawn a burst of grey particles at the chicken's position, then remove it
 	_spawn_feather_burst(chicken.global_position)
 	if chicken.has_method("take_damage"):
-		# Pass massive damage so any health value dies
 		chicken.take_damage(9999)
 	else:
 		chicken.queue_free()
 
 func _spawn_feather_burst(pos: Vector2) -> void:
-	# CPUParticles2D — works without a GPU, no extra scene needed
 	var particles := CPUParticles2D.new()
 	get_tree().root.get_node("Scene").add_child(particles)
 	particles.global_position = pos
@@ -358,10 +341,8 @@ func _spawn_feather_burst(pos: Vector2) -> void:
 	particles.initial_velocity_max = 140.0
 	particles.scale_amount_min = 2.5
 	particles.scale_amount_max = 5.0
-	# Grey/white puff colour
 	particles.color = Color(0.75, 0.75, 0.75, 1.0)
 	particles.color_ramp = null
-	# Auto-free after burst finishes
 	var timer := get_tree().create_timer(particles.lifetime + 0.1)
 	timer.timeout.connect(func(): if is_instance_valid(particles): particles.queue_free())
 
@@ -374,7 +355,6 @@ func _get_sword_damage() -> int:
 	return SWORD_DAMAGE
 
 func _parry_success_flash() -> void:
-	# Massive white screen flash to make parry feel impactful
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if canvas:
 		var flash := ColorRect.new()
@@ -386,7 +366,6 @@ func _parry_success_flash() -> void:
 		var t := create_tween()
 		t.tween_property(flash, "color:a", 0.0, 0.25)
 		t.tween_callback(flash.queue_free)
-	# Also blast the player sprite bright white then back
 	var orig_c := Color(1, 1, 1, 1)
 	var blast_c := Color(3.0, 3.0, 3.0, 1.0)
 	anim.modulate = blast_c
@@ -404,7 +383,6 @@ func _start_blocking() -> void:
 	parry_timer = PARRY_WINDOW
 	if hand_sprite:
 		hand_sprite.rotation_degrees = -35.0
-	# Highlight immediately — parry window is open right now
 	_set_parry_highlight(true)
 
 func _set_parry_highlight(on: bool) -> void:
@@ -416,14 +394,12 @@ func _set_parry_highlight(on: bool) -> void:
 
 func _stop_blocking() -> void:
 	if is_blocking and not _parry_just_landed:
-		# Only apply cooldown if this wasn't a successful parry
 		block_cooldown = BLOCK_COOLDOWN_MAX
 	_parry_just_landed = false
 	is_blocking = false
 	parry_timer = 0.0
 	if hand_sprite:
 		hand_sprite.rotation_degrees = 0.0
-	# Remove parry highlight
 	_set_parry_highlight(false)
 
 func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
@@ -431,23 +407,19 @@ func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
 		return
 	if is_blocking and _is_holding_sword():
 		if parry_timer > 0.0:
-			# Perfect parry — player right-clicked while glow was near full yellow
 			_consume_sword_durability(PARRY_DURABILITY_COST)
 			parry_timer = 0.0
 			block_cooldown = 0.0
-			_parry_just_landed = true  # stop _stop_blocking from re-applying cooldown
+			_parry_just_landed = true
 			_parry_success_flash()
 			if enemy and enemy.has_method("take_damage"):
 				if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
-					# Client — send request to host
 					var scene_node = get_tree().root.get_node_or_null("Scene")
 					if scene_node and scene_node.has_method("request_damage_night_enemy"):
 						scene_node.request_damage_night_enemy.rpc_id(1, enemy.get("enemy_id"), PARRY_COUNTER_DAMAGE)
 				else:
-					# Singleplayer or we ARE the host — never RPC to ourselves
 					enemy.take_damage(PARRY_COUNTER_DAMAGE)
 			return
-		# Late block — absorbed but costs more durability, no counter
 		if _consume_sword_durability(BLOCK_DURABILITY_COST):
 			return
 	take_damage(amount)
@@ -458,10 +430,20 @@ func take_damage(amount: int):
 	if is_dead:
 		return
 	synced_health = max(synced_health - amount, 0)
+	var right_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+	if right_ui:
+		right_ui.regen_timer = 0.0
 	if synced_health <= 0:
 		die()
 	else:
 		_flash_damage()
+
+func heal(amount: int):
+	if not is_multiplayer_authority() and multiplayer.has_multiplayer_peer():
+		return
+	if is_dead:
+		return
+	synced_health = min(synced_health + amount, max_health)
 
 func die():
 	is_dead = true
@@ -627,6 +609,7 @@ func sync_drowning_alpha_rpc(alpha: float):
 	if is_multiplayer_authority():
 		return
 	_set_drowning_alpha(alpha)
+
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	if not chat:
