@@ -15,7 +15,9 @@ const TOOL_MAX_DURABILITY = {
 	"Pickaxe": 80.0,
 	"Stone Axe": 120.0,
 	"Stone Sword": 40.0,
-	"Stone Pickaxe": 100.0
+	"Stone Pickaxe": 100.0,
+	"Fishing Rod": 50.0,
+	"Stone Fishing Rod": 100.0
 }
 
 var slot_scene_default: StyleBox = preload("res://Resources/hotbar_default.tres")
@@ -85,13 +87,11 @@ func _build_tabs():
 	for child in tab_bar.get_children():
 		child.queue_free()
 	tab_buttons.clear()
-
 	var inv_tab = Button.new()
 	inv_tab.text = "Inventory"
 	inv_tab.pressed.connect(func(): _switch_tab("inventory"))
 	tab_bar.add_child(inv_tab)
 	tab_buttons.append(inv_tab)
-
 	var recipe_tab = Button.new()
 	recipe_tab.text = "Recipes"
 	recipe_tab.pressed.connect(func(): _switch_tab("recipes"))
@@ -123,7 +123,6 @@ func _build_slots():
 	for child in grid.get_children():
 		child.queue_free()
 	inv_slots_ui.clear()
-
 	for i in TOTAL_SLOTS:
 		var panel = Panel.new()
 		panel.custom_minimum_size = Vector2(64, 64)
@@ -131,7 +130,6 @@ func _build_slots():
 		panel.add_theme_stylebox_override("panel", style)
 		grid.add_child(panel)
 		inv_slots_ui.append(panel)
-
 		if i >= UNLOCKED_SLOTS:
 			var overlay = ColorRect.new()
 			overlay.color = Color(0.0, 0.0, 0.0, 0.4)
@@ -163,21 +161,16 @@ func update_inventory():
 	for i in UNLOCKED_SLOTS:
 		var slot = inv_slots_ui[i]
 		var data = Inventory.inv_slots[i]
-
 		var prev_item = slot.get_meta("last_item", "")
 		var prev_count = slot.get_meta("last_count", -1)
 		if prev_item == data["item"] and prev_count == data["count"]:
 			continue
-
 		slot.set_meta("last_item", data["item"])
 		slot.set_meta("last_count", data["count"])
-
 		for child in slot.get_children():
 			child.queue_free()
-
 		if data["item"] == "":
 			continue
-
 		var tex = TextureRect.new()
 		tex.texture = data["texture"]
 		tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
@@ -189,7 +182,6 @@ func update_inventory():
 		tex.offset_bottom = -6
 		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot.add_child(tex)
-
 		if not Inventory.non_stackable_items.has(data["item"]):
 			var label = Label.new()
 			label.text = str(min(data["count"], 99))
@@ -203,10 +195,22 @@ func update_inventory():
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			label.offset_left = -24 if data["count"] >= 10 else -14
 			slot.add_child(label)
-
+		elif _is_fish_item(data["item"]) and data["count"] > 0:
+			var label = Label.new()
+			label.text = Inventory.get_fish_weight_display(data["item"], data["count"])
+			label.add_theme_font_size_override("font_size", 11)
+			label.add_theme_color_override("font_color", Color.WHITE)
+			label.add_theme_color_override("font_outline_color", Color.BLACK)
+			label.add_theme_constant_override("outline_size", 4)
+			label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+			label.offset_top = -22
+			label.offset_bottom = -8
+			label.offset_left = -48
+			label.offset_right = -2
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slot.add_child(label)
 		if TOOL_MAX_DURABILITY.has(data["item"]):
 			_add_durability_bar(slot, data["count"], TOOL_MAX_DURABILITY[data["item"]])
-
 	if current_tab == "recipes":
 		_update_recipe_panel()
 
@@ -240,6 +244,16 @@ func _gui_input_for_slot(event, index):
 				var tex = Inventory.inv_slots[index]["texture"]
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				var remaining = Inventory.inv_slots[index]["count"]
+				if _is_fish_item(item_name):
+					for i in Inventory.slots.size():
+						if Inventory.slots[i]["item"] == "":
+							Inventory.slots[i]["item"] = item_name
+							Inventory.slots[i]["count"] = remaining
+							Inventory.slots[i]["texture"] = tex
+							Inventory.inv_slots[index] = {"item": "", "count": 0, "texture": null}
+							Inventory.inventory_changed.emit()
+							break
+					return
 				if not is_non_stackable:
 					for i in Inventory.slots.size():
 						if remaining <= 0:
@@ -297,7 +311,6 @@ func _process(_delta):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	if chat and chat.get("is_open"):
 		return
-
 	if Input.is_action_just_pressed("inventory"):
 		if visible and current_tab == "inventory":
 			toggle()
@@ -307,7 +320,6 @@ func _process(_delta):
 			toggle_to("inventory")
 		get_viewport().set_input_as_handled()
 		return
-
 	if Input.is_action_just_pressed("crafting"):
 		if visible and current_tab == "recipes":
 			toggle()
@@ -317,10 +329,8 @@ func _process(_delta):
 			toggle_to("recipes")
 		get_viewport().set_input_as_handled()
 		return
-
 	if not visible:
 		return
-
 	if Input.is_action_just_pressed("slot_up") or Input.is_action_just_pressed("slot_down"):
 		if current_tab == "inventory":
 			_switch_tab("recipes")
@@ -328,12 +338,10 @@ func _process(_delta):
 			_switch_tab("inventory")
 		get_viewport().set_input_as_handled()
 		return
-
 	if Input.is_action_just_pressed("exit"):
 		toggle()
 		get_viewport().set_input_as_handled()
 		return
-
 	var near_bench = Crafting.is_near_bench()
 	if near_bench != _last_near_bench:
 		_last_near_bench = near_bench
@@ -341,7 +349,6 @@ func _process(_delta):
 			selected_recipe = {}
 		if current_tab == "recipes":
 			_update_recipe_panel()
-
 	if not drag_node:
 		if Input.is_action_just_pressed("click"):
 			var inv_panel = $PanelContainer
@@ -360,7 +367,6 @@ func _process(_delta):
 				on_left_ui = left_ui.get_node("HBoxContainer/Button2").get_global_rect().has_point(mouse)
 			if not on_inv and not on_hotbar and not on_left_ui:
 				toggle()
-
 	if Input.is_action_just_pressed("drop") and not drag_node and hovered_slot != -1:
 		var data = Inventory.inv_slots[hovered_slot]
 		if data["item"] != "":
@@ -376,14 +382,12 @@ func _process(_delta):
 					_spawn_drop_stack(player, item_type, count)
 				Inventory.remove_item(hovered_slot, true)
 		return
-
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			var dropped_on_inv = get_hovered_slot()
 			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 			var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
-
 			if dropped_on_inv != -1 and dropped_on_inv != dragging_from:
 				Inventory.move_item(dragging_from, dropped_on_inv, true, true)
 			elif dropped_on_hotbar != -1:
@@ -402,7 +406,6 @@ func _process(_delta):
 						else:
 							_spawn_drop_stack(player, item_type, count)
 						Inventory.remove_item(dragging_from, true)
-
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
@@ -413,7 +416,6 @@ func _process(_delta):
 func _update_recipe_panel():
 	var scroll_vbox = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/ScrollContainer/VBoxContainer
 	var detail = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/Detail
-
 	for child in scroll_vbox.get_children():
 		scroll_vbox.remove_child(child)
 		child.queue_free()
@@ -421,12 +423,10 @@ func _update_recipe_panel():
 		for child in detail.get_children():
 			detail.remove_child(child)
 			child.queue_free()
-
 	var cat_bar = HBoxContainer.new()
 	cat_bar.add_theme_constant_override("separation", 4)
 	scroll_vbox.add_child(cat_bar)
 	category_buttons.clear()
-
 	for cat in ["All", "Blocks", "Equipment"]:
 		var btn = Button.new()
 		btn.text = cat
@@ -438,13 +438,11 @@ func _update_recipe_panel():
 		cat_bar.add_child(btn)
 		category_buttons.append(btn)
 		btn.modulate = Color(2.0, 2.0, 2.0, 1.0) if cat.to_lower() == recipe_category else Color(0.6, 0.6, 0.6, 1.0)
-
 	var grid = GridContainer.new()
 	grid.columns = 6
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
 	scroll_vbox.add_child(grid)
-
 	var blocks = []
 	var equipment = []
 	var all_recipes = Crafting.basic_recipes + Crafting.bench_recipes
@@ -457,7 +455,6 @@ func _update_recipe_panel():
 			equipment.append(recipe)
 		else:
 			blocks.append(recipe)
-
 	var filtered: Array = []
 	match recipe_category:
 		"all":
@@ -466,14 +463,12 @@ func _update_recipe_panel():
 			filtered = equipment
 		"blocks":
 			filtered = blocks
-
 	for recipe in filtered:
 		_add_recipe_icon(grid, recipe, detail)
 
 func _add_recipe_icon(grid: GridContainer, recipe: Dictionary, detail: VBoxContainer):
 	var btn = Button.new()
 	btn.custom_minimum_size = Vector2(52, 52)
-
 	var can_craft = Crafting.can_craft(recipe)
 	var btn_style = StyleBoxFlat.new()
 	btn_style.bg_color = Color(0.5, 0.5, 0.5, 1.0) if can_craft else Color(0.25, 0.25, 0.25, 1.0)
@@ -484,7 +479,6 @@ func _add_recipe_icon(grid: GridContainer, recipe: Dictionary, detail: VBoxConta
 	btn.add_theme_stylebox_override("normal", btn_style)
 	btn.add_theme_stylebox_override("hover", btn_style)
 	btn.add_theme_stylebox_override("pressed", btn_style)
-
 	var tex = TextureRect.new()
 	tex.texture = Crafting.get_item_texture(recipe["result"])
 	tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
@@ -496,7 +490,6 @@ func _add_recipe_icon(grid: GridContainer, recipe: Dictionary, detail: VBoxConta
 	tex.offset_bottom = -4
 	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(tex)
-
 	var r = recipe
 	var state = {"last_click": 0.0, "timer": null}
 	btn.gui_input.connect(func(event):
@@ -525,24 +518,20 @@ func _show_recipe_detail(recipe: Dictionary, detail: VBoxContainer):
 	selected_recipe = recipe
 	for child in detail.get_children():
 		child.queue_free()
-
 	var icon = TextureRect.new()
 	icon.texture = Crafting.get_item_texture(recipe["result"])
 	icon.custom_minimum_size = Vector2(64, 64)
 	icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	detail.add_child(icon)
-
 	var name_label = Label.new()
 	name_label.text = str(recipe["result_count"]) + "x " + recipe["result"]
 	name_label.add_theme_font_size_override("font_size", 16)
 	detail.add_child(name_label)
-
 	var ing_header = Label.new()
 	ing_header.text = "Requires:"
 	ing_header.add_theme_font_size_override("font_size", 12)
 	detail.add_child(ing_header)
-
 	for item in recipe["ingredients"]:
 		var ing_label = Label.new()
 		var have = Inventory.count_item(item)
@@ -550,13 +539,11 @@ func _show_recipe_detail(recipe: Dictionary, detail: VBoxContainer):
 		ing_label.text = str(need) + "x " + item + " (" + str(have) + " owned)"
 		ing_label.modulate = Color(0.6, 1.0, 0.6) if have >= need else Color(1.0, 0.5, 0.5)
 		detail.add_child(ing_label)
-
 	if Crafting.bench_recipes.has(recipe):
 		var bench_label = Label.new()
 		bench_label.text = "Requires Crafting Bench"
 		bench_label.modulate = Color(1.0, 0.8, 0.4)
 		detail.add_child(bench_label)
-
 	var craft_btn = Button.new()
 	craft_btn.text = "Craft"
 	craft_btn.disabled = not Crafting.can_craft(recipe)
@@ -574,7 +561,6 @@ func _on_craft(recipe: Dictionary, btn: Button):
 		Crafting.craft(recipe)
 		if btn != null and is_instance_valid(btn):
 			btn.text = "Done!"
-		# Refresh detail panel
 		if not selected_recipe.is_empty():
 			var detail = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/Detail
 			_show_recipe_detail(selected_recipe, detail)
@@ -592,20 +578,17 @@ func _on_craft_max(recipe: Dictionary, btn: Button):
 	if btn != null and is_instance_valid(btn):
 		btn.disabled = true
 		btn.text = "Crafting..."
-
 	var crafted = 0
 	while Crafting.can_craft(recipe):
 		for item in recipe["ingredients"]:
 			Crafting._remove_item(item, recipe["ingredients"][item])
 		Crafting._add_result_silent(recipe)
 		crafted += 1
-
 	if crafted > 0:
 		Inventory.inventory_changed.emit()
 		if not selected_recipe.is_empty():
 			var detail = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/Detail
 			_show_recipe_detail(selected_recipe, detail)
-
 	if btn != null and is_instance_valid(btn):
 		btn.disabled = false
 		btn.text = "Done x" + str(crafted) + "!" if crafted > 0 else "Need more!"
@@ -629,3 +612,9 @@ func toggle_to(tab: String):
 			overlay.show()
 		_switch_tab(tab)
 		update_inventory()
+
+func _is_fish_item(item_name: String) -> bool:
+	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish"]:
+		if item_name == f or item_name == "Albino " + f:
+			return true
+	return false

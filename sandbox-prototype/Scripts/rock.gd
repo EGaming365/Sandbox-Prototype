@@ -5,17 +5,14 @@ var max_hits = randi_range(10, 15)
 var hits = 0
 var rock_id: int = -1
 var env_id: String = ""
+var trunk_base_y: float = 0.0
 
 func _ready():
 	add_to_group("rocks")
 	z_index = 2
+	trunk_base_y = global_position.y
 	if has_meta("env_id"):
 		env_id = str(get_meta("env_id"))
-	var img = Image.create(24, 24, false, Image.FORMAT_RGB8)
-	img.fill(Color(0.5, 0.5, 0.5))
-	var tex = ImageTexture.create_from_image(img)
-	$Sprite2D.texture = tex
-	$Sprite2D.scale = Vector2(1, 1)
 
 func _process(_delta):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")

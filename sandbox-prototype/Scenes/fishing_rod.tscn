@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://ckew6eodintan"]
+
+[ext_resource type="Script" uid="uid://b5oka6fruc2ds" path="res://Scripts/fishing_rod.gd" id="1_t02qk"]
+[ext_resource type="Texture2D" uid="uid://bwc84wx5foide" path="res://Assets/Fishing_Rod.png" id="2_t02qk"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_88tmn"]
+
+[node name="Fishing_Rod" type="Node2D" unique_id=1041182104]
+script = ExtResource("1_t02qk")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=643354702]
+texture = ExtResource("2_t02qk")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=352666169]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=2144586876]
+scale = Vector2(1.1644938, 1.1644938)
+shape = SubResource("CircleShape2D_88tmn")

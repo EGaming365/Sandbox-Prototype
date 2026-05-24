@@ -20,11 +20,29 @@ var wardrobe_texture = preload("res://Assets/Wardrobe.png")
 var wood_plank_texture = preload("res://Assets/Wood_Planks.png")
 var stone_texture = preload("res://Assets/Stone.png")
 var chicken_raw_texture = preload("res://Assets/Chicken_Raw.png")
-
+var fishing_rod_texture = preload("res://Assets/Fishing_Rod.png")
+var stone_fishing_rod_texture = preload("res://Assets/Stone_Fishing_Rod.png")
+var tophat_fish_texture = preload("res://Assets/Fish_Tophat_Raw.png")
+var perch_texture = preload("res://Assets/Fish_Perch_Raw.png")
+var catfish_texture = preload("res://Assets/Fish_Catfish_Raw.png")
+var bass_texture = preload("res://Assets/Fish_Bass_Raw.png")
+var minnow_texture = preload("res://Assets/Fish_Minnow_Raw.png")
+var pike_texture = preload("res://Assets/Fish_Pike_Raw.png")
+var sturgeon_texture = preload("res://Assets/Fish_Sturgeon_Raw.png")
 
 var TEXTURE_MAP: Dictionary = {}
 
-var non_stackable_items = ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Wardrobe"]
+var non_stackable_items = [
+	"Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe",
+	"Wardrobe", "Fishing Rod", "Stone Fishing Rod",
+	"Tophat Fish", "Albino Tophat Fish",
+	"Minnow", "Albino Minnow",
+	"Perch", "Albino Perch",
+	"Bass", "Albino Bass",
+	"Pike", "Albino Pike",
+	"Catfish", "Albino Catfish",
+	"Sturgeon", "Albino Sturgeon",
+]
 var discovered_items: Dictionary = {}
 
 var _emit_dirty: bool = false
@@ -44,8 +62,23 @@ func _ready():
 		"Wood Plank": wood_plank_texture,
 		"Stone": stone_texture,
 		"Chicken_Raw": chicken_raw_texture,
+		"Fishing Rod": fishing_rod_texture,
+		"Tophat Fish": tophat_fish_texture,
+		"Albino Tophat Fish": tophat_fish_texture,
+		"Perch": perch_texture,
+		"Albino Perch": perch_texture,
+		"Catfish": catfish_texture,
+		"Albino Catfish": catfish_texture,
+		"Bass": bass_texture,
+		"Albino Bass": bass_texture,
+		"Minnow": minnow_texture,
+		"Albino Minnow": minnow_texture,
+		"Pike": pike_texture,
+		"Albino Pike": pike_texture,
+		"Sturgeon": sturgeon_texture,
+		"Albino Sturgeon": sturgeon_texture,
+		"Stone Fishing Rod": stone_fishing_rod_texture,
 	}
-	
 	TEXTURE_MAP = {}
 	for item_name in textures_to_resize:
 		var tex = textures_to_resize[item_name]
@@ -58,7 +91,6 @@ func _ready():
 				TEXTURE_MAP[item_name] = tex
 		else:
 			TEXTURE_MAP[item_name] = tex
-	
 	for i in max_slots:
 		slots.append({"item": "", "count": 0, "texture": null})
 	for i in max_inv_slots:
@@ -267,3 +299,10 @@ func consume_axe_durability():
 
 func request_inventory_update():
 	inventory_changed.emit()
+
+func get_fish_weight_display(item_name: String, grams: int) -> String:
+	if grams <= 0:
+		return ""
+	if grams < 1000:
+		return str(grams) + "g"
+	return str(snappedf(grams / 1000.0, 0.01)) + "kg"

@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://dtemiuhwkqqff"]
+
+[ext_resource type="Script" uid="uid://7tfty1ct33nx" path="res://Scenes/minnow.gd" id="1_0drm5"]
+[ext_resource type="Texture2D" uid="uid://cg5u7qe5hbin3" path="res://Assets/Fish_Minnow_Raw.png" id="2_7xo3c"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Minnow" type="Node2D" unique_id=2093844244]
+scale = Vector2(1.2776177, 1.2776177)
+script = ExtResource("1_0drm5")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+texture = ExtResource("2_7xo3c")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+position = Vector2(0, -0.7827067)
+scale = Vector2(0.57097304, 0.57097304)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

@@ -57,26 +57,6 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_cvnsp"]
-properties/0/path = NodePath(".:synced_velocity")
-properties/0/spawn = true
-properties/0/replication_mode = 1
-properties/1/path = NodePath(".:synced_held_item")
-properties/1/spawn = true
-properties/1/replication_mode = 1
-properties/2/path = NodePath(".:synced_health")
-properties/2/spawn = true
-properties/2/replication_mode = 1
-properties/3/path = NodePath(".:synced_hair")
-properties/3/spawn = true
-properties/3/replication_mode = 1
-properties/4/path = NodePath(".:synced_shirt")
-properties/4/spawn = true
-properties/4/replication_mode = 1
-properties/5/path = NodePath(".:synced_pants")
-properties/5/spawn = true
-properties/5/replication_mode = 1
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_8erm5"]
 atlas = ExtResource("3_fkybt")
 region = Rect2(0, 0, 32, 32)
@@ -237,10 +217,6 @@ position = Vector2(0, -29.333328)
 scale = Vector2(1.8125, 1.8125)
 sprite_frames = SubResource("SpriteFrames_3smsa")
 animation = &"walk_down"
-
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=822851407]
-replication_interval = 0.016
-replication_config = SubResource("SceneReplicationConfig_cvnsp")
 
 [node name="Hair_Sprite" type="AnimatedSprite2D" parent="." unique_id=395436925]
 position = Vector2(0, -29.21269)

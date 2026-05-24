@@ -17,7 +17,7 @@ func _ready():
 
 func _process(_delta):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if chat and chat.is_open:
+	if is_instance_valid(chat) and "is_open" in chat and chat.is_open:
 		return
 	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	if inv and inv.visible:

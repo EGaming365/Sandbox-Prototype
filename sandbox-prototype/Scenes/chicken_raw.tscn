@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://d0jd4e38x4wrt"]
 
 [ext_resource type="Texture2D" uid="uid://h68dstnc0s3a" path="res://Assets/Chicken_Raw.png" id="1_lbkd2"]
-[ext_resource type="Script" uid="uid://vg2wnk7hqcta" path="res://Scenes/chicken_raw.gd" id="2_lbkd2"]
+[ext_resource type="Script" uid="uid://vg2wnk7hqcta" path="res://Scripts/chicken_raw.gd" id="2_lbkd2"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_tfydv"]
 radius = 11.901794

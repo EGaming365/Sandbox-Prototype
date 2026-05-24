@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://cp6qewwbceh1c"]
+
+[ext_resource type="Script" uid="uid://bct8xjhhp68yc" path="res://Scenes/pike.gd" id="1_s3qfa"]
+[ext_resource type="Texture2D" uid="uid://yh6c4ap7i6w6" path="res://Assets/Fish_Pike_Raw.png" id="2_gihbn"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Pike" type="Node2D" unique_id=2093844244]
+scale = Vector2(1.2776177, 1.2776177)
+script = ExtResource("1_s3qfa")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+texture = ExtResource("2_gihbn")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+position = Vector2(1.5654135, 0)
+scale = Vector2(1.1407521, 1.1407521)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b70x50vbfkvak"]
 
-[ext_resource type="Script" uid="uid://bm0i6qr32t8v" path="res://Scenes/night_enemy.gd" id="1_72esr"]
+[ext_resource type="Script" uid="uid://bm0i6qr32t8v" path="res://Scripts/night_enemy.gd" id="1_72esr"]
 [ext_resource type="Texture2D" uid="uid://ppxdkn8r0ymw" path="res://Assets/Chicken-Walk_down.png" id="2_pdra7"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jy3mo"]

@@ -16,6 +16,9 @@ var stone_axe_texture: Texture2D = preload("res://Assets/Stone_Axe.png")
 var stone_sword_texture: Texture2D = preload("res://Assets/Stone_Sword.png")
 var stone_pickaxe_texture: Texture2D = preload("res://Assets/Stone_Pickaxe.png")
 var wardrobe_texture: Texture2D = preload("res://Assets/Wardrobe.png")
+var fishing_rod_texture: Texture2D = preload("res://Assets/Fishing_Rod.png")
+var stone_fishing_rod_texture: Texture2D = preload("res://Assets/Stone_Fishing_Rod.png")
+var tophat_fish_texture: Texture2D = preload("res://Assets/Fish_Tophat_Raw.png")
 
 @onready var scroll_container: ScrollContainer = $ChatContainer/ScrollContainer
 @onready var messages_container: VBoxContainer = $ChatContainer/ScrollContainer/Messages
@@ -25,15 +28,21 @@ var wardrobe_texture: Texture2D = preload("res://Assets/Wardrobe.png")
 var _chat_close_cooldown: float = 0.0
 
 func _get_steam_name_for_peer(peer_id: int) -> String:
-	var my_steam_id = Steam.getSteamID()
-	if peer_id == multiplayer.get_unique_id():
-		return Steam.getFriendPersonaName(my_steam_id)
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node:
 		var steam_id = scene_node.peer_to_steam_id.get(peer_id, 0)
 		if steam_id != 0:
-			return Steam.getFriendPersonaName(steam_id)
-	return "Unknown"
+			var name = Steam.getFriendPersonaName(steam_id)
+			if name != "" and name != null:
+				return name
+			name = Steam.requestUserInformation(steam_id, true)
+			var persona = Steam.getFriendPersonaName(steam_id)
+			if persona != "" and persona != null:
+				return persona
+			return "Player_" + str(steam_id)
+	if peer_id == multiplayer.get_unique_id():
+		return Steam.getFriendPersonaName(Steam.getSteamID())
+	return "Player_" + str(peer_id)
 
 func _handle_command(text: String):
 	var parts = text.split(" ")
@@ -45,13 +54,18 @@ func _handle_command(text: String):
 				_add_message("[System] No permission.")
 				return
 			if parts.size() < 3:
-				_add_message("[System] Usage: /give <player_name> <item_name> [amount]")
+				_add_message("[System] Usage: /give <player_name> <item_name> [amount_or_weight_kg]")
 				return
-			var amount = 1
+			var amount: int = 1
+			var weight_kg: float = 0.0
 			var item_name: String
 			var target_name = parts[1]
-			if parts[parts.size() - 1].is_valid_int() and parts.size() >= 4:
-				amount = parts[parts.size() - 1].to_int()
+			var last = parts[parts.size() - 1]
+			if parts.size() >= 4 and last.is_valid_float() and not last.is_valid_int():
+				weight_kg = last.to_float()
+				item_name = " ".join(parts.slice(2, parts.size() - 1))
+			elif parts.size() >= 4 and last.is_valid_int():
+				amount = last.to_int()
 				if amount <= 0:
 					_add_message("[System] Amount must be greater than 0.")
 					return
@@ -67,7 +81,23 @@ func _handle_command(text: String):
 				"stone": item_name = "Stone"
 				"pickaxe": item_name = "Pickaxe"
 				"wardrobe": item_name = "Wardrobe"
-			_give_item_to_player(target_name, item_name, amount)
+				"fishing rod": item_name = "Fishing Rod"
+				"stone fishing rod": item_name = "Stone Fishing Rod"
+				"tophat fish": item_name = "Tophat Fish"
+				"minnow": item_name = "Minnow"
+				"perch": item_name = "Perch"
+				"bass": item_name = "Bass"
+				"pike": item_name = "Pike"
+				"catfish": item_name = "Catfish"
+				"sturgeon": item_name = "Sturgeon"
+				"albino minnow": item_name = "Albino Minnow"
+				"albino perch": item_name = "Albino Perch"
+				"albino bass": item_name = "Albino Bass"
+				"albino pike": item_name = "Albino Pike"
+				"albino catfish": item_name = "Albino Catfish"
+				"albino sturgeon": item_name = "Albino Sturgeon"
+				"albino tophat fish": item_name = "Albino Tophat Fish"
+			_give_item_to_player(target_name, item_name, amount, weight_kg)
 		"/weather":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
@@ -247,29 +277,26 @@ func _handle_command(text: String):
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 
-func _give_item_to_player(target_name: String, item_name: String, amount: int):
+func _give_item_to_player(target_name: String, item_name: String, amount: int, weight_kg: float = 0.0):
 	var scene_node = get_tree().root.get_node("Scene")
 	var target_peer_id: int = -1
 	var found_name: String = ""
 	var my_steam_id = Steam.getSteamID()
-
 	if not multiplayer.has_multiplayer_peer():
 		found_name = Steam.getFriendPersonaName(my_steam_id)
 		if not found_name.to_lower().begins_with(target_name.to_lower()):
 			_add_message("[System] Player '" + target_name + "' not found.")
 			return
-		_do_give_item(item_name, amount)
+		_do_give_item(item_name, amount, weight_kg)
 		_add_message("[System] Gave " + str(amount) + "x " + item_name + " to " + found_name)
 		return
-
 	var matches = []
 	for child in scene_node.get_children():
 		if child is CharacterBody2D:
 			var peer_id = child.get_multiplayer_authority()
 			var sname = _get_steam_name_for_peer(peer_id)
-			if sname.to_lower().begins_with(target_name.to_lower()):
+			if sname.to_lower().contains(target_name.to_lower()):
 				matches.append({"peer_id": peer_id, "name": sname})
-
 	if matches.size() == 0:
 		_add_message("[System] Player '" + target_name + "' not found.")
 		return
@@ -279,44 +306,89 @@ func _give_item_to_player(target_name: String, item_name: String, amount: int):
 			names += m["name"] + ", "
 		_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
 		return
-
 	target_peer_id = matches[0]["peer_id"]
 	found_name = matches[0]["name"]
-
 	if target_peer_id == multiplayer.get_unique_id():
-		_do_give_item(item_name, amount)
+		_do_give_item(item_name, amount, weight_kg)
 	else:
-		_rpc_give_item.rpc_id(target_peer_id, item_name, amount)
+		_rpc_give_item.rpc_id(target_peer_id, item_name, amount, weight_kg)
 	_add_message("[System] Gave " + str(amount) + "x " + item_name + " to " + found_name)
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_give_item(item_name: String, amount: int):
-	_do_give_item(item_name, amount)
+func _rpc_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
+	_do_give_item(item_name, amount, weight_kg)
 
 func _get_item_texture(item_name: String) -> Texture2D:
+	if item_name in FISH_ITEM_NAMES:
+		return tophat_fish_texture
 	match item_name.to_lower():
 		"wood": return wood_texture
 		"wood plank": return Crafting.plank_texture
 		"axe": return axe_texture
 		"sword": return sword_texture
-		"pickaxe": return Crafting.pickaxe_texture
-		"crafting_bench": return Crafting.bench_texture
+		"pickaxe": return pickaxe_texture
+		"crafting bench": return Crafting.bench_texture
 		"stone axe": return stone_axe_texture
 		"stone sword": return stone_sword_texture
 		"stone pickaxe": return stone_pickaxe_texture
 		"stone": return stone_texture
 		"wardrobe": return wardrobe_texture
+		"fishing rod": return fishing_rod_texture
+		"stone fishing rod": return stone_fishing_rod_texture
+		"tophat fish": return tophat_fish_texture
 	return null
 
-func _do_give_item(item_name: String, amount: int):
+const FISH_ITEM_NAMES: Array = [
+	"Tophat Fish", "Albino Tophat Fish",
+	"Minnow", "Albino Minnow",
+	"Perch", "Albino Perch",
+	"Bass", "Albino Bass",
+	"Pike", "Albino Pike",
+	"Catfish", "Albino Catfish",
+	"Sturgeon", "Albino Sturgeon",
+]
+
+const FISH_BASE_WEIGHTS: Dictionary = {
+	"Minnow": 0.08, "Perch": 0.3, "Bass": 1.2, "Pike": 2.5,
+	"Catfish": 4.0, "Sturgeon": 12.0, "Tophat Fish": 0.6,
+}
+
+func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 	var tex = _get_item_texture(item_name)
 	if tex == null:
 		var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 		img.fill(Color.WHITE)
 		tex = ImageTexture.create_from_image(img)
+	Inventory.discover(item_name)
+	if item_name in FISH_ITEM_NAMES:
+		var base_name := item_name.replace("Albino ", "")
+		var base_kg: float = FISH_BASE_WEIGHTS.get(base_name, 1.0)
+		var final_kg: float = weight_kg if weight_kg > 0.0 else base_kg
+		var grams: int = int(round(final_kg * 1000.0))
+		for i in amount:
+			for slot in Inventory.slots:
+				if slot["item"] == "":
+					slot["item"] = item_name
+					slot["count"] = grams
+					slot["texture"] = tex
+					break
+				else:
+					for j in 20:
+						if Inventory.inv_slots[j]["item"] == "":
+							Inventory.inv_slots[j]["item"] = item_name
+							Inventory.inv_slots[j]["count"] = grams
+							Inventory.inv_slots[j]["texture"] = tex
+							break
+		Inventory.inventory_changed.emit()
+		return
 	const UNLOCKED_INV_SLOTS = 20
-	if item_name in ["Axe", "Sword"]:
-		var dur = 80 if item_name == "Axe" else 30
+	if item_name in ["Axe", "Sword", "Fishing Rod", "Stone Fishing Rod"]:
+		var dur: int
+		match item_name:
+			"Axe": dur = 80
+			"Sword": dur = 30
+			"Fishing Rod": dur = 50
+			"Stone Fishing Rod": dur = 100
 		for i in amount:
 			var added = false
 			for slot in Inventory.slots:
@@ -371,7 +443,6 @@ func _do_give_item(item_name: String, amount: int):
 				slot["texture"] = tex
 				remaining -= add
 	Inventory.inventory_changed.emit()
-	Inventory.discover(item_name)
 
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
@@ -454,8 +525,12 @@ func _give_item(item_name: String, amount: int):
 		var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
 		img.fill(Color.WHITE)
 		tex = ImageTexture.create_from_image(img)
-	if item_name in ["Axe", "Sword"]:
-		var dur = 80 if item_name == "Axe" else 30
+	if item_name in ["Axe", "Sword", "Fishing Rod"]:
+		var dur: int
+		match item_name:
+			"Axe": dur = 80
+			"Sword": dur = 30
+			"Fishing Rod": dur = 100
 		for i in amount:
 			Inventory.add_item_with_count(item_name, tex, dur)
 	else:

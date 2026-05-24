@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://bp3p7g0pscj6m"]
+
+[ext_resource type="Script" uid="uid://pkoe0xuhuyph" path="res://bass.gd" id="1_yrm7e"]
+[ext_resource type="Texture2D" uid="uid://ccrfehuvgx80b" path="res://Assets/Fish_Bass_Raw.png" id="2_sopg0"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Bass" type="Node2D" unique_id=2093844244]
+scale = Vector2(1.2776177, 1.2776177)
+script = ExtResource("1_yrm7e")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+texture = ExtResource("2_sopg0")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

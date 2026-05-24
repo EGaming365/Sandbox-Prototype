@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bu7mldckwwp4u"
-path="res://.godot/imported/Fish_Dace_Raw.png-221add5a24c29e1492ea3ca353757205.ctex"
+uid="uid://c21cjpx1pnml8"
+path="res://.godot/imported/Fish_Tophat_Raw.png-752dc76472a177d73a5214de0cfcee9f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Fish_Dace_Raw.png"
-dest_files=["res://.godot/imported/Fish_Dace_Raw.png-221add5a24c29e1492ea3ca353757205.ctex"]
+source_file="res://Assets/Fish_Tophat_Raw.png"
+dest_files=["res://.godot/imported/Fish_Tophat_Raw.png-752dc76472a177d73a5214de0cfcee9f.ctex"]
 
 [params]
 

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bntvgvq510n6m"]
 
-[ext_resource type="Script" uid="uid://dmtmgw20j564f" path="res://loading_screens.gd" id="1_goviw"]
+[ext_resource type="Script" uid="uid://dmtmgw20j564f" path="res://Scripts/loading_screens.gd" id="1_goviw"]
 
 [node name="Loading_Screens" type="CanvasLayer" unique_id=1310011039]
 script = ExtResource("1_goviw")

@@ -27,6 +27,28 @@ var last_placed_texture: Texture2D = null
 @onready var join_button: Button = $CanvasLayer/Join_Button
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
 
+const FISH_ITEM_NAMES: Array = [
+	"Tophat Fish", "Albino Tophat Fish",
+	"Minnow", "Albino Minnow",
+	"Perch", "Albino Perch",
+	"Bass", "Albino Bass",
+	"Pike", "Albino Pike",
+	"Catfish", "Albino Catfish",
+	"Sturgeon", "Albino Sturgeon",
+]
+
+const NON_STACKABLE_FLOOR_ITEMS: Array = [
+	"Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe",
+	"Wardrobe", "Fishing Rod", "Stone Fishing Rod",
+	"Tophat Fish", "Albino Tophat Fish",
+	"Minnow", "Albino Minnow",
+	"Perch", "Albino Perch",
+	"Bass", "Albino Bass",
+	"Pike", "Albino Pike",
+	"Catfish", "Albino Catfish",
+	"Sturgeon", "Albino Sturgeon",
+]
+
 func _ready():
 	y_sort_enabled = true
 	get_tree().set_auto_accept_quit(false)
@@ -76,6 +98,8 @@ func sync_world_rpc(seed: int, synced_tile_size: int, frequency: float, threshol
 		world_gen.set_world_settings(seed, synced_tile_size, frequency, threshold)
 	if env_gen:
 		env_gen.set_world_seed(seed)
+		await get_tree().process_frame
+		await get_tree().process_frame
 		await get_tree().process_frame
 		env_gen.apply_env_state(destroyed, hits)
 
@@ -135,10 +159,15 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	print("Lobby Created, Lobby id: ", lobby_id)
 	print("Lobby ID copied to clipboard!")
 	if has_node("1"):
-		get_node("1").name = str(multiplayer.get_unique_id())
-		get_node(str(multiplayer.get_unique_id())).set_multiplayer_authority(multiplayer.get_unique_id(), true)
-	else:
-		_spawn_player(multiplayer.get_unique_id())
+		var old = get_node("1")
+		var ms = old.get_node_or_null("MultiplayerSynchronizer")
+		if ms:
+			ms.set_process(false)
+			ms.set_physics_process(false)
+		old.queue_free()
+		await get_tree().process_frame
+		await get_tree().process_frame
+	_spawn_player(multiplayer.get_unique_id())
 	var world_gen = get_node_or_null("WorldGen")
 	if world_gen:
 		if world_gen.world_seed == 0:
@@ -147,7 +176,6 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if env_gen:
 		env_gen.set_world_seed(synced_world_seed)
-	# Register host's own steam ID
 	peer_to_steam_id[multiplayer.get_unique_id()] = Steam.getSteamID()
 
 func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, response: int):
@@ -166,9 +194,8 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	multiplayer.server_disconnected.connect(_on_host_disconnected)
 	multiplayer.peer_disconnected.connect(_remove_player)
 	if has_node("1"):
-		var player = get_node("1")
-		player.name = str(multiplayer.get_unique_id())
-		player.set_multiplayer_authority(multiplayer.get_unique_id())
+		get_node("1").queue_free()
+		await get_tree().process_frame
 
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
@@ -177,7 +204,7 @@ func _on_peer_connected(id: int):
 	var weather = get_node_or_null("Weather")
 	if weather:
 		weather.sync_weather_state.rpc_id(id, weather.current_weather, weather.time_of_day, weather.weather_timer)
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(6.0).timeout
 	if not multiplayer.get_peers().has(id):
 		return
 	var ids_to_send: Array[int] = []
@@ -186,11 +213,18 @@ func _on_peer_connected(id: int):
 			ids_to_send.append(child.name.to_int())
 	sync_players_to_client.rpc_id(id, ids_to_send)
 	sync_floor_items_to_peer(id)
+	var fishing_manager = get_node_or_null("/root/FishingManager")
+	if fishing_manager:
+		fishing_manager.sync_fishing_state_to_peer(id)
 	sync_placed_blocks_to_peer(id)
 	sync_chickens_and_enemies_to_peer(id)
 	var chat = get_node_or_null("CanvasLayer/Chat_Box")
 	if chat:
-		var player_name = Steam.getFriendPersonaName(id)
+		await get_tree().create_timer(1.0).timeout
+		var steam_id = peer_to_steam_id.get(id, 0)
+		var player_name = ""
+		if steam_id != 0:
+			player_name = Steam.getFriendPersonaName(steam_id)
 		if player_name == "" or player_name == null:
 			player_name = "A player"
 		chat._broadcast_message.rpc(player_name + " joined the world")
@@ -238,8 +272,8 @@ func _spawn_player(id: int):
 		return
 	var player = player_scene.instantiate()
 	player.name = str(id)
-	add_child(player)
 	player.set_multiplayer_authority(id, true)
+	add_child(player)
 	player.global_position = _find_safe_spawn(Vector2(0, 0))
 
 func _remove_player(id: int):
@@ -340,7 +374,7 @@ func _get_item_texture(item_name: String) -> Texture2D:
 	for slot in Inventory.inv_slots:
 		if slot["item"] == item_name and slot["texture"] != null:
 			return slot["texture"]
-	return last_placed_texture
+	return Inventory.get_texture(item_name)
 
 func remove_placed_block(block_id: int):
 	if placed_blocks.has(block_id):
@@ -398,7 +432,7 @@ func register_block_hit(block_id: int):
 	process_block_hit(block_id)
 
 func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
-	if not item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Wardrobe"]:
+	if not item_type in NON_STACKABLE_FLOOR_ITEMS:
 		for item_id in floor_items:
 			var item = floor_items[item_id]
 			if not is_instance_valid(item):
@@ -423,16 +457,6 @@ func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability:
 		_do_spawn_floor_item(id, pos.x, pos.y, item_type, durability)
 	return id
 
-@rpc("authority", "call_local", "reliable")
-func increment_floor_item_rpc(item_id: int):
-	if floor_items.has(item_id) and is_instance_valid(floor_items[item_id]):
-		floor_items[item_id].stack_count += 1
-		floor_items[item_id]._update_label()
-
-@rpc("any_peer", "call_local", "reliable")
-func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
-	_do_spawn_floor_item(item_id, pos_x, pos_y, item_type, durability)
-
 func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 60):
 	if floor_items.has(item_id):
 		return
@@ -444,79 +468,123 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 		floor_items[item_id] = wardrobe
 		add_child(wardrobe)
 		return
-	var item_scene
-	match item_type:
-		"Wood":
-			item_scene = preload("res://Scenes/wood.tscn")
-		"Wood Plank":
-			item_scene = preload("res://Scenes/wooden_plank.tscn")
-		"Axe":
-			item_scene = preload("res://Scenes/wooden_axe.tscn")
-		"Sword":
-			item_scene = preload("res://Scenes/wooden_sword.tscn")
-		"Pickaxe":
-			item_scene = preload("res://Scenes/wooden_pickaxe.tscn")
-		"Crafting_Bench":
-			item_scene = preload("res://Scenes/crafting_bench.tscn")
-		"Stone":
-			item_scene = preload("res://Scenes/stone.tscn")
-		"Stone Axe":
-			item_scene = preload("res://Scenes/stone_axe.tscn")
-		"Stone Sword":
-			item_scene = preload("res://Scenes/stone_sword.tscn")
-		"Stone Pickaxe":
-			item_scene = preload("res://Scenes/stone_pickaxe.tscn")
-		"Chicken_Raw":
-			item_scene = preload("res://Scenes/chicken_raw.tscn")
-		_:
-			item_scene = preload("res://Scenes/wood.tscn")
+	var item_scene: PackedScene
+	if item_type in FISH_ITEM_NAMES:
+		match item_type:
+			"Perch", "Albino Perch":
+				item_scene = preload("res://Scenes/perch.tscn")
+			"Catfish", "Albino Catfish":
+				item_scene = preload("res://Scenes/catfish.tscn")
+			"Bass", "Albino Bass":
+				item_scene = preload("res://Scenes/bass.tscn")
+			"Minnow", "Albino Minnow":
+				item_scene = preload("res://Scenes/minnow.tscn")
+			"Sturgeon", "Albino Sturgeon":
+				item_scene = preload("res://Scenes/sturgeon.tscn")
+			"Pike", "Albino Pike":
+				item_scene = preload("res://Scenes/pike.tscn")
+			_:
+				item_scene = preload("res://Scenes/tophat_fish.tscn")
+	else:
+		match item_type:
+			"Wood":
+				item_scene = preload("res://Scenes/wood.tscn")
+			"Wood Plank":
+				item_scene = preload("res://Scenes/wooden_plank.tscn")
+			"Axe":
+				item_scene = preload("res://Scenes/wooden_axe.tscn")
+			"Sword":
+				item_scene = preload("res://Scenes/wooden_sword.tscn")
+			"Pickaxe":
+				item_scene = preload("res://Scenes/wooden_pickaxe.tscn")
+			"Crafting_Bench":
+				item_scene = preload("res://Scenes/crafting_bench.tscn")
+			"Stone":
+				item_scene = preload("res://Scenes/stone.tscn")
+			"Stone Axe":
+				item_scene = preload("res://Scenes/stone_axe.tscn")
+			"Stone Sword":
+				item_scene = preload("res://Scenes/stone_sword.tscn")
+			"Stone Pickaxe":
+				item_scene = preload("res://Scenes/stone_pickaxe.tscn")
+			"Chicken_Raw":
+				item_scene = preload("res://Scenes/chicken_raw.tscn")
+			"Fishing Rod":
+				item_scene = preload("res://Scenes/fishing_rod.tscn")
+			"Stone Fishing Rod":
+				item_scene = preload("res://Scenes/stone_fishing_rod.tscn")
+			_:
+				item_scene = preload("res://Scenes/wood.tscn")
 	var item = item_scene.instantiate()
 	item.item_id = item_id
-	if item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe"]:
+	if item_type in FISH_ITEM_NAMES:
+		item.item_type = item_type
+		item.durability = durability
+		item.set_meta("item_name", item_type)
+	elif item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Fishing Rod", "Stone Fishing Rod"]:
 		item.durability = durability
 	item.global_position = Vector2(pos_x, pos_y)
 	floor_items[item_id] = item
 	add_child(item)
-
-@rpc("any_peer", "call_remote", "reliable")
-func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
-	if not is_host:
-		return
-	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability)
 
 func sync_floor_items_to_peer(peer_id: int):
 	if not multiplayer.get_peers().has(peer_id):
 		return
 	for item_id in floor_items:
 		var item = floor_items[item_id]
-		if is_instance_valid(item):
-			var pos = item.global_position
-			var script_path = item.get_script().resource_path
-			var item_type = "Wood"
-			if script_path.contains("wooden_plank"):
-				item_type = "Wood Plank"
-			elif script_path.contains("wooden_axe"):
-				item_type = "Axe"
-			elif script_path.contains("wooden_sword"):
-				item_type = "Sword"
-			elif script_path.contains("stone_axe"):
-				item_type = "Stone Axe"
-			elif script_path.contains("stone_sword"):
-				item_type = "Stone Sword"
-			elif script_path.contains("stone_pickaxe"):
-				item_type = "Stone Pickaxe"
-			elif script_path.contains("pickaxe"):
-				item_type = "Pickaxe"
-			elif script_path.contains("crafting_bench"):
-				item_type = "Crafting_Bench"
-			elif script_path.contains("stone"):
-				item_type = "Stone"
-			elif script_path.contains("wardrobe"):
-				item_type = "Wardrobe"
-			elif script_path.contains("chicken_raw"):
-				item_type = "Chicken_Raw"
-			var dur = item.durability if item.get("durability") != null else 1
-			spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
+		if not is_instance_valid(item):
+			continue
+		var pos = item.global_position
+		var script_path = item.get_script().resource_path
+		var item_type: String
+		if script_path.contains("tophat_fish"):
+			item_type = item.get_meta("item_name", "Tophat Fish")
+		elif script_path.contains("wooden_plank"):
+			item_type = "Wood Plank"
+		elif script_path.contains("wooden_axe"):
+			item_type = "Axe"
+		elif script_path.contains("wooden_sword"):
+			item_type = "Sword"
+		elif script_path.contains("stone_axe"):
+			item_type = "Stone Axe"
+		elif script_path.contains("stone_sword"):
+			item_type = "Stone Sword"
+		elif script_path.contains("stone_pickaxe"):
+			item_type = "Stone Pickaxe"
+		elif script_path.contains("pickaxe"):
+			item_type = "Pickaxe"
+		elif script_path.contains("crafting_bench"):
+			item_type = "Crafting_Bench"
+		elif script_path.contains("stone"):
+			item_type = "Stone"
+		elif script_path.contains("wardrobe"):
+			item_type = "Wardrobe"
+		elif script_path.contains("chicken_raw"):
+			item_type = "Chicken_Raw"
+		elif script_path.contains("fishing_rod"):
+			item_type = "Fishing Rod"
+		elif script_path.contains("stone_fishing_rod"):
+			item_type = "Stone Fishing Rod"
+		else:
+			item_type = "Wood"
+		var dur: int = item.durability if item.get("durability") != null else 1
+		spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur)
+
+@rpc("authority", "call_local", "reliable")
+func increment_floor_item_rpc(item_id: int):
+	if floor_items.has(item_id) and is_instance_valid(floor_items[item_id]):
+		floor_items[item_id].stack_count += 1
+		floor_items[item_id]._update_label()
+
+@rpc("any_peer", "call_local", "reliable")
+func spawn_floor_item_rpc(item_id: int, pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
+	_do_spawn_floor_item(item_id, pos_x, pos_y, item_type, durability)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_spawn_floor_item(pos_x: float, pos_y: float, item_type: String = "Wood", durability: int = 1):
+	if not is_host:
+		return
+	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability)
 
 func remove_floor_item(item_id: int):
 	if floor_items.has(item_id):

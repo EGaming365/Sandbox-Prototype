@@ -22,6 +22,7 @@ Crafting="*uid://cx7qqws6ginpx"
 BuildingManager="*uid://bapqqvvyq1ewe"
 AnimalSpawner="*uid://dngajdl8sw05c"
 Loading_Screens="*uid://bntvgvq510n6m"
+FishingManager="*uid://b8trf3tx7dses"
 
 [display]
 

@@ -28,6 +28,7 @@ extends Node2D
 @export var grass_color_r_min: float = 0.85
 @export var grass_color_g_min: float = 0.90
 @export var grass_color_b_min: float = 0.80
+@export var grass_min_distance: float = 60.0
 
 var scene_node: Node
 var world_gen: Node
@@ -47,16 +48,11 @@ var env_object_hits: Dictionary = {}
 var _chunk_load_queue: Array = []
 var _object_spawn_queue: Array = []
 
-# Build queue: each entry is a chunk_coord.
-# We process one pass of one chunk per frame.
 var _chunk_build_queue: Array = []
 var _building_chunk: Vector2i = Vector2i(999999, 999999)
 var _build_jobs: Array = []
 var _build_kind_index: int = 0
 
-# Biome sample cache local to the current chunk build.
-# Cleared when a new chunk starts. Avoids re-querying WorldGen for the
-# same world position across multiple placement attempts.
 var _biome_cache: Dictionary = {}
 
 var _build_kinds: Array = [
@@ -75,33 +71,26 @@ var _grass_nodes: Dictionary = {}
 
 var _world_state_received: bool = false
 
-# ─────────────────────────────────────────────
-#  READY
-# ─────────────────────────────────────────────
+const _BIOME_CELL: float = 24.0
+
 func _ready():
 	scene_node = get_tree().root.get_node_or_null("Scene")
 	world_gen   = get_tree().root.get_node_or_null("Scene/WorldGen")
 	_packed_tree_scene = load(tree_scene_path)
 	_packed_rock_scene = load(rock_scene_path)
-
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
-
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
-
 	if world_gen and world_gen.get("world_seed") != null:
 		world_seed = world_gen.world_seed
 
 	for i in range(1, 9):
-		var tex = load("res://Assets/grass" + str(i) + ".png")
+		var tex = load("res://Assets/Grass" + str(i) + ".png")
 		if tex:
 			_grass_textures.append(tex)
 
-# ─────────────────────────────────────────────
-#  PROCESS
-# ─────────────────────────────────────────────
 func _process(delta):
 	_process_load_queue_step()
 	_step_chunk_build()
@@ -119,9 +108,6 @@ func _process(delta):
 		return
 	_update_chunks_around_player()
 
-# ─────────────────────────────────────────────
-#  CHUNK LOAD QUEUE  (one per frame)
-# ─────────────────────────────────────────────
 func _process_load_queue_step():
 	if _chunk_load_queue.is_empty():
 		return
@@ -131,9 +117,6 @@ func _process_load_queue_step():
 	if not _chunk_load_queue.is_empty() and _chunk_load_queue[0] == chunk_coord:
 		_chunk_load_queue.pop_front()
 
-# ─────────────────────────────────────────────
-#  CHUNK BUILD  (one kind-pass per frame)
-# ─────────────────────────────────────────────
 func _start_chunk_build(chunk_coord: Vector2i):
 	_building_chunk = chunk_coord
 	_build_jobs.clear()
@@ -147,8 +130,6 @@ func _start_chunk_build(chunk_coord: Vector2i):
 		{ "kind": "grass", "forest": false, "count": float(grass_count_per_chunk), "min_dist": 0.0 },
 	]
 
-# Maximum WorldGen biome queries allowed per frame across the whole build step.
-# Keeps frame time flat regardless of spawn density or distance travelled.
 const _MAX_BIOME_QUERIES_PER_FRAME: int = 60
 var _biome_queries_this_frame: int = 0
 
@@ -228,8 +209,6 @@ func _build_object_pass(chunk_coord: Vector2i, kind: String, wants_forest: bool,
 
 		spawned += 1
 
-# Grass pass: pure data — produces one "grass" job per valid blade,
-# then _process_object_spawn_queue creates the MultiMesh when that job is processed.
 func _build_grass_pass(chunk_coord: Vector2i):
 	if _grass_textures.is_empty():
 		return
@@ -244,15 +223,41 @@ func _build_grass_pass(chunk_coord: Vector2i):
 	var world_max: Vector2 = bounds[1]
 
 	var blades: Array = []
-	for _i in range(grass_count_per_chunk):
+	var placed_positions: Array = []
+	var attempts := 0
+	var max_attempts := grass_count_per_chunk * max_spawn_attempts_per_object
+
+	while placed_positions.size() < grass_count_per_chunk and attempts < max_attempts:
+		attempts += 1
 		var pos := Vector2(
 			rng.randf_range(world_min.x, world_max.x),
 			rng.randf_range(world_min.y, world_max.y)
 		)
+
 		if _is_water_cached(pos):
 			continue
+		var too_close_to_water := false
+		for offset in [Vector2(water_clearance_radius, 0), Vector2(-water_clearance_radius, 0),
+				Vector2(0, water_clearance_radius), Vector2(0, -water_clearance_radius)]:
+			if _is_water_cached(pos + offset):
+				too_close_to_water = true
+				break
+		if too_close_to_water:
+			continue
+
+		if grass_min_distance > 0.0:
+			var min_sq := grass_min_distance * grass_min_distance
+			var too_close := false
+			for other in placed_positions:
+				if pos.distance_squared_to(other) < min_sq:
+					too_close = true
+					break
+			if too_close:
+				continue
+
+		placed_positions.append(pos)
 		var tex: Texture2D = _grass_textures[rng.randi() % _grass_textures.size()]
-		var sc: float  = rng.randf_range(grass_min_scale, grass_max_scale)
+		var sc: float = rng.randf_range(grass_min_scale, grass_max_scale)
 		var rot: float = rng.randf_range(grass_min_rotation, grass_max_rotation)
 		var col := Color(
 			rng.randf_range(grass_color_r_min, 1.0),
@@ -264,12 +269,9 @@ func _build_grass_pass(chunk_coord: Vector2i):
 	if blades.is_empty():
 		return
 
-	# One job carrying all blade data — built into a MultiMesh in the spawn step.
-	_build_jobs.append({ "env_id": "", "kind": "grass", "pos": Vector2.ZERO, "chunk_coord": chunk_coord, "blades": blades })
+	_build_jobs.append({ "env_id": "", "kind": "grass", "pos": Vector2.ZERO,
+			"chunk_coord": chunk_coord, "blades": blades })
 
-# ─────────────────────────────────────────────
-#  OBJECT SPAWN QUEUE
-# ─────────────────────────────────────────────
 func _process_object_spawn_queue():
 	var spawned := 0
 	while spawned < objects_spawned_per_frame and not _object_spawn_queue.is_empty():
@@ -293,9 +295,6 @@ func _process_object_spawn_queue():
 		_spawn_object(env_id, job["kind"], job["pos"], chunk_coord)
 		spawned += 1
 
-# ─────────────────────────────────────────────
-#  GRASS MULTIMESH  (built from queued blade data)
-# ─────────────────────────────────────────────
 func _build_grass_multimesh(chunk_coord: Vector2i, blades: Array):
 	if _grass_nodes.has(chunk_coord):
 		return
@@ -343,13 +342,6 @@ func _build_grass_multimesh(chunk_coord: Vector2i, blades: Array):
 
 	_grass_nodes[chunk_coord] = root
 
-# ─────────────────────────────────────────────
-#  BIOME CACHE  (per chunk-build, avoids repeat WorldGen calls)
-# ─────────────────────────────────────────────
-
-# Snap position to a coarse grid so nearby positions reuse the same result.
-const _BIOME_CELL: float = 64.0
-
 func _biome_key(pos: Vector2) -> Vector2i:
 	return Vector2i(floori(pos.x / _BIOME_CELL), floori(pos.y / _BIOME_CELL))
 
@@ -378,7 +370,6 @@ func _is_forest_cached(pos: Vector2) -> bool:
 	return result
 
 func _is_safely_in_biome_cached(pos: Vector2, wants_forest: bool) -> bool:
-	# Water check first (cheapest rejection)
 	if _is_water_cached(pos):
 		return false
 	var r := biome_edge_check_radius
@@ -392,9 +383,6 @@ func _is_safely_in_biome_cached(pos: Vector2, wants_forest: bool) -> bool:
 			return false
 	return true
 
-# ─────────────────────────────────────────────
-#  DISTANCE RULE  (9-chunk neighbourhood only)
-# ─────────────────────────────────────────────
 func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: float) -> bool:
 	var min_sq := min_distance * min_distance
 	for dx in [-1, 0, 1]:
@@ -407,9 +395,6 @@ func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: fl
 					return false
 	return true
 
-# ─────────────────────────────────────────────
-#  PUBLIC API
-# ─────────────────────────────────────────────
 func apply_env_state(destroyed: Dictionary, hits: Dictionary):
 	_world_state_received = true
 	destroyed_env_objects = destroyed.duplicate(true)
@@ -435,9 +420,6 @@ func set_object_hits(env_id: String, hits: int):
 		if is_instance_valid(obj) and _has_property(obj, "hits"):
 			obj.hits = hits
 
-# ─────────────────────────────────────────────
-#  CHUNK LIFECYCLE
-# ─────────────────────────────────────────────
 func _update_chunks_around_player():
 	var player_tile: Vector2i  = world_gen.world_to_tile(local_player.global_position)
 	var center_chunk: Vector2i = world_gen.tile_to_chunk(player_tile)
@@ -514,9 +496,6 @@ func _unload_all_chunks():
 	object_positions_by_chunk.clear()
 	active_objects.clear()
 
-# ─────────────────────────────────────────────
-#  SPAWN / DESPAWN
-# ─────────────────────────────────────────────
 func _spawn_object(env_id: String, kind: String, pos: Vector2, _chunk_coord: Vector2i):
 	if active_objects.has(env_id):
 		return
@@ -548,9 +527,6 @@ func _despawn_object(env_id: String):
 		obj.queue_free()
 	active_objects.erase(env_id)
 
-# ─────────────────────────────────────────────
-#  HELPERS
-# ─────────────────────────────────────────────
 func _refresh_references() -> bool:
 	if not scene_node:
 		scene_node = get_tree().root.get_node_or_null("Scene")

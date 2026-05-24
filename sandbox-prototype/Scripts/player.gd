@@ -15,6 +15,7 @@ extends CharacterBody2D
 @export var respawn_delay: float = 1.2
 @export var death_shrink_time: float = 0.65
 
+var is_fishing: bool = false
 var damage_flash_tween: Tween = null
 var death_tween: Tween = null
 var base_anim_scale: Vector2
@@ -101,7 +102,7 @@ var _hand_scales: Dictionary = {}
 
 func _setup_hand():
 	hand_sprite = Sprite2D.new()
-	hand_sprite.position = Vector2(-10, -16)
+	hand_sprite.position = Vector2(-7, -19)
 	hand_sprite.z_as_relative = true
 	hand_sprite.z_index = 0
 	hand_sprite.scale = Vector2(0.017, 0.017)
@@ -156,7 +157,13 @@ func _physics_process(delta):
 		if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 			_play_anim("idle")
 		return
-
+	if is_fishing and (is_multiplayer_authority() or not multiplayer.has_multiplayer_peer()):
+		velocity = Vector2.ZERO
+		move_and_slide()
+		_play_anim("idle")
+		if multiplayer.has_multiplayer_peer() and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
+		return
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		velocity = synced_velocity
 		move_and_slide()
@@ -226,8 +233,10 @@ func _physics_process(delta):
 	move_and_slide()
 	_update_hand_sprite()
 
-	if multiplayer.has_multiplayer_peer():
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
+	if not multiplayer.has_multiplayer_peer():
+		return
 
 func _input(event):
 	if is_dead:
@@ -273,6 +282,8 @@ func _try_attack():
 	for child in scene_node.get_children():
 		if child == self:
 			continue
+		if not child is CharacterBody2D:
+			continue
 		if not child is Node2D:
 			continue
 		var dist_to_player: float = global_position.distance_to(child.global_position)
@@ -282,17 +293,14 @@ func _try_attack():
 		if dist_to_mouse > 60.0:
 			continue
 		if child.is_in_group("players"):
+			if multiplayer.has_multiplayer_peer() and child.name.to_int() == multiplayer.get_unique_id():
+				continue
 			_apply_attack_cooldown()
 			if multiplayer.has_multiplayer_peer():
 				var target_id = child.name.to_int()
 				scene_node.request_deal_damage.rpc_id(1, target_id, _get_sword_damage())
 			else:
 				child.take_damage(_get_sword_damage())
-			_consume_sword_durability()
-			return
-		if child.is_in_group("chickens"):
-			_apply_attack_cooldown()
-			_kill_chicken(child)
 			_consume_sword_durability()
 			return
 
@@ -581,8 +589,10 @@ func _update_drowning(delta: float):
 
 	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
 	_set_drowning_alpha(alpha)
-	if multiplayer.has_multiplayer_peer():
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_drowning_alpha_rpc.rpc(alpha)
+	if not multiplayer.has_multiplayer_peer():
+		return
 
 	if drowning_timer >= DROWN_TIME and not drowning_dead:
 		drowning_dead = true

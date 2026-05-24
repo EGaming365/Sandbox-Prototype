@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://d25lshahy3jou"]
 
-[ext_resource type="Script" uid="uid://bkmcvv4278di3" path="res://Scenes/fishing_minigame.gd" id="1_vwdgs"]
+[ext_resource type="Script" uid="uid://bkmcvv4278di3" path="res://Scripts/fishing_minigame.gd" id="1_vwdgs"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hcuqm"]
 
@@ -21,18 +21,21 @@ script = ExtResource("1_vwdgs")
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
-color = Color(0, 0, 0, 0.53333336)
+color = Color(0, 0, 0, 0)
 
 [node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1198312758]
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
+theme_override_constants/separation = 16
 
 [node name="ProgressBar" type="Control" parent="HBoxContainer" unique_id=1727151904]
 custom_minimum_size = Vector2(36, 280)
 layout_mode = 2
 
 [node name="Panel" type="Panel" parent="HBoxContainer/ProgressBar" unique_id=1464648213]
+modulate = Color(1, 1, 1, 0)
+self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
@@ -42,12 +45,15 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_hcuqm")
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
+color = Color(0, 1, 0, 1)
 
 [node name="Catchbar" type="Control" parent="HBoxContainer" unique_id=66169213]
 custom_minimum_size = Vector2(80, 280)
 layout_mode = 2
 
 [node name="Panel" type="Panel" parent="HBoxContainer/Catchbar" unique_id=662412171]
+modulate = Color(1, 1, 1, 0)
+self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
@@ -62,11 +68,13 @@ offset_bottom = 40.0
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
+color = Color(0, 0, 0, 1)
 
 [node name="FishLabel" type="Label" parent="." unique_id=459130695]
 layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
+offset_top = -34.0
+offset_right = 94.0
+offset_bottom = -11.0
 text = "Hold to Reel"
 
 [node name="HoldButton" type="Button" parent="." unique_id=2055227147]

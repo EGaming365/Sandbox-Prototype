@@ -65,8 +65,9 @@ func _ready():
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	if world_seed == 0 and (not multiplayer.has_multiplayer_peer() or multiplayer.is_server()):
-		world_seed = randi()
+	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
+		if world_seed == 0:
+			world_seed = randi()
 		print("World seed: ", world_seed)
 
 	generate_world()
@@ -373,8 +374,6 @@ func is_chunk_loaded(chunk_coord: Vector2i) -> bool:
 	return loaded_chunks.has(chunk_coord)
 
 func _ensure_noise_ready():
-	if noise != null:
-		return
 	noise = FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	noise.seed = world_seed

@@ -21,7 +21,9 @@ const TOOL_MAX_DURABILITY = {
 	"Pickaxe": 80.0,
 	"Stone Axe": 120.0,
 	"Stone Sword": 40.0,
-	"Stone Pickaxe": 100.0
+	"Stone Pickaxe": 100.0,
+	"Fishing Rod": 50.0,
+	"Stone Fishing Rod": 100.0
 }
 
 func _ready():
@@ -127,6 +129,20 @@ func update_hotbar():
 			else:
 				label.offset_left = -14
 			slot.add_child(label)
+		elif _is_fish_item(data["item"]) and data["count"] > 0:
+			var label = Label.new()
+			label.text = Inventory.get_fish_weight_display(data["item"], data["count"])
+			label.add_theme_font_size_override("font_size", 11)
+			label.add_theme_color_override("font_color", Color.WHITE)
+			label.add_theme_color_override("font_outline_color", Color.BLACK)
+			label.add_theme_constant_override("outline_size", 4)
+			label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+			label.offset_top = -22
+			label.offset_bottom = -8
+			label.offset_left = -48
+			label.offset_right = -2
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slot.add_child(label)
 		if TOOL_MAX_DURABILITY.has(data["item"]):
 			var max_dur = TOOL_MAX_DURABILITY[data["item"]]
 			var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
@@ -158,9 +174,19 @@ func _gui_input_for_slot(event, index):
 				var item_name = Inventory.slots[index]["item"]
 				var tex = Inventory.slots[index]["texture"]
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
+				var remaining = Inventory.slots[index]["count"]
 				var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+				if _is_fish_item(item_name):
+					for i in 20:
+						if Inventory.inv_slots[i]["item"] == "":
+							Inventory.inv_slots[i]["item"] = item_name
+							Inventory.inv_slots[i]["count"] = remaining
+							Inventory.inv_slots[i]["texture"] = tex
+							Inventory.slots[index] = {"item": "", "count": 0, "texture": null}
+							Inventory.inventory_changed.emit()
+							break
+					return
 				if inv_ui:
-					var remaining = Inventory.slots[index]["count"]
 					if not is_non_stackable:
 						for i in 20:
 							if remaining <= 0:
@@ -253,6 +279,7 @@ func _process(delta: float) -> void:
 			panel.add_theme_stylebox_override("panel", hotbar_default)
 			panel.z_index = 0
 
+	var prev_slot = current_slot
 	if Input.is_action_just_pressed("slot_1"):
 		current_slot = 1
 	if Input.is_action_just_pressed("slot_2"):
@@ -273,7 +300,6 @@ func _process(delta: float) -> void:
 		current_slot = 9
 	if Input.is_action_just_pressed("slot_0"):
 		current_slot = 10
-
 	if Input.is_action_just_pressed("slot_up"):
 		if current_slot == 1:
 			current_slot = 10
@@ -284,13 +310,18 @@ func _process(delta: float) -> void:
 			current_slot = 1
 		else:
 			current_slot = current_slot + 1
+	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
+	if current_slot != prev_slot and fishing_manager:
+		if fishing_manager._minigame_active or fishing_manager._catch_icon_scene != null:
+			current_slot = prev_slot
+		elif fishing_manager._waiting_for_bite:
+			fishing_manager._cancel_cast()
 
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			var dropped_on_hotbar = _get_hovered_slot()
 			var dropped_on_inv = _get_hovered_inv_slot()
-
 			if dropped_on_hotbar != -1 and dropped_on_hotbar != dragging_from:
 				Inventory.move_item(dragging_from, dropped_on_hotbar, false, false)
 			elif dropped_on_inv != -1:
@@ -301,9 +332,7 @@ func _process(delta: float) -> void:
 				var on_inv_panel = false
 				if inv_ui_node and inv_ui_node.visible:
 					on_inv_panel = inv_ui_node.get_node("PanelContainer").get_global_rect().has_point(mouse)
-				if on_inv_panel:
-					pass
-				else:
+				if not on_inv_panel:
 					var player = get_local_player()
 					if player:
 						var item_type = Inventory.slots[dragging_from]["item"]
@@ -314,7 +343,6 @@ func _process(delta: float) -> void:
 						else:
 							_spawn_drop_stack(player, item_type, count)
 						Inventory.remove_item(dragging_from, false)
-
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
@@ -400,3 +428,16 @@ func _input(event):
 				else:
 					Inventory.slots[slot_index]["count"] -= 1
 					Inventory.inventory_changed.emit()
+			elif data["item"] == "Fishing Rod" or data["item"] == "Stone Fishing Rod":
+				_try_fish_cast(event.position)
+
+func _try_fish_cast(screen_pos: Vector2) -> void:
+	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
+	if fishing_manager:
+		fishing_manager.try_cast(screen_pos)
+
+func _is_fish_item(item_name: String) -> bool:
+	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish"]:
+		if item_name == f or item_name == "Albino " + f:
+			return true
+	return false
