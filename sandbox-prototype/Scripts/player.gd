@@ -77,17 +77,34 @@ func _ready():
 		collision_layer = 0
 		collision_mask = 0
 		$CollisionShape2D.disabled = true
-	if multiplayer.has_multiplayer_peer() and is_multiplayer_authority():
-		await get_tree().process_frame
-		var scene_node = get_tree().root.get_node_or_null("Scene")
-		if scene_node:
-			if multiplayer.is_server():
-				scene_node.peer_to_steam_id[multiplayer.get_unique_id()] = Steam.getSteamID()
-				scene_node.sync_peer_steam_ids.rpc(scene_node.peer_to_steam_id)
-			else:
-				scene_node.register_steam_id.rpc_id(1, Steam.getSteamID())
 	_setup_hand()
 	call_deferred("_setup_camera")
+	if multiplayer.has_multiplayer_peer() and is_multiplayer_authority() and multiplayer.get_unique_id() != 0:
+		_register_steam_id_when_ready.call_deferred()
+
+func _register_steam_id_when_ready():
+	var attempts = 0
+	while attempts < 20:
+		await get_tree().create_timer(0.5).timeout
+		if not is_instance_valid(self):
+			return
+		if not multiplayer.has_multiplayer_peer():
+			return
+		if multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			break
+		attempts += 1
+	if not is_instance_valid(self):
+		return
+	if multiplayer.get_multiplayer_peer().get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		print("ERROR: peer never connected, skipping steam id registration")
+		return
+	var scene_node = get_tree().root.get_node_or_null("Scene")
+	if scene_node:
+		if multiplayer.is_server():
+			scene_node.peer_to_steam_id[multiplayer.get_unique_id()] = Steam.getSteamID()
+			scene_node.sync_peer_steam_ids.rpc(scene_node.peer_to_steam_id)
+		else:
+			scene_node.register_steam_id.rpc_id(1, Steam.getSteamID())
 
 func _play_anim(anim_name: String):
 	anim.play(anim_name)
@@ -233,7 +250,7 @@ func _physics_process(delta):
 	move_and_slide()
 	_update_hand_sprite()
 
-	if multiplayer.has_multiplayer_peer() and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
 	if not multiplayer.has_multiplayer_peer():
 		return

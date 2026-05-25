@@ -6,6 +6,7 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_88tmn"]
 
 [node name="Stone_Fishing_Rod" type="Node2D" unique_id=1041182104]
+scale = Vector2(2.395, 2.395)
 script = ExtResource("1_ltugv")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=643354702]

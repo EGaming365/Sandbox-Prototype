@@ -183,12 +183,16 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	if not is_joining:
 		return
 	lobby_id = new_lobby_id
-	await get_tree().create_timer(1.0).timeout
 	_clear_world_state()
 	_clear_inventory()
+	await get_tree().create_timer(1.0).timeout
 	peer = SteamMultiplayerPeer.new()
 	peer.server_relay = true
-	peer.create_client(Steam.getLobbyOwner(lobby_id))
+	var lobby_owner = Steam.getLobbyOwner(lobby_id)
+	print("Lobby owner: ", lobby_owner)
+	print("My steam ID: ", Steam.getSteamID())
+	peer.create_client(lobby_owner)
+	print("Peer status after create_client: ", peer.get_connection_status())
 	multiplayer.multiplayer_peer = peer
 	is_joining = false
 	multiplayer.server_disconnected.connect(_on_host_disconnected)
@@ -196,6 +200,18 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	if has_node("1"):
 		get_node("1").queue_free()
 		await get_tree().process_frame
+	var wait_time = 0.0
+	while peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING and wait_time < 15.0:
+		await get_tree().create_timer(0.5).timeout
+		wait_time += 0.5
+		print("Still connecting... ", wait_time, "s  status: ", peer.get_connection_status())
+	print("Final peer status: ", peer.get_connection_status())
+	print("Unique ID: ", multiplayer.get_unique_id())
+	var my_id = multiplayer.get_unique_id()
+	if my_id != 0 and my_id != 1:
+		_spawn_player(my_id)
+	else:
+		print("ERROR: never connected after 15 seconds")
 
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)

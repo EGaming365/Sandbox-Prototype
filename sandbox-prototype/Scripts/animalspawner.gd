@@ -8,7 +8,7 @@ const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 @export var spawn_radius_min: float = 1000.0
 @export var spawn_radius_max: float = 2000.0
 @export var despawn_radius: float = 1600.0
-@export var despawn_grace_period: float = 10.0
+@export var despawn_grace_period: float = 2.0
 
 var _scene_node: Node = null
 var _out_of_range_timers: Dictionary = {}

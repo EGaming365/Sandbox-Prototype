@@ -6,6 +6,7 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_88tmn"]
 
 [node name="Fishing_Rod" type="Node2D" unique_id=1041182104]
+scale = Vector2(2.3951426, 2.3951426)
 script = ExtResource("1_t02qk")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=643354702]
