@@ -15,6 +15,10 @@ enum State { CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
 @export var post_attack_cooldown: float = 0.9
 @export var despawn_when_day: bool = true
 
+var drowning_timer: float = 0.0
+var drowning_dead: bool = false
+const DROWN_TIME: float = 5.0
+
 var state: State = State.CHASE
 var attack_cooldown: float = 0.0
 var charge_timer: float = 0.0
@@ -47,6 +51,7 @@ func _ready() -> void:
 	attack_cooldown = rng.randf_range(0.5, attack_cooldown_max)
 
 func _process(delta: float) -> void:
+	_update_drowning(delta)
 	if state == State.DEAD:
 		return
 	if not _is_host():
@@ -364,3 +369,22 @@ func _sync_flash_hit_rpc() -> void:
 @rpc("authority", "call_local", "reliable")
 func _sync_die_rpc() -> void:
 	_play_die_sequence()
+
+func _update_drowning(delta: float) -> void:
+	if state == State.DEAD:
+		return
+	if not _is_host():
+		return
+	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+	if in_water:
+		drowning_timer += delta
+	else:
+		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
+	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
+	sprite.modulate.a = alpha
+	if drowning_timer >= DROWN_TIME and not drowning_dead:
+		drowning_dead = true
+		take_damage(9999)
+	elif drowning_timer <= 0.0:
+		drowning_dead = false

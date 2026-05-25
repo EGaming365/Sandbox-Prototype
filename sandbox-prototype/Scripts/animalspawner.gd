@@ -225,10 +225,13 @@ func _is_night() -> bool:
 	return weather != null and weather.has_method("is_night") and weather.is_night()
 
 func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -> Vector2:
+	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 	for i in 30:
 		var angle := randf_range(0.0, TAU)
 		var dist := randf_range(spawn_radius_min, spawn_radius_max)
 		var pos := center + Vector2(cos(angle), sin(angle)) * dist
+		if world_gen and world_gen.has_method("is_water_at") and world_gen.is_water_at(pos):
+			continue
 		var too_close := false
 		for existing in get_tree().get_nodes_in_group(avoid_group):
 			if pos.distance_to((existing as Node2D).global_position) < 100.0:

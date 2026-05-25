@@ -24,15 +24,16 @@ extends Node2D
 @export var lake_max_radius_tiles: float = 8.5
 @export var lake_forest_margin_tiles: int = 5
 
-@export var river_region_size_tiles: int = 192
-@export var river_chance_per_region: float = 0.015
-@export var river_loop_radius_min_tiles: float = 7.0
-@export var river_loop_radius_max_tiles: float = 14.0
-@export var river_path_points: int = 6
-@export var river_min_width_tiles: float = 0.4
-@export var river_max_width_tiles: float = 0.8
+@export var ocean_region_size_tiles: int = 512
+@export var ocean_chance_per_region: float = 0.90
+@export var ocean_min_radius_tiles: float = 80.0
+@export var ocean_max_radius_tiles: float = 160.0
+@export var island_chance: float = 0.70
+@export var island_min_radius_tiles: float = 6.0
+@export var island_max_radius_tiles: float = 14.0
+@export var island_count_max: int = 4
 
-enum BiomeType { PLAINS, FOREST, WATER }
+enum BiomeType { PLAINS, FOREST, WATER_LAKE, WATER_OCEAN }
 
 const PLAINS_SOURCE := 0
 const PLAINS_ATLAS  := Vector2i(2, 2)
@@ -46,7 +47,7 @@ var water_source_id: int = -1
 var biome_by_tile: Dictionary = {}
 var land_biome_cache: Dictionary = {}
 var lake_region_cache: Dictionary = {}
-var river_region_cache: Dictionary = {}
+var ocean_region_cache: Dictionary = {}
 
 var loaded_chunks: Dictionary = {}
 var pending_chunks: Array = []
@@ -84,7 +85,7 @@ func generate_world():
 	biome_by_tile.clear()
 	land_biome_cache.clear()
 	lake_region_cache.clear()
-	river_region_cache.clear()
+	ocean_region_cache.clear()
 	loaded_chunks.clear()
 	pending_chunks.clear()
 	_paint_chunk = Vector2i(999999, 999999)
@@ -201,7 +202,7 @@ func _precompute_chunk(chunk_coord: Vector2i):
 
 func _apply_tile(tile_coord: Vector2i, biome: BiomeType):
 	match biome:
-		BiomeType.WATER:
+		BiomeType.WATER_LAKE, BiomeType.WATER_OCEAN:
 			if water_source_id == -1:
 				tilemap.set_cell(0, tile_coord, PLAINS_SOURCE, PLAINS_ATLAS)
 			else:
@@ -227,12 +228,76 @@ func _unload_chunk(chunk_coord: Vector2i):
 			land_biome_cache.erase(tc)
 
 func _calculate_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
-	var land = _calculate_land_biome_for_tile(tile_coord)
+	var ocean_result := _get_ocean_biome(tile_coord)
+	if ocean_result != BiomeType.PLAINS:
+		return ocean_result
+
+	var land := _calculate_land_biome_for_tile(tile_coord)
 	if land == BiomeType.FOREST and _is_forest_lake_tile(tile_coord):
-		return BiomeType.WATER
-	if land == BiomeType.PLAINS and _is_river_tile(tile_coord):
-		return BiomeType.WATER
+		return BiomeType.WATER_LAKE
+
 	return land
+
+func _get_ocean_biome(tile_coord: Vector2i) -> BiomeType:
+	if tile_to_world_center(tile_coord).length() < spawn_water_safe_radius:
+		return BiomeType.PLAINS
+
+	var region := Vector2i(
+		floori(float(tile_coord.x) / float(ocean_region_size_tiles)),
+		floori(float(tile_coord.y) / float(ocean_region_size_tiles))
+	)
+	var ocean_data := _get_ocean_for_region(region)
+	if ocean_data.is_empty():
+		return BiomeType.PLAINS
+
+	for ocean in ocean_data:
+		var offset: Vector2 = Vector2(tile_coord) - ocean["center"]
+		var rx: float = ocean["radius_x"]
+		var ry: float = ocean["radius_y"]
+		if (offset.x * offset.x) / (rx * rx) + (offset.y * offset.y) / (ry * ry) <= 1.0:
+			for island in ocean["islands"]:
+				var ioff: Vector2 = Vector2(tile_coord) - island["center"]
+				var irx: float = island["radius_x"]
+				var iry: float = island["radius_y"]
+				if (ioff.x * ioff.x) / (irx * irx) + (ioff.y * ioff.y) / (iry * iry) <= 1.0:
+					return BiomeType.PLAINS
+			return BiomeType.WATER_OCEAN
+
+	return BiomeType.PLAINS
+
+func _get_ocean_for_region(region: Vector2i) -> Array:
+	if ocean_region_cache.has(region):
+		return ocean_region_cache[region]
+
+	var oceans := []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _ocean_region_seed(region)
+
+	if rng.randf() <= ocean_chance_per_region:
+		var half := ocean_region_size_tiles / 2
+		var origin := Vector2(region.x * ocean_region_size_tiles, region.y * ocean_region_size_tiles)
+		var center := origin + Vector2(
+			rng.randf_range(half * 0.3, half * 1.7),
+			rng.randf_range(half * 0.3, half * 1.7)
+		)
+		var rx := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
+		var ry := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
+
+		var islands := []
+		if rng.randf() < island_chance:
+			var island_count := rng.randi_range(1, island_count_max)
+			for _i in island_count:
+				var angle := rng.randf_range(0.0, TAU)
+				var dist := rng.randf_range(0.0, 0.65)
+				var ic := center + Vector2(cos(angle) * rx * dist, sin(angle) * ry * dist)
+				var irx := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
+				var iry := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
+				islands.append({ "center": ic, "radius_x": irx, "radius_y": iry })
+
+		oceans.append({ "center": center, "radius_x": rx, "radius_y": ry, "islands": islands })
+
+	ocean_region_cache[region] = oceans
+	return oceans
 
 func _calculate_land_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 	if land_biome_cache.has(tile_coord):
@@ -301,55 +366,7 @@ func _is_forest_core_tile(tile_coord: Vector2i) -> bool:
 			return false
 	return true
 
-func _is_river_tile(tile_coord: Vector2i) -> bool:
-	if tile_to_world_center(tile_coord).length() < spawn_water_safe_radius:
-		return false
-	var region := Vector2i(
-		floori(float(tile_coord.x) / float(river_region_size_tiles)),
-		floori(float(tile_coord.y) / float(river_region_size_tiles))
-	)
-	return _is_inside_river_region(tile_to_world_center(tile_coord), region)
-
-func _is_inside_river_region(world_pos: Vector2, region: Vector2i) -> bool:
-	for river in _get_rivers_for_region(region):
-		var pts: Array = river["points"]
-		var width: float = river["width_tiles"] * tile_size
-		for i in pts.size():
-			if _distance_to_segment(world_pos, pts[i], pts[(i + 1) % pts.size()]) <= width:
-				return true
-	return false
-
-func _get_rivers_for_region(region: Vector2i) -> Array:
-	if river_region_cache.has(region):
-		return river_region_cache[region]
-	var rivers := []
-	var rng := RandomNumberGenerator.new()
-	rng.seed = _river_region_seed(region)
-	if rng.randf() <= river_chance_per_region:
-		var origin_tile := Vector2i(region.x * river_region_size_tiles, region.y * river_region_size_tiles)
-		var center_tile := origin_tile + Vector2i(
-			rng.randi_range(12, river_region_size_tiles - 12),
-			rng.randi_range(12, river_region_size_tiles - 12)
-		)
-		var cw := tile_to_world_center(center_tile)
-		var rx := rng.randf_range(river_loop_radius_min_tiles, river_loop_radius_max_tiles) * tile_size
-		var ry := rng.randf_range(river_loop_radius_min_tiles, river_loop_radius_max_tiles) * tile_size
-		var pts := []
-		for i in river_path_points:
-			var angle := TAU * float(i) / float(river_path_points)
-			var wobble := rng.randf_range(0.65, 1.25)
-			pts.append(cw + Vector2(cos(angle) * rx * wobble, sin(angle) * ry * wobble))
-		rivers.append({"points": pts, "width_tiles": rng.randf_range(river_min_width_tiles, river_max_width_tiles)})
-	river_region_cache[region] = rivers
-	return rivers
-
-func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
-	var ab := b - a
-	var len_sq := ab.length_squared()
-	if len_sq <= 0.001:
-		return point.distance_to(a)
-	var t: float = clamp((point - a).dot(ab) / len_sq, 0.0, 1.0)
-	return point.distance_to(a + ab * t)
+# ── Public query API ────────────────────────────────────────────────────────
 
 func world_to_tile(world_pos: Vector2) -> Vector2i:
 	if tilemap:
@@ -372,6 +389,41 @@ func chunk_to_start_tile(chunk_coord: Vector2i) -> Vector2i:
 
 func is_chunk_loaded(chunk_coord: Vector2i) -> bool:
 	return loaded_chunks.has(chunk_coord)
+
+func get_biome_at(world_pos: Vector2) -> BiomeType:
+	var tc := world_to_tile(world_pos)
+	if biome_by_tile.has(tc):
+		return biome_by_tile[tc]
+	return _calculate_biome_for_tile(tc)
+
+func is_water_at(world_pos: Vector2) -> bool:
+	var b := get_biome_at(world_pos)
+	return b == BiomeType.WATER_LAKE or b == BiomeType.WATER_OCEAN
+
+func is_water_tile_at(world_pos: Vector2) -> bool:
+	return is_water_at(world_pos)
+
+func is_lake_at(world_pos: Vector2) -> bool:
+	return get_biome_at(world_pos) == BiomeType.WATER_LAKE
+
+func is_ocean_at(world_pos: Vector2) -> bool:
+	return get_biome_at(world_pos) == BiomeType.WATER_OCEAN
+
+func is_forest_at(world_pos: Vector2) -> bool:
+	return get_biome_at(world_pos) == BiomeType.FOREST
+
+func is_forest_tile_at(world_pos: Vector2) -> bool:
+	return is_forest_at(world_pos)
+
+# ── Seeds ────────────────────────────────────────────────────────────────────
+
+func _lake_region_seed(region: Vector2i) -> int:
+	var m := world_seed ^ (region.x * 374761393) ^ (region.y * 668265263) ^ 1442695041
+	return abs(m)
+
+func _ocean_region_seed(region: Vector2i) -> int:
+	var m := world_seed ^ (region.x * 198491317) ^ (region.y * 512927357) ^ 2654435761
+	return abs(m)
 
 func _ensure_noise_ready():
 	noise = FastNoiseLite.new()
@@ -397,30 +449,3 @@ func _find_water_source():
 			water_source_id = water_source_fallback_id
 			return
 	push_warning("WorldGen: water tile source '%s' not found." % water_source_name)
-
-func get_biome_at(world_pos: Vector2) -> BiomeType:
-	var tc := world_to_tile(world_pos)
-	if biome_by_tile.has(tc):
-		return biome_by_tile[tc]
-	return _calculate_land_biome_for_tile(tc)
-
-func is_forest_at(world_pos: Vector2) -> bool:
-	return get_biome_at(world_pos) == BiomeType.FOREST
-
-func is_forest_tile_at(world_pos: Vector2) -> bool:
-	return is_forest_at(world_pos)
-
-func is_water_at(world_pos: Vector2) -> bool:
-	var tc := world_to_tile(world_pos)
-	return biome_by_tile.has(tc) and biome_by_tile[tc] == BiomeType.WATER
-
-func is_water_tile_at(world_pos: Vector2) -> bool:
-	return is_water_at(world_pos)
-
-func _lake_region_seed(region: Vector2i) -> int:
-	var m := world_seed ^ (region.x * 374761393) ^ (region.y * 668265263) ^ 1442695041
-	return abs(m)
-
-func _river_region_seed(region: Vector2i) -> int:
-	var m := world_seed ^ (region.x * 73856093) ^ (region.y * 19349663) ^ 83492791
-	return abs(m)

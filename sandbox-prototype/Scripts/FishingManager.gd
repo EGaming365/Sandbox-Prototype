@@ -3,6 +3,7 @@ extends Node
 const CAST_RANGE: float = 200.0
 const MINIGAME_SCENE: String = "res://Scenes/fishing_minigame.tscn"
 var _minigame_packed: PackedScene = preload("res://Scenes/fishing_minigame.tscn")
+var _cast_water_type: String = "both"
 
 const RARITY_WEIGHTS: Dictionary = {
 	"Common": 60,
@@ -12,13 +13,17 @@ const RARITY_WEIGHTS: Dictionary = {
 }
 
 const FISH_TABLE: Array[Dictionary] = [
-	{"name": "Minnow",     "rarity": "Common",    "zone_height": 110.0, "speed": 0.55, "progress_rate": 1.0,  "escape_rate": 0.7,  "base_weight_kg": 0.08},
-	{"name": "Perch",      "rarity": "Common",    "zone_height": 95.0,  "speed": 0.75, "progress_rate": 0.95, "escape_rate": 0.85, "base_weight_kg": 0.3},
-	{"name": "Bass",       "rarity": "Uncommon",  "zone_height": 80.0,  "speed": 1.0,  "progress_rate": 0.90, "escape_rate": 1.05, "base_weight_kg": 1.2},
-	{"name": "Pike",       "rarity": "Uncommon",  "zone_height": 68.0,  "speed": 1.25, "progress_rate": 0.85, "escape_rate": 1.2,  "base_weight_kg": 2.5},
-	{"name": "Catfish",    "rarity": "Rare",      "zone_height": 55.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0},
-	{"name": "Sturgeon",   "rarity": "Rare",      "zone_height": 45.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0},
-	{"name": "Tophat Fish","rarity": "Legendary", "zone_height": 32.0,  "speed": 2.2,  "progress_rate": 0.65, "escape_rate": 2.0,  "base_weight_kg": 0.6},
+	{"name": "Minnow",      "rarity": "Common",    "habitat": "lake",  "zone_height": 110.0, "speed": 0.55, "progress_rate": 1.0,  "escape_rate": 0.7,  "base_weight_kg": 0.08, "tension": 1},
+	{"name": "Perch",       "rarity": "Common",    "habitat": "lake",  "zone_height": 95.0,  "speed": 0.75, "progress_rate": 0.95, "escape_rate": 0.85, "base_weight_kg": 0.3,  "tension": 1},
+	{"name": "Bass",        "rarity": "Uncommon",  "habitat": "both",  "zone_height": 80.0,  "speed": 1.0,  "progress_rate": 0.90, "escape_rate": 1.05, "base_weight_kg": 1.2,  "tension": 1},
+	{"name": "Pike",        "rarity": "Uncommon",  "habitat": "lake",  "zone_height": 68.0,  "speed": 1.25, "progress_rate": 0.85, "escape_rate": 1.2,  "base_weight_kg": 2.5,  "tension": 1},
+	{"name": "Catfish",     "rarity": "Rare",      "habitat": "lake",  "zone_height": 55.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0,  "tension": 2},
+	{"name": "Sturgeon",    "rarity": "Rare",      "habitat": "both",  "zone_height": 45.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0, "tension": 2},
+	{"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake",  "zone_height": 32.0,  "speed": 2.2,  "progress_rate": 0.65, "escape_rate": 2.0,  "base_weight_kg": 0.6,  "tension": 2},
+	{"name": "Clownfish",   "rarity": "Common",    "habitat": "ocean", "zone_height": 110.0, "speed": 0.6,  "progress_rate": 1.2,  "escape_rate": 0.6,  "base_weight_kg": 0.1,  "tension": 1},
+	{"name": "Blue Tang",   "rarity": "Common",    "habitat": "ocean", "zone_height": 90.0,  "speed": 0.8,  "progress_rate": 1.0,  "escape_rate": 0.8,  "base_weight_kg": 0.9,  "tension": 1},
+	{"name": "Salmon",      "rarity": "Uncommon",  "habitat": "ocean", "zone_height": 60.0,  "speed": 1.4,  "progress_rate": 0.8,  "escape_rate": 1.3,  "base_weight_kg": 3.0,  "tension": 1},
+	{"name": "Lionfish",    "rarity": "Rare",      "habitat": "ocean", "zone_height": 40.0,  "speed": 1.9,  "progress_rate": 0.7,  "escape_rate": 1.7,  "base_weight_kg": 0.8,  "tension": 2},
 ]
 
 const ROD_STATS: Dictionary = {
@@ -32,6 +37,7 @@ const ROD_STATS: Dictionary = {
 		"luck":          1.0,
 		"max_weight_kg": 4.0,
 		"bar_speed":     1.0,
+		"tension":       1,
 	},
 	"Stone Fishing Rod": {
 		"cast_range":    280.0,
@@ -43,6 +49,7 @@ const ROD_STATS: Dictionary = {
 		"luck":          1.2,
 		"max_weight_kg": 200.0,
 		"bar_speed":     1.1,
+		"tension":       2,
 	},
 }
 
@@ -50,7 +57,10 @@ var catch_textures = {
 	"Common": preload("res://Assets/Catch_Normal.png"),
 	"Uncommon": preload("res://Assets/Catch_Normal.png"),
 	"Rare": preload("res://Assets/Catch_Normal.png"),
+	"Epic": preload("res://Assets/Catch_Normal.png"),
 	"Legendary": preload("res://Assets/Catch_Legendary.png"),
+	"Mythic": preload("res://Assets/Catch_Mythic.png"),
+	"Exotic": preload("res://Assets/Catch_Exotic.png"),
 }
 
 var bobber_texture = preload("res://Assets/Fishing_Bobber.png")
@@ -108,8 +118,10 @@ func try_cast(screen_pos: Vector2) -> void:
 	var player := _get_player()
 	if not player:
 		return
+	if not _has_empty_slot():
+		_show_full_inventory_notice()
+		return
 	var world_click := get_viewport().get_canvas_transform().affine_inverse() * screen_pos
-	# Use rod-specific cast range
 	var cast_range: float = _get_rod_stats().get("cast_range", CAST_RANGE)
 	if player.global_position.distance_to(world_click) > cast_range:
 		return
@@ -118,6 +130,12 @@ func try_cast(screen_pos: Vector2) -> void:
 		return
 	if not wg.is_water_tile_at(world_click):
 		return
+	if wg.has_method("is_ocean_at") and wg.is_ocean_at(world_click):
+		_cast_water_type = "ocean"
+	elif wg.has_method("is_lake_at") and wg.is_lake_at(world_click):
+		_cast_water_type = "lake"
+	else:
+		_cast_water_type = "both"
 	_spawn_bobber(world_click)
 	player.is_fishing = true
 	_start_minigame()
@@ -125,29 +143,51 @@ func try_cast(screen_pos: Vector2) -> void:
 func _pick_random_fish() -> Dictionary:
 	var luck: float = _get_rod_stats().get("luck", 1.0)
 	var max_weight_kg: float = _get_rod_stats().get("max_weight_kg", 5.0)
+	var rod_tension: int = _get_rod_stats().get("tension", 1)
 	var weights := RARITY_WEIGHTS.duplicate()
 	if luck >= 2.0:
 		weights["Rare"]      = int(weights["Rare"]      * luck)
 		weights["Legendary"] = int(weights["Legendary"] * luck)
 	elif luck > 1.0:
 		weights["Rare"] = int(weights["Rare"] * luck)
+
+	var available_rarities: Dictionary = {}
+	for f in FISH_TABLE:
+		var h: String = f.get("habitat", "both")
+		if (h == "both" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+			available_rarities[f["rarity"]] = true
+
+	var filtered_weights: Dictionary = {}
+	for rarity in weights:
+		if available_rarities.has(rarity):
+			filtered_weights[rarity] = weights[rarity]
+	if filtered_weights.is_empty():
+		filtered_weights = {"Common": 100}
+
 	var total: int = 0
-	for w in weights.values():
+	for w in filtered_weights.values():
 		total += w
 	var rarity_roll := randi_range(1, total)
 	var cumulative: int = 0
 	var chosen_rarity: String = "Common"
-	for rarity in weights:
-		cumulative += weights[rarity]
+	for rarity in filtered_weights:
+		cumulative += filtered_weights[rarity]
 		if rarity_roll <= cumulative:
 			chosen_rarity = rarity
 			break
+
 	var pool: Array = []
 	for f in FISH_TABLE:
-		if f["rarity"] == chosen_rarity:
+		var h: String = f.get("habitat", "both")
+		if f["rarity"] == chosen_rarity and (h == "both" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
 			pool.append(f)
 	if pool.is_empty():
+		for f in FISH_TABLE:
+			if f.get("tension", 1) <= rod_tension:
+				pool.append(f)
+	if pool.is_empty():
 		return FISH_TABLE[0]
+
 	var fish: Dictionary
 	var attempts: int = 0
 	while true:
@@ -243,6 +283,9 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 	if existing_tex:
 		tex = existing_tex
 	Inventory.discover(display_name)
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	if extras:
+		extras.discover_fish(display_name, weight_kg)
 	for i in Inventory.slots.size():
 		if Inventory.slots[i]["item"] == "":
 			Inventory.slots[i]["item"] = display_name
@@ -475,3 +518,34 @@ func sync_fishing_state_to_peer(peer_id: int) -> void:
 		var player := _get_player()
 		if player:
 			_sync_bobber_spawn.rpc_id(peer_id, player.get_multiplayer_authority(), _bobber.position)
+
+func _has_empty_slot() -> bool:
+	for slot in Inventory.slots:
+		if slot["item"] == "":
+			return true
+	for i in Inventory.unlocked_inv_slots:
+		if Inventory.inv_slots[i]["item"] == "":
+			return true
+	return false
+
+func _show_full_inventory_notice() -> void:
+	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")
+	if not canvas:
+		return
+	if canvas.get_node_or_null("FullInvNotice"):
+		return
+	var label := Label.new()
+	label.name = "FullInvNotice"
+	label.text = "Inventory is full!"
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 5)
+	label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	label.offset_top = 80
+	label.z_index = 20
+	canvas.add_child(label)
+	var tween := label.create_tween()
+	tween.tween_interval(1.5)
+	tween.tween_property(label, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(label.queue_free)

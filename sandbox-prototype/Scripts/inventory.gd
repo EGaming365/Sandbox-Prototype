@@ -29,6 +29,10 @@ var bass_texture = preload("res://Assets/Fish_Bass_Raw.png")
 var minnow_texture = preload("res://Assets/Fish_Minnow_Raw.png")
 var pike_texture = preload("res://Assets/Fish_Pike_Raw.png")
 var sturgeon_texture = preload("res://Assets/Fish_Sturgeon_Raw.png")
+var clownfish_texture = preload("res://Assets/Fish_Clownfish_Raw.png")
+var salmon_texture = preload("res://Assets/Fish_Catfish_Raw.png")
+var lionfish_texture = preload("res://Assets/Fish_Lionfish_Raw.png")
+var blue_tang_texture = preload("res://Assets/Fish_Blue_Tang_Raw.png")
 
 var TEXTURE_MAP: Dictionary = {}
 
@@ -42,6 +46,10 @@ var non_stackable_items = [
 	"Pike", "Albino Pike",
 	"Catfish", "Albino Catfish",
 	"Sturgeon", "Albino Sturgeon",
+	"Salmon", "Albino Salmon",
+	"Clownfish", "Albino Clownfish",
+	"Lionfish", "Albino Lionfish",
+	"Blue Tang", "Albino Blue Tang",
 ]
 var discovered_items: Dictionary = {}
 
@@ -77,6 +85,14 @@ func _ready():
 		"Albino Pike": pike_texture,
 		"Sturgeon": sturgeon_texture,
 		"Albino Sturgeon": sturgeon_texture,
+		"Salmon": salmon_texture,
+		"Albino Salmon": salmon_texture,
+		"Lionfish": lionfish_texture,
+		"Albino Lionfish": lionfish_texture,
+		"Clownfish": clownfish_texture,
+		"Albino Clownfish": clownfish_texture,
+		"Blue Tang": blue_tang_texture,
+		"Albino Blue Tang": blue_tang_texture,
 		"Stone Fishing Rod": stone_fishing_rod_texture,
 	}
 	TEXTURE_MAP = {}

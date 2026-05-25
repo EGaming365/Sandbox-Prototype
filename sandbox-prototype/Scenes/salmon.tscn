@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://c6pt7833aax08"]
+
+[ext_resource type="Script" uid="uid://bnctxufvmul2v" path="res://Scenes/salmon.gd" id="1_5nbs4"]
+[ext_resource type="Texture2D" uid="uid://bl0d30u1oylbm" path="res://Assets/Fish_Clownfish_Raw.png" id="2_7vc75"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Salmon" type="Node2D" unique_id=2093844244]
+scale = Vector2(1.2727493, 1.2727493)
+script = ExtResource("1_5nbs4")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+scale = Vector2(1.9712906, 1.9712906)
+texture = ExtResource("2_7vc75")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+scale = Vector2(0.56476283, 0.56476283)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

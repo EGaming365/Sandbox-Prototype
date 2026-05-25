@@ -437,7 +437,7 @@ func _try_fish_cast(screen_pos: Vector2) -> void:
 		fishing_manager.try_cast(screen_pos)
 
 func _is_fish_item(item_name: String) -> bool:
-	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish"]:
+	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Lionfish"]:
 		if item_name == f or item_name == "Albino " + f:
 			return true
 	return false

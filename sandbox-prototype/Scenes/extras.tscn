@@ -1,0 +1,95 @@
+[gd_scene format=3 uid="uid://dmoccbc5cffu6"]
+
+[ext_resource type="Script" uid="uid://cgi082q4vesuw" path="res://Scenes/extras.gd" id="1_neogw"]
+
+[node name="Extras" type="Control" unique_id=928061240]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_neogw")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=1541675515]
+custom_minimum_size = Vector2(1500, 800)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -750.0
+offset_top = -20.0
+offset_right = 750.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="HBoxContainer" parent="PanelContainer" unique_id=158215800]
+layout_mode = 2
+theme_override_constants/separation = 40
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer" unique_id=1635523002]
+custom_minimum_size = Vector2(100, 80)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 40
+
+[node name="Game" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=389041648]
+layout_mode = 2
+text = "Game"
+
+[node name="Settings" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1557571044]
+layout_mode = 2
+text = "Settings"
+
+[node name="Collection" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1045155085]
+layout_mode = 2
+text = "Collection"
+
+[node name="Mastery" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1272633948]
+layout_mode = 2
+text = "Mastery"
+
+[node name="Blank" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=21442252]
+layout_mode = 2
+text = "Blank"
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer/VBoxContainer" unique_id=598275087]
+layout_mode = 2
+
+[node name="GameSection" type="Control" parent="PanelContainer/VBoxContainer/MarginContainer" unique_id=195907522]
+layout_mode = 2
+
+[node name="SettingsSection" type="Control" parent="PanelContainer/VBoxContainer/MarginContainer" unique_id=1933281212]
+layout_mode = 2
+
+[node name="CollectionSection" type="VBoxContainer" parent="PanelContainer/VBoxContainer/MarginContainer" unique_id=1961659729]
+custom_minimum_size = Vector2(800, 400)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer/MarginContainer/CollectionSection" unique_id=2091531743]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_constants/separation = 40
+
+[node name="Recipes" type="Button" parent="PanelContainer/VBoxContainer/MarginContainer/CollectionSection/HBoxContainer" unique_id=1933586050]
+layout_mode = 2
+text = "Recipes"
+
+[node name="Fish" type="Button" parent="PanelContainer/VBoxContainer/MarginContainer/CollectionSection/HBoxContainer" unique_id=1303737484]
+layout_mode = 2
+text = "Fish"
+
+[node name="Panel" type="Control" parent="PanelContainer/VBoxContainer/MarginContainer/CollectionSection" unique_id=1858794606]
+custom_minimum_size = Vector2(0, 600)
+layout_mode = 2
+
+[node name="MasterySection" type="Control" parent="PanelContainer/VBoxContainer/MarginContainer" unique_id=1237271314]
+layout_mode = 2
+
+[node name="BlankSection" type="Control" parent="PanelContainer/VBoxContainer/MarginContainer" unique_id=2021691386]
+layout_mode = 2

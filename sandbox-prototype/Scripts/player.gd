@@ -477,12 +477,14 @@ func die():
 	for i in Inventory.slots.size():
 		var slot = Inventory.slots[i]
 		if slot["item"] != "":
-			var durability = slot.get("durability", slot["count"] if slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] else 60)
+			var is_fish = slot["item"] in scene_node.FISH_ITEM_NAMES
+			var durability = slot.get("durability", slot["count"] if (slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] or is_fish) else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": true, "index": i})
 	for i in Inventory.inv_slots.size():
 		var slot = Inventory.inv_slots[i]
 		if slot["item"] != "":
-			var durability = slot.get("durability", slot["count"] if slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] else 60)
+			var is_fish = slot["item"] in scene_node.FISH_ITEM_NAMES
+			var durability = slot.get("durability", slot["count"] if (slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] or is_fish) else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": false, "index": i})
 
 	for drop in drops:
