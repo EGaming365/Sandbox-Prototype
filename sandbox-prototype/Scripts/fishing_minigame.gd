@@ -11,8 +11,8 @@ const PLAYER_H = 48.0
 
 var holding := false
 var player_y := 0.5
+var fish_zone_y := 0.5
 var player_vel := 0.0
-var fish_zone_y := 0.3
 var fish_vel := 0.0
 var fish_zone_height := 80.0
 var fish_speed := 1.0
@@ -40,14 +40,12 @@ func _ready():
 
 func setup(fish_data: Dictionary):
 	var display_name: String = fish_data.name
-	effective_player_h = PLAYER_H * fish_data.get("player_bar", 1.0)
+	effective_player_h = fish_data.get("player_bar", 48.0)
+	player_bar.size.y = effective_player_h
 	var mutations: Array = fish_data.get("mutations", [])
 	if "Albino" in mutations:
 		display_name = "Albino " + display_name
 		fish_zone.modulate = Color(0.78, 0.78, 0.78)
-	var player_bar_mult: float = fish_data.get("player_bar", 1.0)
-	var effective_player_h: float = PLAYER_H * player_bar_mult
-	player_bar.size.y = effective_player_h
 
 	var weight: float = fish_data.get("weight_kg", 0.0)
 	var base_kg: float = fish_data.get("base_weight_kg", 1.0)
@@ -76,6 +74,8 @@ func setup(fish_data: Dictionary):
 	progress_rate = fish_data.progress_rate
 	escape_rate = fish_data.escape_rate
 	fish_zone.size.y = fish_zone_height
+	fish_zone_y = 0.5 - (fish_zone_height / TRACK_HEIGHT) / 2.0
+	player_y = 0.5 - (effective_player_h / TRACK_HEIGHT) / 2.0
 	bar_speed = fish_data.get("bar_speed", 1.0)
 	_ready_to_process = true
 
@@ -88,7 +88,7 @@ func _on_hold_button_button_up():
 func _process(delta):
 	if not _ready_to_process:
 		return
-	holding = Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	holding = Input.is_action_pressed("fish")
 	_update_fish_zone(delta)
 	_update_player(delta)
 	_update_progress(delta)

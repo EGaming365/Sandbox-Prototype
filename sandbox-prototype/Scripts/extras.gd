@@ -286,7 +286,7 @@ func _show_fish_detail(fish: Dictionary, detail: Control, discovered: bool):
 	name_label.text = fish["name"] if discovered else "???"
 	name_label.modulate = rarity_color
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 28)
+	name_label.add_theme_font_size_override("font_size", 38)
 
 	rarity_label.text = fish.get("rarity", "?")
 	rarity_label.modulate = rarity_color

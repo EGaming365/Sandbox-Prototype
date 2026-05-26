@@ -59,16 +59,16 @@ offset_right = 40.0
 offset_bottom = 40.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_27njy")
 
-[node name="FishZone" type="ColorRect" parent="HBoxContainer/Catchbar" unique_id=1417595436]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
-
 [node name="PlayerBar" type="ColorRect" parent="HBoxContainer/Catchbar" unique_id=790542426]
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 color = Color(0, 0, 0, 1)
+
+[node name="FishZone" type="ColorRect" parent="HBoxContainer/Catchbar" unique_id=1417595436]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
 
 [node name="FishLabel" type="Label" parent="." unique_id=459130695]
 layout_mode = 0

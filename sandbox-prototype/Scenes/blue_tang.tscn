@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://d1eomi8e30hhk"]
 
 [ext_resource type="Script" uid="uid://dceto5ok3p5sb" path="res://Scripts/blue_tang.gd" id="1_3i0rq"]
-[ext_resource type="Texture2D" uid="uid://xli3u0vc2x8i" path="res://Assets/Fish_Blue_Tang_Raw.png" id="2_i23s1"]
+[ext_resource type="Texture2D" uid="uid://bxtp6kmawmke6" path="res://Assets/Fish_Blue_Tang_Raw.png" id="2_i23s1"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
 

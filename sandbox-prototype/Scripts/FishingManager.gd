@@ -6,26 +6,29 @@ var _minigame_packed: PackedScene = preload("res://Scenes/fishing_minigame.tscn"
 var _cast_water_type: String = "both"
 
 const RARITY_WEIGHTS: Dictionary = {
-	"Common": 53.9,
-	"Uncommon": 30.0,
-	"Rare": 12.0,
-	"Legendary": 3.0,
-	"Mythic": 0.8,
-	"Exotic": 0.3,
+	"Trash": 5.0,  # 4.47
+	"Common": 55.0,  # 49.19
+	"Uncommon": 30.0,  # 26.83
+	"Unusual": 10.0,  # 8.94
+	"Rare": 5.0,  # 4.47
+	"Epic": 3.5,  # 3.13
+	"Legendary": 2.0,  # 1.79
+	"Mythic": 1.0,  # 0.89
+	"Exotic": 0.3,  # 0.27
 }
 
 const FISH_TABLE: Array[Dictionary] = [
-	{"name": "Minnow",      "rarity": "Common",    "habitat": "lake",  "zone_height": 110.0, "speed": 0.55, "progress_rate": 1.0,  "escape_rate": 0.7,  "base_weight_kg": 0.08, "tension": 1},
-	{"name": "Perch",       "rarity": "Common",    "habitat": "lake",  "zone_height": 95.0,  "speed": 0.75, "progress_rate": 0.95, "escape_rate": 0.85, "base_weight_kg": 0.3,  "tension": 1},
-	{"name": "Bass",        "rarity": "Uncommon",  "habitat": "both",  "zone_height": 80.0,  "speed": 1.0,  "progress_rate": 0.90, "escape_rate": 1.05, "base_weight_kg": 1.2,  "tension": 1},
-	{"name": "Pike",        "rarity": "Uncommon",  "habitat": "lake",  "zone_height": 68.0,  "speed": 1.25, "progress_rate": 0.85, "escape_rate": 1.2,  "base_weight_kg": 2.5,  "tension": 1},
-	{"name": "Catfish",     "rarity": "Rare",      "habitat": "lake",  "zone_height": 55.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0,  "tension": 2},
-	{"name": "Sturgeon",    "rarity": "Rare",      "habitat": "both",  "zone_height": 45.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0, "tension": 2},
-	{"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake",  "zone_height": 32.0,  "speed": 2.1,  "progress_rate": 0.65, "escape_rate": 1.7,  "base_weight_kg": 0.6,  "tension": 2},
-	{"name": "Clownfish",   "rarity": "Common",    "habitat": "ocean", "zone_height": 110.0, "speed": 0.6,  "progress_rate": 1.2,  "escape_rate": 0.6,  "base_weight_kg": 0.1,  "tension": 1},
-	{"name": "Blue Tang",   "rarity": "Common",    "habitat": "ocean", "zone_height": 90.0,  "speed": 0.8,  "progress_rate": 1.0,  "escape_rate": 0.8,  "base_weight_kg": 0.9,  "tension": 1},
-	{"name": "Salmon",      "rarity": "Uncommon",  "habitat": "ocean", "zone_height": 60.0,  "speed": 1.4,  "progress_rate": 0.8,  "escape_rate": 1.3,  "base_weight_kg": 3.0,  "tension": 1},
-	{"name": "Lionfish",    "rarity": "Rare",      "habitat": "ocean", "zone_height": 40.0,  "speed": 1.9,  "progress_rate": 0.7,  "escape_rate": 1.7,  "base_weight_kg": 0.8,  "tension": 2},
+	{"name": "Minnow",      "rarity": "Common",    "habitat": "lake",  "zone_height": 10.0, "speed": 0.55, "progress_rate": 1.0,  "escape_rate": 0.7,  "base_weight_kg": 0.08, "tension": 1},
+	{"name": "Perch",       "rarity": "Common",    "habitat": "lake",  "zone_height": 10.0,  "speed": 0.75, "progress_rate": 0.95, "escape_rate": 0.85, "base_weight_kg": 0.3,  "tension": 1},
+	{"name": "Bass",        "rarity": "Uncommon",  "habitat": "both",  "zone_height": 10.0,  "speed": 1.0,  "progress_rate": 0.90, "escape_rate": 1.05, "base_weight_kg": 1.2,  "tension": 1},
+	{"name": "Pike",        "rarity": "Uncommon",  "habitat": "lake",  "zone_height": 10.0,  "speed": 1.25, "progress_rate": 0.85, "escape_rate": 1.2,  "base_weight_kg": 2.5,  "tension": 1},
+	{"name": "Catfish",     "rarity": "Rare",      "habitat": "lake",  "zone_height": 10.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0,  "tension": 2},
+	{"name": "Sturgeon",    "rarity": "Rare",      "habitat": "both",  "zone_height": 10.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0, "tension": 2},
+	{"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake",  "zone_height": 10.0,  "speed": 2.1,  "progress_rate": 0.65, "escape_rate": 1.7,  "base_weight_kg": 0.6,  "tension": 2},
+	{"name": "Clownfish",   "rarity": "Common",    "habitat": "ocean", "zone_height": 10.0, "speed": 0.6,  "progress_rate": 1.2,  "escape_rate": 0.6,  "base_weight_kg": 0.1,  "tension": 1},
+	{"name": "Blue Tang",   "rarity": "Common",    "habitat": "ocean", "zone_height": 10.0,  "speed": 0.8,  "progress_rate": 1.0,  "escape_rate": 0.8,  "base_weight_kg": 0.9,  "tension": 1},
+	{"name": "Salmon",      "rarity": "Uncommon",  "habitat": "ocean", "zone_height": 10.0,  "speed": 1.4,  "progress_rate": 0.8,  "escape_rate": 1.3,  "base_weight_kg": 3.0,  "tension": 1},
+	{"name": "Lionfish",    "rarity": "Rare",      "habitat": "ocean", "zone_height": 10.0,  "speed": 1.9,  "progress_rate": 0.7,  "escape_rate": 1.7,  "base_weight_kg": 0.8,  "tension": 2},
 ]
 
 const ROD_STATS: Dictionary = {
@@ -35,23 +38,25 @@ const ROD_STATS: Dictionary = {
 		"speed":         1.0,
 		"progress_rate": 1.0,
 		"escape_rate":   1.0,
-		"player_bar":    1.0,
+		"player_bar":    60.0,
 		"luck":          1.0,
 		"max_weight_kg": 4.0,
 		"bar_speed":     1.0,
 		"tension":       1,
+		"bite_time":     4.0,
 	},
 	"Stone Fishing Rod": {
 		"cast_range":    180.0,
-		"zone_height":   1.2,
+		"zone_height":   1.0,
 		"speed":         0.9,
 		"progress_rate": 1.0,
 		"escape_rate":   0.9,
-		"player_bar":    1.1,
+		"player_bar":    80.0,
 		"luck":          1.2,
 		"max_weight_kg": 200.0,
 		"bar_speed":     1.1,
 		"tension":       2,
+		"bite_time":     3.0,
 	},
 }
 
@@ -226,7 +231,8 @@ func _start_minigame() -> void:
 	_waiting_for_bite = true
 	var gen := _cast_gen
 	var fish := _pick_random_fish()
-	var wait_time = randf_range(2.0, 4.0)
+	var bite_time: float = _get_rod_stats().get("bite_time", 3.0)
+	var wait_time = randf_range(bite_time - 1.0, bite_time + 1.0)
 	await get_tree().create_timer(wait_time).timeout
 	if not _waiting_for_bite or gen != _cast_gen:
 		return
