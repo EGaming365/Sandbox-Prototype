@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dtemiuhwkqqff"]
 
-[ext_resource type="Script" uid="uid://7tfty1ct33nx" path="res://Scenes/minnow.gd" id="1_0drm5"]
+[ext_resource type="Script" uid="uid://7tfty1ct33nx" path="res://Scripts/minnow.gd" id="1_0drm5"]
 [ext_resource type="Texture2D" uid="uid://cg5u7qe5hbin3" path="res://Assets/Fish_Minnow_Raw.png" id="2_7xo3c"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

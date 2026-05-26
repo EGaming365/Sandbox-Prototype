@@ -7,12 +7,6 @@ var discovered_fish: Array = []
 var fish_records: Dictionary = {}
 var fish_catch_counts: Dictionary = {}
 
-func _ready():
-	hide()
-	_connect_nav()
-	_switch_section("game")
-	_switch_collection_sub("recipes")
-
 func toggle():
 	if visible:
 		hide()
@@ -21,18 +15,27 @@ func toggle():
 		_switch_section(current_section)
 		_switch_collection_sub(current_collection_sub)
 
+func _ready():
+	hide()
+	_connect_nav()
+	_switch_section("game")
+	_switch_collection_sub("recipes")
+	get_viewport().gui_focus_changed.connect(func(_c): pass)
+
 func _process(_delta):
+	pass
+
+func _input(event):
 	if not visible:
 		return
-	if Input.is_action_just_pressed("click"):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if get_viewport().is_input_handled():
+			return
 		var mouse = get_global_mouse_position()
-		var panel = $PanelContainer
-		if not panel.get_global_rect().has_point(mouse):
-			var extras_btn = get_tree().root.get_node_or_null("Scene/CanvasLayer/LeftUI")
-			if extras_btn:
-				var btn = extras_btn.get_node_or_null("HBoxContainer/Button")
-				if btn and btn.get_global_rect().has_point(mouse):
-					return
+		var panel_rect = $PanelContainer.get_global_rect()
+		var nav_rect = $PanelContainer/VBoxContainer/HBoxContainer.get_global_rect()
+		var safe_rect = panel_rect.merge(nav_rect)
+		if not safe_rect.has_point(mouse):
 			hide()
 
 func _connect_nav():
@@ -41,27 +44,37 @@ func _connect_nav():
 	$PanelContainer/VBoxContainer/HBoxContainer/Collection.pressed.connect(func(): _switch_section("collection"))
 	$PanelContainer/VBoxContainer/HBoxContainer/Mastery.pressed.connect(func(): _switch_section("mastery"))
 	$PanelContainer/VBoxContainer/HBoxContainer/Blank.pressed.connect(func(): _switch_section("blank"))
-	$PanelContainer/VBoxContainer/MarginContainer/CollectionSection/HBoxContainer/Recipes.pressed.connect(func(): _switch_collection_sub("recipes"))
-	$PanelContainer/VBoxContainer/MarginContainer/CollectionSection/HBoxContainer/Fish.pressed.connect(func(): _switch_collection_sub("fish"))
+	$PanelContainer/MarginContainer/CollectionSection/HBoxContainer/Recipes.pressed.connect(func(): _switch_collection_sub("recipes"))
+	$PanelContainer/MarginContainer/CollectionSection/HBoxContainer/Fish.pressed.connect(func(): _switch_collection_sub("fish"))
 
 func _switch_section(section: String):
 	current_section = section
 	var sections = {
-		"game":       $PanelContainer/VBoxContainer/MarginContainer/GameSection,
-		"settings":   $PanelContainer/VBoxContainer/MarginContainer/SettingsSection,
-		"collection": $PanelContainer/VBoxContainer/MarginContainer/CollectionSection,
-		"mastery":    $PanelContainer/VBoxContainer/MarginContainer/MasterySection,
-		"blank":      $PanelContainer/VBoxContainer/MarginContainer/BlankSection,
+		"game":       $PanelContainer/MarginContainer/GameSection,
+		"settings":   $PanelContainer/MarginContainer/SettingsSection,
+		"collection": $PanelContainer/MarginContainer/CollectionSection,
+		"mastery":    $PanelContainer/MarginContainer/MasterySection,
+		"blank":      $PanelContainer/MarginContainer/BlankSection,
 	}
 	for key in sections:
 		sections[key].visible = (key == section)
 	var nav = $PanelContainer/VBoxContainer/HBoxContainer
 	for btn in nav.get_children():
 		btn.modulate = Color(1.5, 1.8, 1.5, 1.0) if btn.name.to_lower() == section else Color(0.6, 0.6, 0.6, 1.0)
+	var marks = {
+		"game":       $PanelContainer/VBoxContainer/HBoxContainer/Game/GameMark,
+		"settings":   $PanelContainer/VBoxContainer/HBoxContainer/Settings/SettingsMark,
+		"collection": $PanelContainer/VBoxContainer/HBoxContainer/Collection/CollectionMark,
+		"mastery":    $PanelContainer/VBoxContainer/HBoxContainer/Mastery/MasteryMark,
+		"blank":      $PanelContainer/VBoxContainer/HBoxContainer/Blank/BlankMark,
+	}
+	for key in marks:
+		marks[key].visible = (key == section)
+	
 
 func _switch_collection_sub(sub: String):
 	current_collection_sub = sub
-	var subnav = $PanelContainer/VBoxContainer/MarginContainer/CollectionSection/HBoxContainer
+	var subnav = $PanelContainer/MarginContainer/CollectionSection/HBoxContainer
 	for btn in subnav.get_children():
 		btn.modulate = Color(1.5, 1.8, 1.5, 1.0) if btn.name.to_lower() == sub else Color(0.6, 0.6, 0.6, 1.0)
 	match sub:
@@ -71,54 +84,44 @@ func _switch_collection_sub(sub: String):
 			_build_fish_panel()
 
 func _get_panel() -> Node:
-	return $PanelContainer/VBoxContainer/MarginContainer/CollectionSection/Panel
+	return $PanelContainer/MarginContainer/CollectionSection/Panel
 
-func _clear_panel():
-	var panel = _get_panel()
-	for child in panel.get_children():
-		child.queue_free()
-
-func _build_recipes_panel():
-	_clear_panel()
-	var panel = _get_panel()
-	var label = Label.new()
-	label.text = "Recipes coming soon"
-	panel.add_child(label)
+func _get_info() -> Node:
+	return $PanelContainer/MarginContainer/CollectionSection/Info
 
 func _build_fish_panel():
 	_clear_panel()
 	var panel = _get_panel()
-
-	var fish_table = FishingManager.FISH_TABLE
-
-	var hbox = HBoxContainer.new()
-	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.add_child(hbox)
+	var info = _get_info()
+	for child in info.get_children():
+		child.queue_free()
 
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(300, 0)
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	hbox.add_child(scroll)
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
+
+	var vbox = VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
 
 	var grid = GridContainer.new()
 	grid.columns = 4
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
-	scroll.add_child(grid)
+	vbox.add_child(grid)
 
-	var detail = VBoxContainer.new()
-	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	hbox.add_child(detail)
+	for fish in FishingManager.FISH_TABLE:
+		_add_fish_slot(grid, fish, info)
 
-	for fish in fish_table:
-		_add_fish_slot(grid, fish, detail)
-
-func _add_fish_slot(grid: GridContainer, fish: Dictionary, detail: VBoxContainer):
+func _add_fish_slot(grid: GridContainer, fish: Dictionary, info: Control):
 	var discovered = fish["name"] in discovered_fish
 
 	var btn = Button.new()
 	btn.custom_minimum_size = Vector2(64, 64)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	btn.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.3, 0.3, 0.3, 1.0)
@@ -149,7 +152,7 @@ func _add_fish_slot(grid: GridContainer, fish: Dictionary, detail: VBoxContainer
 		btn.add_child(tr)
 
 	var f = fish
-	btn.pressed.connect(func(): _show_fish_detail(f, detail, discovered))
+	btn.pressed.connect(func(): _show_fish_detail(f, info, discovered))
 	grid.add_child(btn)
 
 func _show_fish_detail(fish: Dictionary, detail: VBoxContainer, discovered: bool):
@@ -230,6 +233,18 @@ func _show_fish_detail(fish: Dictionary, detail: VBoxContainer, discovered: bool
 		hint.text = "Catch this fish to reveal it"
 		hint.modulate = Color(0.5, 0.5, 0.5)
 		detail.add_child(hint)
+
+func _clear_panel():
+	var panel = _get_panel()
+	for child in panel.get_children():
+		child.queue_free()
+
+func _build_recipes_panel():
+	_clear_panel()
+	var panel = _get_panel()
+	var label = Label.new()
+	label.text = "Recipes coming soon"
+	panel.add_child(label)
 
 func _rarity_color(rarity: String) -> Color:
 	match rarity:

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://d0d53pdpbhp2h"]
 
-[ext_resource type="Script" uid="uid://dpmnlijsmyiw7" path="res://sturgeon.gd" id="1_ukfbg"]
+[ext_resource type="Script" uid="uid://dpmnlijsmyiw7" path="res://Scripts/sturgeon.gd" id="1_ukfbg"]
 [ext_resource type="Texture2D" uid="uid://ccrfehuvgx80b" path="res://Assets/Fish_Bass_Raw.png" id="2_2p4al"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

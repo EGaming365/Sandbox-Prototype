@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://p05u510lvxvf"]
 
-[ext_resource type="Script" uid="uid://cinvvvmtnvqdw" path="res://Scenes/perch.gd" id="1_4t0dd"]
+[ext_resource type="Script" uid="uid://cinvvvmtnvqdw" path="res://Scripts/perch.gd" id="1_4t0dd"]
 [ext_resource type="Texture2D" uid="uid://ciwo6wwq3joeq" path="res://Assets/Fish_Perch_Raw.png" id="2_otomr"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

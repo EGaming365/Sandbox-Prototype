@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cwu376eibgxf4"]
 
-[ext_resource type="Script" uid="uid://c3jc5iruhf278" path="res://Scenes/catfish.gd" id="1_s2l8v"]
+[ext_resource type="Script" uid="uid://c3jc5iruhf278" path="res://Scripts/catfish.gd" id="1_s2l8v"]
 [ext_resource type="Texture2D" uid="uid://bl02y77fylylh" path="res://Assets/Fish_Catfish_Raw.png" id="2_kbb1u"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

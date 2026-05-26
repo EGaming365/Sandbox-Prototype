@@ -55,7 +55,7 @@ func setup(fish_data: Dictionary):
 	if weight > 0.0 and base_kg > 0.0:
 		var ratio := weight / base_kg
 		if ratio >= 2.5:
-			size_tag = " (massive)"
+			size_tag = " (giant)"
 		elif ratio >= 1.8:
 			size_tag = " (large)"
 		elif ratio >= 1.4:

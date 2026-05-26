@@ -8,21 +8,26 @@ var tree_id: int = -1
 var env_id: String = ""
 var trunk_base_y: float = 0.0
 
+var _chat: Node = null
+var _inv: Node = null
+var _hotbar: Node = null
+
 func _ready():
 	add_to_group("trees")
 	z_index = 2
 	trunk_base_y = global_position.y
 	if has_meta("env_id"):
 		env_id = str(get_meta("env_id"))
+	_chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	_inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	_hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 
 func _process(_delta):
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if is_instance_valid(chat) and "is_open" in chat and chat.is_open:
-		return
-	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-	if inv and inv.visible:
-		return
 	if not player_in_range:
+		return
+	if is_instance_valid(_chat) and "is_open" in _chat and _chat.is_open:
+		return
+	if is_instance_valid(_inv) and _inv.visible:
 		return
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		return
@@ -32,13 +37,12 @@ func _process(_delta):
 	var local_mouse = col.to_local(mouse_pos)
 	if not shape.get_rect().has_point(local_mouse):
 		return
-	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	var held_item = ""
-	if hotbar:
-		var slot = Inventory.slots[hotbar.current_slot - 1]
+	if is_instance_valid(_hotbar):
+		var slot = Inventory.slots[_hotbar.current_slot - 1]
 		held_item = slot["item"]
 	var scene_node = get_tree().root.get_node("Scene")
-	var local_player = hotbar.get_local_player() if hotbar else null
+	var local_player = _hotbar.get_local_player() if is_instance_valid(_hotbar) else null
 	if local_player and (local_player.chop_cooldown_timer > 0 or local_player.attack_cooldown > 0):
 		return
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():

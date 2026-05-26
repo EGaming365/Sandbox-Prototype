@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cp6qewwbceh1c"]
 
-[ext_resource type="Script" uid="uid://bct8xjhhp68yc" path="res://Scenes/pike.gd" id="1_s3qfa"]
+[ext_resource type="Script" uid="uid://bct8xjhhp68yc" path="res://Scripts/pike.gd" id="1_s3qfa"]
 [ext_resource type="Texture2D" uid="uid://yh6c4ap7i6w6" path="res://Assets/Fish_Pike_Raw.png" id="2_gihbn"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

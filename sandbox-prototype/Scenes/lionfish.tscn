@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://7s6yp2vli5tj"]
 
-[ext_resource type="Script" uid="uid://cjlsefain6wka" path="res://Scenes/lionfish.gd" id="1_ykrga"]
+[ext_resource type="Script" uid="uid://cjlsefain6wka" path="res://Scripts/lionfish.gd" id="1_ykrga"]
 [ext_resource type="Texture2D" uid="uid://cw4om2c43efi7" path="res://Assets/Fish_Lionfish_Raw.png" id="2_jbsh2"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

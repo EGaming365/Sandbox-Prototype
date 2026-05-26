@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://d3ntlxn6gdden"]
 
-[ext_resource type="Script" uid="uid://bsumvyuondgjh" path="res://Scenes/clownfish.gd" id="1_pykev"]
+[ext_resource type="Script" uid="uid://bsumvyuondgjh" path="res://Scripts/clownfish.gd" id="1_pykev"]
 [ext_resource type="Texture2D" uid="uid://bl0d30u1oylbm" path="res://Assets/Fish_Clownfish_Raw.png" id="2_wx3q7"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

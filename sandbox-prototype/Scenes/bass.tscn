@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bp3p7g0pscj6m"]
 
-[ext_resource type="Script" uid="uid://pkoe0xuhuyph" path="res://bass.gd" id="1_yrm7e"]
+[ext_resource type="Script" uid="uid://pkoe0xuhuyph" path="res://Scripts/bass.gd" id="1_yrm7e"]
 [ext_resource type="Texture2D" uid="uid://ccrfehuvgx80b" path="res://Assets/Fish_Bass_Raw.png" id="2_sopg0"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

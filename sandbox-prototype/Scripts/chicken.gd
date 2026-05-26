@@ -25,6 +25,14 @@ var drowning_timer: float = 0.0
 var drowning_dead: bool = false
 const DROWN_TIME: float = 4.0
 
+var _ai_tick: float = 0.0
+var _sync_tick: float = 0.0
+const AI_TICK_RATE: float = 0.1
+const SYNC_TICK_RATE: float = 0.1
+
+var _scene: Node = null
+var _world_gen: Node = null
+
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hurtbox: Area2D = $Hurtbox
 @onready var staticbody: StaticBody2D = $StaticBody2D
@@ -43,6 +51,8 @@ func _ready() -> void:
 	hurtbox.body_entered.connect(_on_body_entered)
 	hurtbox.body_exited.connect(_on_body_exited)
 	_pick_wander_target()
+	_scene = get_tree().root.get_node_or_null("Scene")
+	_world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 
 func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("players"):
@@ -57,7 +67,6 @@ func _input(event: InputEvent) -> void:
 		return
 	if not event is InputEventMouseButton:
 		return
-
 	if (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
 		var mouse_world: Vector2 = get_global_mouse_position()
 		if (event as InputEventMouseButton).pressed:
@@ -75,16 +84,13 @@ func _input(event: InputEvent) -> void:
 				state = State.IDLE
 				_idle_timer = randf_range(1.0, 2.0)
 		return
-
 	if not (event as InputEventMouseButton).pressed:
 		return
 	if (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
 		return
-
 	var mouse_world: Vector2 = get_global_mouse_position()
 	if global_position.distance_to(mouse_world) > click_radius:
 		return
-
 	var player: Node = null
 	for p in get_tree().get_nodes_in_group("players"):
 		if not multiplayer.has_multiplayer_peer() or (p as Node).is_multiplayer_authority():
@@ -92,7 +98,6 @@ func _input(event: InputEvent) -> void:
 			break
 	if not player:
 		return
-
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
 		return
@@ -103,7 +108,6 @@ func _input(event: InputEvent) -> void:
 		return
 	if player.attack_cooldown > 0.0 or player.chop_cooldown_timer > 0.0:
 		return
-
 	var damage: int = 0
 	if slot["item"] == "Sword":
 		damage = 2
@@ -111,14 +115,11 @@ func _input(event: InputEvent) -> void:
 		damage = 4
 	else:
 		return
-
 	player.attack_cooldown = player.ATTACK_COOLDOWN_MAX
 	player._consume_sword_durability()
-
 	var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
 	if cursor:
 		cursor.show_cooldown(player.ATTACK_COOLDOWN_MAX)
-
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		_request_damage_rpc.rpc_id(1, chicken_id, damage)
 	else:
@@ -153,17 +154,21 @@ func _process(delta: float) -> void:
 		return
 	if not _is_host():
 		return
-	_apply_separation()
-	_check_flee()
+	_ai_tick += delta
+	if _ai_tick >= AI_TICK_RATE:
+		_ai_tick = 0.0
+		_apply_separation()
+		_check_flee()
 	match state:
 		State.WANDER: _do_wander(delta)
 		State.IDLE:   _do_idle(delta)
 		State.FLEE:   _do_flee(delta)
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
-		if is_inside_tree() and get_meta("sync_ready", false):
-			var scene = get_tree().root.get_node_or_null("Scene")
-			if scene:
-				scene.sync_chicken_state_rpc.rpc(chicken_id, global_position.x, global_position.y, int(state))
+		_sync_tick += delta
+		if _sync_tick >= SYNC_TICK_RATE:
+			_sync_tick = 0.0
+			if is_inside_tree() and get_meta("sync_ready", false) and _scene:
+				_scene.sync_chicken_state_rpc.rpc(chicken_id, global_position.x, global_position.y, int(state))
 
 func _apply_separation() -> void:
 	if state == State.FLEE:
@@ -293,10 +298,8 @@ func take_damage(amount: int) -> void:
 	if not _is_host():
 		return
 	health -= amount
-	if multiplayer.has_multiplayer_peer():
-		var scene = get_tree().root.get_node_or_null("Scene")
-		if scene:
-			scene.chicken_flash_hit_rpc.rpc(chicken_id)
+	if multiplayer.has_multiplayer_peer() and _scene:
+		_scene.chicken_flash_hit_rpc.rpc(chicken_id)
 	else:
 		_flash_hit()
 	if health <= 0:
@@ -312,10 +315,8 @@ func _flash_hit() -> void:
 	sprite.modulate = Color(1, 1, 1, 1)
 
 func _die() -> void:
-	if multiplayer.has_multiplayer_peer():
-		var scene = get_tree().root.get_node_or_null("Scene")
-		if scene:
-			scene.chicken_die_rpc.rpc(chicken_id)
+	if multiplayer.has_multiplayer_peer() and _scene:
+		_scene.chicken_die_rpc.rpc(chicken_id)
 	else:
 		_play_die_sequence()
 
@@ -326,13 +327,11 @@ func _play_die_sequence() -> void:
 	tween.tween_property(sprite, "scale", Vector2(0.1, 0.1), 0.4)
 	tween.parallel().tween_property(sprite, "modulate", Color(1, 0.1, 0.1, 0), 0.4)
 	await tween.finished
-	if _is_host():
-		var scene_node = get_tree().root.get_node_or_null("Scene")
-		if scene_node:
-			var drop_count = rng.randi_range(1, 2)
-			for i in drop_count:
-				var offset = Vector2(rng.randf_range(-16, 16), rng.randf_range(-16, 16))
-				scene_node.host_spawn_floor_item(global_position + offset, "Chicken_Raw", 1)
+	if _is_host() and _scene:
+		var drop_count = rng.randi_range(1, 2)
+		for i in drop_count:
+			var offset = Vector2(rng.randf_range(-16, 16), rng.randf_range(-16, 16))
+			_scene.host_spawn_floor_item(global_position + offset, "Chicken_Raw", 1)
 	queue_free()
 
 func _update_drowning(delta: float) -> void:
@@ -340,18 +339,15 @@ func _update_drowning(delta: float) -> void:
 		return
 	if not _is_host():
 		return
-	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
-	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+	var in_water = _world_gen != null and _world_gen.has_method("is_water_at") and _world_gen.is_water_at(global_position)
 	if in_water:
 		drowning_timer += delta
 	else:
 		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
 	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
 	_set_drowning_alpha(alpha)
-	if multiplayer.has_multiplayer_peer():
-		var scene = get_tree().root.get_node_or_null("Scene")
-		if scene:
-			scene.chicken_drowning_alpha_rpc.rpc(chicken_id, alpha)
+	if multiplayer.has_multiplayer_peer() and _scene:
+		_scene.chicken_drowning_alpha_rpc.rpc(chicken_id, alpha)
 	if drowning_timer >= DROWN_TIME and not drowning_dead:
 		drowning_dead = true
 		take_damage(9999)

@@ -6,10 +6,12 @@ var _minigame_packed: PackedScene = preload("res://Scenes/fishing_minigame.tscn"
 var _cast_water_type: String = "both"
 
 const RARITY_WEIGHTS: Dictionary = {
-	"Common": 60,
-	"Uncommon": 25,
-	"Rare": 12,
-	"Legendary": 3,
+	"Common": 53.9,
+	"Uncommon": 30.0,
+	"Rare": 12.0,
+	"Legendary": 3.0,
+	"Mythic": 0.8,
+	"Exotic": 0.3,
 }
 
 const FISH_TABLE: Array[Dictionary] = [
@@ -19,7 +21,7 @@ const FISH_TABLE: Array[Dictionary] = [
 	{"name": "Pike",        "rarity": "Uncommon",  "habitat": "lake",  "zone_height": 68.0,  "speed": 1.25, "progress_rate": 0.85, "escape_rate": 1.2,  "base_weight_kg": 2.5,  "tension": 1},
 	{"name": "Catfish",     "rarity": "Rare",      "habitat": "lake",  "zone_height": 55.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0,  "tension": 2},
 	{"name": "Sturgeon",    "rarity": "Rare",      "habitat": "both",  "zone_height": 45.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0, "tension": 2},
-	{"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake",  "zone_height": 32.0,  "speed": 2.2,  "progress_rate": 0.65, "escape_rate": 2.0,  "base_weight_kg": 0.6,  "tension": 2},
+	{"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake",  "zone_height": 32.0,  "speed": 2.1,  "progress_rate": 0.65, "escape_rate": 1.7,  "base_weight_kg": 0.6,  "tension": 2},
 	{"name": "Clownfish",   "rarity": "Common",    "habitat": "ocean", "zone_height": 110.0, "speed": 0.6,  "progress_rate": 1.2,  "escape_rate": 0.6,  "base_weight_kg": 0.1,  "tension": 1},
 	{"name": "Blue Tang",   "rarity": "Common",    "habitat": "ocean", "zone_height": 90.0,  "speed": 0.8,  "progress_rate": 1.0,  "escape_rate": 0.8,  "base_weight_kg": 0.9,  "tension": 1},
 	{"name": "Salmon",      "rarity": "Uncommon",  "habitat": "ocean", "zone_height": 60.0,  "speed": 1.4,  "progress_rate": 0.8,  "escape_rate": 1.3,  "base_weight_kg": 3.0,  "tension": 1},
@@ -28,7 +30,7 @@ const FISH_TABLE: Array[Dictionary] = [
 
 const ROD_STATS: Dictionary = {
 	"Fishing Rod": {
-		"cast_range":    200.0,
+		"cast_range":    100.0,
 		"zone_height":   1.0,
 		"speed":         1.0,
 		"progress_rate": 1.0,
@@ -40,7 +42,7 @@ const ROD_STATS: Dictionary = {
 		"tension":       1,
 	},
 	"Stone Fishing Rod": {
-		"cast_range":    280.0,
+		"cast_range":    180.0,
 		"zone_height":   1.2,
 		"speed":         0.9,
 		"progress_rate": 1.0,
@@ -164,17 +166,35 @@ func _pick_random_fish() -> Dictionary:
 	if filtered_weights.is_empty():
 		filtered_weights = {"Common": 100}
 
-	var total: int = 0
-	for w in filtered_weights.values():
-		total += w
-	var rarity_roll := randi_range(1, total)
-	var cumulative: int = 0
-	var chosen_rarity: String = "Common"
-	for rarity in filtered_weights:
-		cumulative += filtered_weights[rarity]
-		if rarity_roll <= cumulative:
-			chosen_rarity = rarity
-			break
+	const PRECIOUS = ["Legendary", "Mythic", "Exotic"]
+	var chosen_rarity: String = ""
+	var max_attempts := 10
+	while max_attempts > 0:
+		max_attempts -= 1
+		var total: int = 0
+		for w in filtered_weights.values():
+			total += w
+		var rarity_roll := randi_range(1, total)
+		var cumulative: int = 0
+		var rolled: String = "Common"
+		for rarity in filtered_weights:
+			cumulative += filtered_weights[rarity]
+			if rarity_roll <= cumulative:
+				rolled = rarity
+				break
+		if rolled in PRECIOUS:
+			var valid := false
+			for f in FISH_TABLE:
+				var h: String = f.get("habitat", "both")
+				if f["rarity"] == rolled and (h == "both" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+					valid = true
+					break
+			if not valid:
+				continue
+		chosen_rarity = rolled
+		break
+	if chosen_rarity == "":
+		chosen_rarity = "Common"
 
 	var pool: Array = []
 	for f in FISH_TABLE:
@@ -391,7 +411,7 @@ func _generate_mutations() -> Array:
 func _get_size_tag(weight_kg: float, base_kg: float) -> String:
 	var ratio := weight_kg / base_kg
 	if ratio >= 2.5:
-		return " (massive)"
+		return " (giant)"
 	elif ratio >= 1.8:
 		return " (large)"
 	elif ratio >= 1.4:
