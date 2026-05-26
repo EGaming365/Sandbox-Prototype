@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://cgi082q4vesuw" path="res://Scripts/extras.gd" id="1_neogw"]
 [ext_resource type="Texture2D" uid="uid://dkhjdpxil22j6" path="res://Assets/Button_Fish.png" id="2_pnj3x"]
-[ext_resource type="Texture2D" uid="uid://bd6vtamqx1grg" path="res://Assets/Fish_Display.png" id="3_rkvux"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rkvux"]
 content_margin_left = 4.0
@@ -332,97 +331,12 @@ offset_bottom = -90.94336
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel5" type="ColorRect" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=1187864996]
+[node name="Info" type="VBoxContainer" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=1403888859]
 layout_mode = 0
-offset_left = 752.034
-offset_top = 30.932007
-offset_right = 792.034
-offset_bottom = 70.932
-scale = Vector2(11.424662, 12.488396)
-color = Color(0.16924512, 0.16924536, 0.16924521, 1)
-
-[node name="Panel4" type="ColorRect" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=1682757849]
-layout_mode = 0
-offset_left = 760.32544
-offset_top = 41.59764
-offset_right = 800.32544
-offset_bottom = 81.59763
-scale = Vector2(10.950758, 11.843295)
-color = Color(0.16924512, 0.16924536, 0.16924521, 1)
-
-[node name="Info" type="Control" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=1379341296]
-anchors_preset = 0
 offset_left = 756.17975
 offset_top = 31.998192
 offset_right = 1206.1797
 offset_bottom = 781.99817
-
-[node name="HintLabel" type="Label" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=647439379]
-layout_mode = 0
-offset_left = 30.678345
-offset_top = 509.8377
-offset_right = 70.678345
-offset_bottom = 532.8377
-scale = Vector2(9.380807, 2.1347566)
-
-[node name="FishImage" type="TextureRect" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=182211023]
-layout_mode = 0
-offset_left = 61.356674
-offset_top = 40.531036
-offset_right = 391.3567
-offset_bottom = 390.53104
-stretch_mode = 5
-
-[node name="StatsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=1097904815]
-layout_mode = 0
-offset_left = -1.6582642
-offset_top = 507.7046
-offset_right = 228.34174
-offset_bottom = 777.7046
-
-[node name="MutationsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=1766526170]
-layout_mode = 0
-offset_left = 13.266338
-offset_top = 507.7046
-offset_right = 243.26634
-offset_bottom = 777.7046
-
-[node name="TextureRect" type="TextureRect" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=476857072]
-layout_mode = 0
-offset_left = -4.145691
-offset_top = -1.0666046
-offset_right = 35.85431
-offset_bottom = 38.933395
-scale = Vector2(11.479086, 12.079522)
-texture = ExtResource("3_rkvux")
-
-[node name="NameLabel" type="Label" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=720787853]
-layout_mode = 0
-offset_left = 78.76874
-offset_top = 359.4463
-offset_right = 378.76874
-offset_bottom = 382.4463
-
-[node name="RarityLabel" type="Label" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=1208635208]
-layout_mode = 0
-offset_left = 78.76904
-offset_top = 413.84296
-offset_right = 378.76904
-offset_bottom = 436.84296
-
-[node name="HabitatLabel" type="Label" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=1198209374]
-layout_mode = 0
-offset_left = 17.412048
-offset_top = 22.398743
-offset_right = 57.41205
-offset_bottom = 45.398743
-
-[node name="AvgWeightLabel" type="Label" parent="PanelContainer/MarginContainer/CollectionSection/Info" unique_id=1488937096]
-layout_mode = 0
-offset_left = 17.412048
-offset_top = 55.46353
-offset_right = 57.41205
-offset_bottom = 78.46353
 
 [node name="MasterySection" type="Control" parent="PanelContainer/MarginContainer" unique_id=1237271314]
 anchors_preset = 0
