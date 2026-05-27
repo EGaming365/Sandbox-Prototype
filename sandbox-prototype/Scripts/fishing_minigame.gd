@@ -68,7 +68,6 @@ func setup(fish_data: Dictionary):
 			weight_str = "  •  " + str(int(weight * 1000)) + "g"
 		else:
 			weight_str = "  •  " + str(snappedf(weight, 0.01)) + "kg"
-	fish_label.text = display_name + size_tag + "  [" + fish_data.rarity + "]" + weight_str
 	fish_zone_height = fish_data.zone_height
 	fish_speed = fish_data.speed
 	progress_rate = fish_data.progress_rate

@@ -22,23 +22,24 @@ const FISH_TABLE: Array[Dictionary] = [
 	{"name": "Perch",       "rarity": "Common",    "habitat": "lake",  "zone_height": 10.0,  "speed": 0.75, "progress_rate": 0.95, "escape_rate": 0.85, "base_weight_kg": 0.3,  "tension": 1},
 	{"name": "Bass",        "rarity": "Uncommon",  "habitat": "both",  "zone_height": 10.0,  "speed": 1.0,  "progress_rate": 0.90, "escape_rate": 1.05, "base_weight_kg": 1.2,  "tension": 1},
 	{"name": "Pike",        "rarity": "Uncommon",  "habitat": "lake",  "zone_height": 10.0,  "speed": 1.25, "progress_rate": 0.85, "escape_rate": 1.2,  "base_weight_kg": 2.5,  "tension": 1},
-	{"name": "Catfish",     "rarity": "Rare",      "habitat": "lake",  "zone_height": 10.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0,  "tension": 2},
-	{"name": "Sturgeon",    "rarity": "Rare",      "habitat": "both",  "zone_height": 10.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0, "tension": 2},
+	{"name": "Catfish",     "rarity": "Unusual",   "habitat": "lake",  "zone_height": 10.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0,  "tension": 2},
+	{"name": "Sturgeon",    "rarity": "Unusual",   "habitat": "both",  "zone_height": 10.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0, "tension": 2},
 	{"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake",  "zone_height": 10.0,  "speed": 2.1,  "progress_rate": 0.65, "escape_rate": 1.7,  "base_weight_kg": 0.6,  "tension": 2},
 	{"name": "Clownfish",   "rarity": "Common",    "habitat": "ocean", "zone_height": 10.0, "speed": 0.6,  "progress_rate": 1.2,  "escape_rate": 0.6,  "base_weight_kg": 0.1,  "tension": 1},
 	{"name": "Blue Tang",   "rarity": "Common",    "habitat": "ocean", "zone_height": 10.0,  "speed": 0.8,  "progress_rate": 1.0,  "escape_rate": 0.8,  "base_weight_kg": 0.9,  "tension": 1},
 	{"name": "Salmon",      "rarity": "Uncommon",  "habitat": "ocean", "zone_height": 10.0,  "speed": 1.4,  "progress_rate": 0.8,  "escape_rate": 1.3,  "base_weight_kg": 3.0,  "tension": 1},
 	{"name": "Lionfish",    "rarity": "Rare",      "habitat": "ocean", "zone_height": 10.0,  "speed": 1.9,  "progress_rate": 0.7,  "escape_rate": 1.7,  "base_weight_kg": 0.8,  "tension": 2},
+	{"name": "Tire",        "rarity": "Trash",     "habitat": "both",  "zone_height": 10.0,  "speed": 1.9,  "progress_rate": 0.75,  "escape_rate": 1.7,  "base_weight_kg": 10.0,  "tension": 1},
 ]
 
 const ROD_STATS: Dictionary = {
 	"Fishing Rod": {
-		"cast_range":    100.0,
+		"cast_range":    150.0,
 		"zone_height":   1.0,
 		"speed":         1.0,
 		"progress_rate": 1.0,
 		"escape_rate":   1.0,
-		"player_bar":    60.0,
+		"player_bar":    70.0,
 		"luck":          1.0,
 		"max_weight_kg": 4.0,
 		"bar_speed":     1.0,
@@ -51,7 +52,7 @@ const ROD_STATS: Dictionary = {
 		"speed":         0.9,
 		"progress_rate": 1.0,
 		"escape_rate":   0.9,
-		"player_bar":    80.0,
+		"player_bar":    90.0,
 		"luck":          1.2,
 		"max_weight_kg": 200.0,
 		"bar_speed":     1.1,
@@ -61,8 +62,10 @@ const ROD_STATS: Dictionary = {
 }
 
 var catch_textures = {
+	"Trash": preload("res://Assets/Catch_Normal.png"),
 	"Common": preload("res://Assets/Catch_Normal.png"),
 	"Uncommon": preload("res://Assets/Catch_Normal.png"),
+	"Unusual": preload("res://Assets/Catch_Normal.png"),
 	"Rare": preload("res://Assets/Catch_Normal.png"),
 	"Epic": preload("res://Assets/Catch_Normal.png"),
 	"Legendary": preload("res://Assets/Catch_Legendary.png"),
@@ -176,11 +179,11 @@ func _pick_random_fish() -> Dictionary:
 	var max_attempts := 10
 	while max_attempts > 0:
 		max_attempts -= 1
-		var total: int = 0
+		var total: float = 0.0
 		for w in filtered_weights.values():
 			total += w
-		var rarity_roll := randi_range(1, total)
-		var cumulative: int = 0
+		var rarity_roll := randf() * total
+		var cumulative: float = 0.0
 		var rolled: String = "Common"
 		for rarity in filtered_weights:
 			cumulative += filtered_weights[rarity]

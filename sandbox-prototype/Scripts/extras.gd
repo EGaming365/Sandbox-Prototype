@@ -166,7 +166,7 @@ func _populate_fish_panel(panel: Control, info: Control):
 	grid.add_theme_constant_override("v_separation", separation)
 	vbox.add_child(grid)
 
-	var rarity_order = {"Common": 0, "Uncommon": 1, "Rare": 2, "Legendary": 3}
+	var rarity_order = {"Trash": 0, "Common": 1, "Uncommon": 2, "Unusual": 3, "Rare": 4, "Epic": 5, "Legendary": 6}
 	var sorted_fish = FishingManager.FISH_TABLE.duplicate()
 	sorted_fish.sort_custom(func(a, b):
 		var ra = rarity_order.get(a.get("rarity", "Common"), 0)
@@ -365,9 +365,12 @@ func _build_recipes_panel():
 
 func _rarity_color(rarity: String) -> Color:
 	match rarity:
+		"Trash":     return Color(0.589, 0.589, 0.589, 1.0)
 		"Common":    return Color(0.8, 0.8, 0.8)
 		"Uncommon":  return Color(0.3, 1.0, 0.3)
+		"Unusual":   return Color(0.996, 0.576, 0.953, 1.0)
 		"Rare":      return Color(0.3, 0.5, 1.0)
+		"Epic":      return Color(0.887, 0.001, 0.904, 1.0)
 		"Legendary": return Color(1.0, 0.8, 0.1)
 	return Color.WHITE
 

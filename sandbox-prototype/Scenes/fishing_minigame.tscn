@@ -72,10 +72,12 @@ offset_bottom = 40.0
 
 [node name="FishLabel" type="Label" parent="." unique_id=459130695]
 layout_mode = 0
-offset_top = -34.0
-offset_right = 94.0
-offset_bottom = -11.0
-text = "Hold to Reel"
+offset_left = -43.0
+offset_top = -58.0
+offset_right = 153.0
+offset_bottom = -9.0
+text = "Hold Space or Right CLick
+                 to Reel"
 
 [node name="HoldButton" type="Button" parent="." unique_id=2055227147]
 layout_mode = 0
