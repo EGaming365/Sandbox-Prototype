@@ -3,7 +3,7 @@ extends Control
 @onready var hunger_bar: ProgressBar = $HBoxContainer/HungerBar
 @onready var thirst_bar: ProgressBar = $HBoxContainer/ThirstBar
 @onready var time_icon: TextureRect = $TimeIcon
-@onready var disastor_icon: TextureRect = $DisastorIcon
+@onready var event_icon: TextureRect = $EventIcon
 var tex_clear = preload("res://Assets/Weather_Clear.png")
 var tex_rain = preload("res://Assets/Weather_Rain.png")
 var tex_thunder = preload("res://Assets/Weather_Thunder.png")
@@ -12,6 +12,7 @@ var tex_day = preload("res://Assets/Time_Day.png")
 var tex_night = preload("res://Assets/Time_Night.png")
 var tex_morning = preload("res://Assets/Time_Morning.png")
 var tex_evening = preload("res://Assets/Time_Evening.png")
+var tex_aurora_borealis= preload("res://Assets/Event_Aurora_Borealis.png")
 var hunger: float = 100.0
 var thirst: float = 100.0
 var hunger_drain: float = 0.2
@@ -28,12 +29,15 @@ var regen_timer: float = 0.0
 var regen_max_health: float = 10.0
 var idle_drain_multiplier: float = 0.1
 var healing_drain_multiplier: float = 10.0
+var aurora_glow_rect: ColorRect
+var _aurora_glow_phase: float = 0.0
 
 func _ready():
 	hunger_bar.max_value = 100
 	hunger_bar.value = 100
 	thirst_bar.max_value = 100
 	thirst_bar.value = 100
+	aurora_glow_rect = null
 
 func _process(delta):
 	var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
@@ -128,6 +132,26 @@ func _process(delta):
 	if not death_message_sent and (player.synced_health <= 0 or prev_health <= 1):
 		death_message_sent = true
 		_send_death_message(death_cause)
+	
+	if aurora_glow_rect:
+		var weather = get_tree().root.get_node_or_null("Scene/Weather")
+		var aurora_on = weather and weather.aurora_active
+		if aurora_on:
+			_aurora_glow_phase += delta * 0.8
+			var glow_tints = [
+				Color(0.18, 0.85, 0.65, 0.5),
+				Color(0.45, 0.0, 0.9, 0.5),
+				Color(0.0, 0.7, 0.6, 0.5),
+				Color(0.5, 0.0, 1.0, 0.5),
+			]
+			var idx_a = int(_aurora_glow_phase) % glow_tints.size()
+			var idx_b = (idx_a + 1) % glow_tints.size()
+			var t = fmod(_aurora_glow_phase, 1.0)
+			var pulse = 0.3 + 0.2 * sin(_aurora_glow_phase * 3.0)
+			var blended = glow_tints[idx_a].lerp(glow_tints[idx_b], t)
+			aurora_glow_rect.color = Color(blended.r, blended.g, blended.b, pulse)
+		else:
+			aurora_glow_rect.color = aurora_glow_rect.color.lerp(Color(0, 0, 0, 0), delta * 2.0)
 
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -145,3 +169,19 @@ func reset_stats():
 	thirst = 100.0
 	hunger_bar.value = 100.0
 	thirst_bar.value = 100.0
+
+func _create_aurora_glow():
+	aurora_glow_rect = ColorRect.new()
+	aurora_glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aurora_glow_rect.color = Color(0.0, 0.0, 0.0, 0.0)
+	var event_display = $EventDisplay
+	var event_icon = $EventIcon
+	var glow_parent = event_display.get_parent()
+	glow_parent.add_child(aurora_glow_rect)
+	glow_parent.move_child(aurora_glow_rect, event_display.get_index())
+	aurora_glow_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+func set_aurora_icon(active: bool):
+	event_icon.texture = tex_aurora_borealis if active else null
+	if active and not aurora_glow_rect:
+		_create_aurora_glow()

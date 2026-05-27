@@ -274,6 +274,27 @@ func _handle_command(text: String):
 				else:
 					target["node"].take_damage(target["node"].synced_health)
 			_add_message("[System] Killed " + target["name"])
+		"/event":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /event <aurora>")
+				return
+			match parts[1].to_lower():
+				"aurora":
+					var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
+					if not weather_node:
+						_add_message("[System] WeatherSystem not found.")
+						return
+					weather_node.time_of_day = 0.95
+					weather_node._was_night = true
+					weather_node._start_aurora()
+					if multiplayer.has_multiplayer_peer():
+						weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+					_add_message("[System] Aurora Borealis summoned.")
+				_:
+					_add_message("[System] Unknown event. Use: aurora")
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 

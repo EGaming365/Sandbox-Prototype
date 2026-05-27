@@ -3,17 +3,17 @@ extends Control
 var current_section: String = "game"
 var current_collection_sub: String = "recipes"
 var discovered_fish: Array = []
-
 var fish_records: Dictionary = {}
 var fish_catch_counts: Dictionary = {}
 var mark_base_colors: Dictionary = {}
 var btn_base_colors: Dictionary = {}
-
 var selected_fish_btn: Button = null
+var aurora_active: bool = false
 
 func toggle():
 	if visible:
 		hide()
+		_close_info_panel()
 	else:
 		show()
 		_switch_section(current_section)
@@ -46,6 +46,54 @@ func _input(event):
 		var safe_rect = panel_rect.merge(nav_rect)
 		if not safe_rect.has_point(mouse):
 			hide()
+
+func set_aurora(state: bool):
+	aurora_active = state
+	var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+	if hud and hud.has_method("set_aurora_icon"):
+		hud.set_aurora_icon(state)
+	if state:
+		_show_aurora_notification()
+
+func _show_aurora_notification():
+	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
+	if not canvas:
+		return
+	var container = HBoxContainer.new()
+	container.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	container.offset_top = 60
+	container.z_index = 20
+	container.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	var part1 = Label.new()
+	part1.text = "Tonight is the illusive "
+	part1.add_theme_font_size_override("font_size", 22)
+	part1.add_theme_color_override("font_color", Color.WHITE)
+	part1.add_theme_color_override("font_outline_color", Color.BLACK)
+	part1.add_theme_constant_override("outline_size", 5)
+	container.add_child(part1)
+
+	var part2 = Label.new()
+	part2.text = "Aurora Borealis"
+	part2.add_theme_font_size_override("font_size", 22)
+	part2.add_theme_color_override("font_color", Color(0.18, 0.85, 0.65))
+	part2.add_theme_color_override("font_outline_color", Color.BLACK)
+	part2.add_theme_constant_override("outline_size", 5)
+	container.add_child(part2)
+
+	var part3 = Label.new()
+	part3.text = "! Luck is Drastically Increased."
+	part3.add_theme_font_size_override("font_size", 22)
+	part3.add_theme_color_override("font_color", Color.WHITE)
+	part3.add_theme_color_override("font_outline_color", Color.BLACK)
+	part3.add_theme_constant_override("outline_size", 5)
+	container.add_child(part3)
+
+	canvas.add_child(container)
+	var tween = container.create_tween()
+	tween.tween_interval(4.0)
+	tween.tween_property(container, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(container.queue_free)
 
 func _cache_base_colors():
 	for n in ["Game", "Settings", "Collection", "Mastery", "Blank"]:
@@ -135,8 +183,8 @@ func _build_fish_panel():
 	call_deferred("_populate_fish_panel", panel, info)
 
 func _populate_fish_panel(panel: Control, info: Control):
-	var columns = 10
-	var slot_size = 72
+	var columns = 6
+	var slot_size = 116
 	var separation = 6
 	var total_width = columns * slot_size + (columns - 1) * separation
 
@@ -184,10 +232,10 @@ func _make_slot_style(border: bool, border_color: Color) -> StyleBoxFlat:
 	style.corner_radius_top_right = 4
 	style.corner_radius_bottom_left = 4
 	style.corner_radius_bottom_right = 4
-	style.border_width_left = 2 if border else 0
-	style.border_width_right = 2 if border else 0
-	style.border_width_top = 2 if border else 0
-	style.border_width_bottom = 2 if border else 0
+	style.border_width_left = 4 if border else 0
+	style.border_width_right = 4 if border else 0
+	style.border_width_top = 4 if border else 0
+	style.border_width_bottom = 4 if border else 0
 	if border:
 		style.border_color = border_color
 	return style
@@ -197,7 +245,7 @@ func _add_fish_slot(grid: GridContainer, fish: Dictionary, info: Control):
 	var rarity_color = _rarity_color(fish.get("rarity", ""))
 
 	var btn = Button.new()
-	btn.custom_minimum_size = Vector2(62, 72)
+	btn.custom_minimum_size = Vector2(106, 126)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	btn.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	btn.clip_contents = true
@@ -236,7 +284,7 @@ func _add_fish_slot(grid: GridContainer, fish: Dictionary, info: Control):
 	var lbl = Label.new()
 	lbl.text = fish["name"] if discovered else "???"
 	lbl.modulate = rarity_color
-	lbl.add_theme_font_size_override("font_size", 8)
+	lbl.add_theme_font_size_override("font_size", 18)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	lbl.anchor_left = 0.0
@@ -365,13 +413,15 @@ func _build_recipes_panel():
 
 func _rarity_color(rarity: String) -> Color:
 	match rarity:
-		"Trash":     return Color(0.589, 0.589, 0.589, 1.0)
-		"Common":    return Color(0.8, 0.8, 0.8)
-		"Uncommon":  return Color(0.3, 1.0, 0.3)
-		"Unusual":   return Color(0.996, 0.576, 0.953, 1.0)
-		"Rare":      return Color(0.3, 0.5, 1.0)
-		"Epic":      return Color(0.887, 0.001, 0.904, 1.0)
+		"Trash":     return Color(0.439, 0.439, 0.439, 1.0)
+		"Common":    return Color(0.557, 0.733, 0.749, 1.0)
+		"Uncommon":  return Color(0.0, 0.792, 0.325, 1.0)
+		"Unusual":   return Color(0.753, 0.529, 0.776, 1.0)
+		"Rare":      return Color(0.19, 0.28, 0.648, 1.0)
+		"Epic":      return Color(0.651, 0.0, 0.664, 1.0)
 		"Legendary": return Color(1.0, 0.8, 0.1)
+		"Mythic":    return Color(1.0, 0.243, 0.471, 1.0)
+		"Exotic":    return Color(0.0, 0.949, 1.0, 1.0)
 	return Color.WHITE
 
 func _get_fish_owned(fish_name: String) -> String:
@@ -416,3 +466,11 @@ func _format_weight(kg: float) -> String:
 	if kg < 1.0:
 		return str(int(kg * 1000)) + "g"
 	return str(snappedf(kg, 0.01)) + "kg"
+
+func _close_info_panel():
+	var info = _get_info()
+	for child in info.get_children():
+		if child is Label:
+			child.text = ""
+	$PanelContainer/MarginContainer/CollectionSection/Panel5.color = Color(0, 0, 0, 0)
+	_deselect_fish_btn()

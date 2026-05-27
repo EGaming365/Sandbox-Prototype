@@ -499,6 +499,18 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 				item_scene = preload("res://Scenes/sturgeon.tscn")
 			"Pike", "Albino Pike":
 				item_scene = preload("res://Scenes/pike.tscn")
+			"Blue Tang", "Albino Blue Tang":
+				item_scene = preload("res://Scenes/blue_tang.tscn")
+			"Clownfish", "Albino Clownfish":
+				item_scene = preload("res://Scenes/clownfish.tscn")
+			"Lionfish", "Albino Lionfish":
+				item_scene = preload("res://Scenes/lionfish.tscn")
+			"Tire", "Albino Tire":
+				item_scene = preload("res://Scenes/tire.tscn")
+			"Salmon", "Albino Salmon":
+				item_scene = preload("res://Scenes/catfish.tscn")
+			"Red Tang", "Albino Red Tang":
+				item_scene = preload("res://Scenes/red_tang.tscn")
 			_:
 				item_scene = preload("res://Scenes/tophat_fish.tscn")
 	else:

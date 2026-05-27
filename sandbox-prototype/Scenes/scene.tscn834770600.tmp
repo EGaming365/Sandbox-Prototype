@@ -219,6 +219,23 @@ script = ExtResource("18_oisvf")
 
 [node name="CaveWorldGen" type="Node2D" parent="." unique_id=462950461]
 script = ExtResource("25_dlgao")
+chunk_size_tiles = null
+chunk_view_distance = null
+chunk_unload_distance = null
+chunk_update_interval = null
+tiles_per_frame = null
+cave_source_name = null
+cave_source_fallback_id = null
+cave_atlas = null
+water_source_name = null
+water_source_fallback_id = null
+water_atlas = null
+lake_region_size_tiles = null
+lake_chance_per_region = null
+lake_second_chance = null
+lake_min_radius_tiles = null
+lake_max_radius_tiles = null
+lake_margin_tiles = null
 
 [node name="EnvironmentGen" type="Node2D" parent="." unique_id=1926375224]
 script = ExtResource("20_b0t05")

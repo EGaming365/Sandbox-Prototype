@@ -2,6 +2,7 @@ extends Node2D
 
 @export var tree_scene_path: String = "res://Scenes/tree.tscn"
 @export var rock_scene_path: String = "res://Scenes/rock.tscn"
+@export var cave_scene_path: String = "res://Scenes/cave.tscn"
 
 @export var render_distance_chunks: int = 2
 @export var unload_distance_chunks: int = 4
@@ -29,6 +30,10 @@ extends Node2D
 @export var grass_color_g_min: float = 0.90
 @export var grass_color_b_min: float = 0.80
 @export var grass_min_distance: float = 60.0
+
+@export var cave_region_size_tiles: int = 64
+@export var cave_chance_per_region: float = 0.95
+@export var cave_spawn_safe_radius: float = 900.0
 
 var scene_node: Node
 var world_gen: Node
@@ -65,11 +70,17 @@ var _build_kinds: Array = [
 
 var _packed_tree_scene: PackedScene = null
 var _packed_rock_scene: PackedScene = null
+var _packed_cave_scene: PackedScene = null
 
 var _grass_textures: Array = []
 var _grass_nodes: Dictionary = {}
 
 var _world_state_received: bool = false
+
+var _loaded_cave_regions: Dictionary = {}
+var _active_caves: Dictionary = {}
+var _cave_positions: Dictionary = {}
+var _cave_region_load_queue: Array = []
 
 const _BIOME_CELL: float = 24.0
 
@@ -78,6 +89,7 @@ func _ready():
 	world_gen   = get_tree().root.get_node_or_null("Scene/WorldGen")
 	_packed_tree_scene = load(tree_scene_path)
 	_packed_rock_scene = load(rock_scene_path)
+	_packed_cave_scene = load(cave_scene_path)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -106,7 +118,13 @@ func _process(delta):
 	update_timer = update_interval
 	if not _refresh_references():
 		return
+
+	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	if cave_world_gen and cave_world_gen.get("in_cave"):
+		return
+
 	_update_chunks_around_player()
+	_update_cave_regions()
 
 func _process_load_queue_step():
 	if _chunk_load_queue.is_empty():
@@ -195,7 +213,7 @@ func _build_object_pass(chunk_coord: Vector2i, kind: String, wants_forest: bool,
 		if _biome_queries_this_frame >= _MAX_BIOME_QUERIES_PER_FRAME:
 			_build_kind_index -= 1
 			break
-		if not _is_safely_in_biome_cached(pos, wants_forest):
+		if not _is_valid_object_position(pos, wants_forest):
 			continue
 		if not _passes_distance_rule(chunk_coord, pos, min_dist):
 			continue
@@ -208,6 +226,23 @@ func _build_object_pass(chunk_coord: Vector2i, kind: String, wants_forest: bool,
 			_build_jobs.append({ "env_id": env_id, "kind": kind, "pos": pos, "chunk_coord": chunk_coord })
 
 		spawned += 1
+
+func _is_valid_object_position(pos: Vector2, wants_forest: bool) -> bool:
+	if _is_water_cached(pos):
+		return false
+	var r := biome_edge_check_radius
+	var offsets := [
+		Vector2.ZERO,
+		Vector2(r, 0), Vector2(-r, 0),
+		Vector2(0, r), Vector2(0, -r),
+	]
+	for offset in offsets:
+		var check: Vector2i = pos + offset
+		if _is_water_cached(check):
+			return false
+		if _is_forest_cached(check) != wants_forest:
+			return false
+	return true
 
 func _build_grass_pass(chunk_coord: Vector2i):
 	if _grass_textures.is_empty():
@@ -408,6 +443,7 @@ func set_world_seed(seed: int):
 	world_seed = seed
 	_world_state_received = false
 	_unload_all_chunks()
+	_cave_positions.clear()
 
 func mark_destroyed(env_id: String):
 	destroyed_env_objects[env_id] = true
@@ -438,6 +474,94 @@ func _update_chunks_around_player():
 	for cc in to_unload:
 		_unload_chunk(cc)
 		_chunk_load_queue.erase(cc)
+
+func _update_cave_regions():
+	if not local_player or not world_gen:
+		return
+
+	var player_tile: Vector2i = world_gen.world_to_tile(local_player.global_position)
+	var player_region: Vector2i = _tile_to_cave_region(player_tile)
+
+	var chunk_size: int = world_gen.chunk_size_tiles
+	var rpc: int = maxi(1, cave_region_size_tiles / chunk_size)
+	var view_r: int = render_distance_chunks / rpc + 1
+	var unload_r: int = unload_distance_chunks / rpc + 2
+
+	for rx in range(player_region.x - view_r, player_region.x + view_r + 1):
+		for ry in range(player_region.y - view_r, player_region.y + view_r + 1):
+			var region := Vector2i(rx, ry)
+			if not _loaded_cave_regions.has(region) and not _cave_region_load_queue.has(region):
+				_cave_region_load_queue.append(region)
+
+	for region in _loaded_cave_regions.keys().duplicate():
+		if abs(region.x - player_region.x) > unload_r or \
+		   abs(region.y - player_region.y) > unload_r:
+			_unload_cave_region(region)
+
+	if not _cave_region_load_queue.is_empty():
+		var region: Vector2i = _cave_region_load_queue.pop_front()
+		if not _loaded_cave_regions.has(region):
+			_load_cave_region(region)
+
+func _load_cave_region(region: Vector2i):
+	_loaded_cave_regions[region] = true
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _cave_region_seed(region)
+
+	if rng.randf() > cave_chance_per_region:
+		return
+
+	var margin: int = 8
+	var origin := Vector2i(region.x * cave_region_size_tiles, region.y * cave_region_size_tiles)
+	var tile := origin + Vector2i(
+		rng.randi_range(margin, cave_region_size_tiles - margin),
+		rng.randi_range(margin, cave_region_size_tiles - margin))
+	var world_pos: Vector2 = world_gen.tile_to_world_center(tile)
+
+	if world_pos.length() < cave_spawn_safe_radius:
+		return
+	if not _packed_cave_scene:
+		return
+
+	var check_offsets := [
+		Vector2.ZERO,
+		Vector2(200, 0), Vector2(-200, 0),
+		Vector2(0, 200), Vector2(0, -200),
+	]
+	for offset in check_offsets:
+		if world_gen.has_method("is_water_at") and world_gen.is_water_at(world_pos + offset):
+			return
+
+	for other_pos in _cave_positions.values():
+		if world_pos.distance_to(other_pos) < 1200.0:
+			return
+
+	_cave_positions[region] = world_pos
+
+	if _active_caves.has(region):
+		return
+
+	var cave = _packed_cave_scene.instantiate()
+	cave.global_position = world_pos
+	scene_node.add_child(cave)
+	_active_caves[region] = cave
+
+func _unload_cave_region(region: Vector2i):
+	_cave_region_load_queue.erase(region)
+	_loaded_cave_regions.erase(region)
+
+func _unload_all_cave_regions():
+	_cave_region_load_queue.clear()
+	_loaded_cave_regions.clear()
+
+func _tile_to_cave_region(tc: Vector2i) -> Vector2i:
+	return Vector2i(
+		floori(float(tc.x) / float(cave_region_size_tiles)),
+		floori(float(tc.y) / float(cave_region_size_tiles)))
+
+func _cave_region_seed(region: Vector2i) -> int:
+	return abs(world_seed ^ (region.x * 246813579) ^ (region.y * 135792468) ^ 1357924680)
 
 func _load_chunk(chunk_coord: Vector2i):
 	if loaded_chunks.has(chunk_coord):
@@ -491,10 +615,19 @@ func _unload_all_chunks():
 	for chunk_coord in loaded_chunks.keys().duplicate():
 		_unload_chunk(chunk_coord)
 
+	for env_id in active_objects.keys().duplicate():
+		_despawn_object(env_id)
+
 	loaded_chunks.clear()
 	chunk_objects.clear()
 	object_positions_by_chunk.clear()
 	active_objects.clear()
+
+	for chunk_coord in _grass_nodes.keys().duplicate():
+		var node = _grass_nodes[chunk_coord]
+		if is_instance_valid(node):
+			node.queue_free()
+	_grass_nodes.clear()
 
 func _spawn_object(env_id: String, kind: String, pos: Vector2, _chunk_coord: Vector2i):
 	if active_objects.has(env_id):

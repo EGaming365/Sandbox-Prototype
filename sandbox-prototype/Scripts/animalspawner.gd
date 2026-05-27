@@ -63,25 +63,12 @@ func _on_spawn_tick() -> void:
 		return
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
+	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	if cave_world_gen and cave_world_gen.get("in_cave"):
+		return
 	var players := get_tree().get_nodes_in_group("players")
 	if players.is_empty():
 		return
-	# Check spawn need per player
-	var in_radius := _count_chickens_in_radius()
-	var needed = max(max_chickens_in_radius - in_radius, 0)
-	for i in needed:
-		# Pick a random player to spawn near
-		var target_player = players[randi() % players.size()]
-		var pos := _random_spawn_pos_near((target_player as Node2D).global_position)
-		if pos != Vector2.ZERO:
-			_spawn_chicken(pos)
-	if _is_night():
-		var enemies_needed = max(max_night_enemies_in_radius - _count_night_enemies_in_radius(), 0)
-		for i in enemies_needed:
-			var target_player = players[randi() % players.size()]
-			var pos := _random_spawn_pos_near((target_player as Node2D).global_position, "night_enemies")
-			if pos != Vector2.ZERO:
-				_spawn_night_enemy(pos)
 
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
@@ -226,10 +213,13 @@ func _is_night() -> bool:
 
 func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -> Vector2:
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	for i in 30:
 		var angle := randf_range(0.0, TAU)
 		var dist := randf_range(spawn_radius_min, spawn_radius_max)
 		var pos := center + Vector2(cos(angle), sin(angle)) * dist
+		if cave_world_gen and cave_world_gen.get("in_cave"):
+			continue
 		if world_gen and world_gen.has_method("is_water_at") and world_gen.is_water_at(pos):
 			continue
 		var too_close := false

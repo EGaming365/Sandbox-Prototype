@@ -283,18 +283,36 @@ func _get_ocean_for_region(region: Vector2i) -> Array:
 		var rx := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
 		var ry := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
 
-		var islands := []
-		if rng.randf() < island_chance:
-			var island_count := rng.randi_range(1, island_count_max)
-			for _i in island_count:
-				var angle := rng.randf_range(0.0, TAU)
-				var dist := rng.randf_range(0.0, 0.65)
-				var ic := center + Vector2(cos(angle) * rx * dist, sin(angle) * ry * dist)
-				var irx := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
-				var iry := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
-				islands.append({ "center": ic, "radius_x": irx, "radius_y": iry })
+		var too_close := false
+		for dx in [-1, 0, 1]:
+			for dy in [-1, 0, 1]:
+				if dx == 0 and dy == 0:
+					continue
+				var neighbor := Vector2i(region.x + dx, region.y + dy)
+				if not ocean_region_cache.has(neighbor):
+					continue
+				for other in ocean_region_cache[neighbor]:
+					var dist := center.distance_to(other["center"])
+					if dist < (rx + other["radius_x"] + ry + other["radius_y"]) * 0.5:
+						too_close = true
+						break
+				if too_close:
+					break
+			if too_close:
+				break
 
-		oceans.append({ "center": center, "radius_x": rx, "radius_y": ry, "islands": islands })
+		if not too_close:
+			var islands := []
+			if rng.randf() < island_chance:
+				var island_count := rng.randi_range(1, island_count_max)
+				for _i in island_count:
+					var angle := rng.randf_range(0.0, TAU)
+					var dist := rng.randf_range(0.0, 0.65)
+					var ic := center + Vector2(cos(angle) * rx * dist, sin(angle) * ry * dist)
+					var irx := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
+					var iry := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
+					islands.append({ "center": ic, "radius_x": irx, "radius_y": iry })
+			oceans.append({ "center": center, "radius_x": rx, "radius_y": ry, "islands": islands })
 
 	ocean_region_cache[region] = oceans
 	return oceans
@@ -312,6 +330,8 @@ func _calculate_land_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 
 func _is_forest_lake_tile(tile_coord: Vector2i) -> bool:
 	if tile_to_world_center(tile_coord).length() < spawn_water_safe_radius:
+		return false
+	if _get_ocean_biome(tile_coord) != BiomeType.PLAINS:
 		return false
 	var region := Vector2i(
 		floori(float(tile_coord.x) / float(lake_region_size_tiles)),
@@ -366,8 +386,6 @@ func _is_forest_core_tile(tile_coord: Vector2i) -> bool:
 			return false
 	return true
 
-# ── Public query API ────────────────────────────────────────────────────────
-
 func world_to_tile(world_pos: Vector2) -> Vector2i:
 	if tilemap:
 		return tilemap.local_to_map(tilemap.to_local(world_pos))
@@ -415,8 +433,6 @@ func is_forest_at(world_pos: Vector2) -> bool:
 func is_forest_tile_at(world_pos: Vector2) -> bool:
 	return is_forest_at(world_pos)
 
-# ── Seeds ────────────────────────────────────────────────────────────────────
-
 func _lake_region_seed(region: Vector2i) -> int:
 	var m := world_seed ^ (region.x * 374761393) ^ (region.y * 668265263) ^ 1442695041
 	return abs(m)
@@ -449,3 +465,21 @@ func _find_water_source():
 			water_source_id = water_source_fallback_id
 			return
 	push_warning("WorldGen: water tile source '%s' not found." % water_source_name)
+
+func _force_reload_all_chunks():
+	biome_by_tile.clear()
+	land_biome_cache.clear()
+	lake_region_cache.clear()
+	ocean_region_cache.clear()
+	for cc in loaded_chunks.keys().duplicate():
+		var start := chunk_to_start_tile(cc)
+		for x in chunk_size_tiles:
+			for y in chunk_size_tiles:
+				tilemap.erase_cell(0, Vector2i(start.x + x, start.y + y))
+	loaded_chunks.clear()
+	pending_chunks.clear()
+	_paint_chunk = Vector2i(999999, 999999)
+	_paint_index = 0
+	_paint_tiles.clear()
+	set_process(true)
+	_update_chunks_around_player()

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cgi082q4vesuw" path="res://Scripts/extras.gd" id="1_neogw"]
 [ext_resource type="Texture2D" uid="uid://dkhjdpxil22j6" path="res://Assets/Button_Fish.png" id="2_pnj3x"]
-[ext_resource type="Texture2D" uid="uid://bd6vtamqx1grg" path="res://Assets/Fish_Display.png" id="3_rkvux"]
+[ext_resource type="Texture2D" uid="uid://bd6vtamqx1grg" path="res://Assets/Display_Fish.png" id="3_rkvux"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rkvux"]
 content_margin_left = 4.0

@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://d00ef4by1c4tu"]
+
+[ext_resource type="Script" uid="uid://bb0avwrg3fw7a" path="res://Scenes/red_tang.gd" id="1_pxsbx"]
+[ext_resource type="Texture2D" uid="uid://bh4n3v4by5htc" path="res://Assets/Fish_Red_Tang_Raw.png" id="2_pq8gv"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Red Tang" type="Node2D" unique_id=2093844244]
+scale = Vector2(1.2727493, 1.2727493)
+script = ExtResource("1_pxsbx")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+scale = Vector2(1.9712906, 1.9712906)
+texture = ExtResource("2_pq8gv")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+scale = Vector2(0.56476283, 0.56476283)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

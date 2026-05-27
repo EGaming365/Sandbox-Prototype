@@ -614,7 +614,7 @@ func toggle_to(tab: String):
 		update_inventory()
 
 func _is_fish_item(item_name: String) -> bool:
-	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Lionfish"]:
+	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Lionfish", "Tire"]:
 		if item_name == f or item_name == "Albino " + f:
 			return true
 	return false

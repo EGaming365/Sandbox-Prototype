@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://b8wirsdffuxwl"]
 
 [ext_resource type="Script" uid="uid://d3rlcmkr6skcj" path="res://Scripts/right_ui.gd" id="1_8vss2"]
+[ext_resource type="Texture2D" uid="uid://cxe67vxdnttl6" path="res://Assets/Display_Time.png" id="2_vet0b"]
+[ext_resource type="Texture2D" uid="uid://b8jgmwhrvdcbx" path="res://Assets/Display_Conditions.png" id="3_u01gx"]
 
 [sub_resource type="CanvasTexture" id="CanvasTexture_hhuao"]
 
@@ -25,41 +27,87 @@ offset_bottom = 5.0
 grow_horizontal = 0
 script = ExtResource("1_8vss2")
 
+[node name="TimeDisplay" type="TextureRect" parent="." unique_id=1929607317]
+layout_mode = 0
+offset_left = -113.0
+offset_top = 1.0
+offset_right = -73.0
+offset_bottom = 41.0
+scale = Vector2(4.0358086, 4.0358086)
+texture = ExtResource("2_vet0b")
+
 [node name="TimeIcon" type="TextureRect" parent="." unique_id=1133441370]
 custom_minimum_size = Vector2(80, 80)
 layout_mode = 0
-offset_left = -37.0
-offset_top = 5.0
-offset_right = 43.0
-offset_bottom = 85.0
+offset_left = -99.0
+offset_top = 12.0
+offset_right = -19.0
+offset_bottom = 92.0
+scale = Vector2(1.6796839, 1.6796839)
 texture = SubResource("CanvasTexture_hhuao")
 expand_mode = 2
 
-[node name="WeatherIcon" type="TextureRect" parent="." unique_id=1612841291]
-custom_minimum_size = Vector2(30, 30)
+[node name="SeasonDisplay" type="TextureRect" parent="." unique_id=1219583706]
 layout_mode = 0
-offset_left = -55.0
-offset_top = 42.0
-offset_right = -25.0
-offset_bottom = 72.0
-scale = Vector2(1.8138615, 1.8138615)
+offset_left = -168.0
+offset_top = 4.0
+offset_right = -128.0
+offset_bottom = 44.0
+scale = Vector2(1.1506686, 1.1506686)
+texture = ExtResource("3_u01gx")
 
-[node name="DisastorIcon" type="TextureRect" parent="." unique_id=753065032]
+[node name="SeasonIcon" type="TextureRect" parent="." unique_id=1587178137]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 0
-offset_left = 12.0
-offset_top = 56.000004
-offset_right = 42.0
-offset_bottom = 86.00001
+offset_left = -163.0
+offset_top = 9.000008
+offset_right = -133.0
+offset_bottom = 39.000008
+scale = Vector2(1.1713771, 1.1713771)
+
+[node name="WeatherDispay" type="TextureRect" parent="." unique_id=882705700]
+layout_mode = 0
+offset_left = -168.0
+offset_top = 58.999992
+offset_right = -128.0
+offset_bottom = 98.99999
+scale = Vector2(1.1506686, 1.1506686)
+texture = ExtResource("3_u01gx")
+
+[node name="WeatherIcon" type="TextureRect" parent="." unique_id=2029397126]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 0
+offset_left = -163.0
+offset_top = 65.00001
+offset_right = -133.0
+offset_bottom = 95.00001
+scale = Vector2(1.1713771, 1.1713771)
+
+[node name="EventDisplay" type="TextureRect" parent="." unique_id=763591984]
+layout_mode = 0
+offset_left = -168.0
+offset_top = 114.0
+offset_right = -128.0
+offset_bottom = 154.0
+scale = Vector2(1.1506686, 1.1506686)
+texture = ExtResource("3_u01gx")
+
+[node name="EventIcon" type="TextureRect" parent="." unique_id=753065032]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 0
+offset_left = -163.0
+offset_top = 119.00001
+offset_right = -133.0
+offset_bottom = 149.0
 scale = Vector2(1.1713771, 1.1713771)
 
 [node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1114398660]
 custom_minimum_size = Vector2(100, 100)
 layout_mode = 0
 offset_left = -31.0
-offset_top = 103.0
+offset_top = 170.0
 offset_right = 69.0
-offset_bottom = 303.0
+offset_bottom = 370.0
 theme_override_constants/separation = 10
 
 [node name="HungerBar" type="ProgressBar" parent="HBoxContainer" unique_id=335821944]

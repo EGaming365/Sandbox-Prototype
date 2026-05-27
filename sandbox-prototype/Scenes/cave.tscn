@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://30eh4o63qk81"]
+
+[ext_resource type="Script" uid="uid://b15xypp135aeg" path="res://Scenes/cave.gd" id="1_02alt"]
+[ext_resource type="Texture2D" uid="uid://dx6pnt4i54teb" path="res://Assets/Cave.png" id="1_aksbv"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_aksbv"]
+size = Vector2(20, 16.803938)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_02alt"]
+size = Vector2(37, 35)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3usej"]
+size = Vector2(31, 18)
+
+[node name="Cave" type="Node2D" unique_id=933283584]
+position = Vector2(0, -74)
+scale = Vector2(4.069231, 4.069231)
+script = ExtResource("1_02alt")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=2110110738]
+texture = ExtResource("1_aksbv")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=487072973]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1023744010]
+position = Vector2(0, 8.416446)
+scale = Vector2(1.1000233, 1.6167108)
+shape = SubResource("RectangleShape2D_aksbv")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1793303600]
+position = Vector2(-0.5, 0.5)
+shape = SubResource("RectangleShape2D_02alt")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=710558844]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1160249549]
+position = Vector2(-0.5, 11)
+shape = SubResource("RectangleShape2D_3usej")

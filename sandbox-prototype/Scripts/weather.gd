@@ -25,7 +25,7 @@ enum WeatherType {
 @export var rain_slant: float = -12.0
 @export var rain_alpha: float = 0.62
 
-@export var day_length_seconds: float = 900.0
+@export var day_length_seconds: float = 1350.0
 @export var weather_min_seconds: float = 450.0
 @export var weather_max_seconds: float = 1350.0
 @export var initial_weather: WeatherType = WeatherType.CLEAR
@@ -38,23 +38,40 @@ var lightning_timer: float = 0.0
 var lightning_alpha: float = 0.0
 var clear_day_count: int = 0
 var last_day_integer: int = 0
+var aurora_active: bool = false
+var _was_night: bool = false
+var _aurora_phase: float = 0.0
+var _aurora_fade: float = 0.0
 
 var rng := RandomNumberGenerator.new()
 var canvas_modulate: CanvasModulate
 var lightning_flash: ColorRect
 var lightning_flash_layer: CanvasLayer
 var rain_particles: GPUParticles2D = null
+var aurora_overlay: ColorRect
+var aurora_overlay_layer: CanvasLayer
 
 func _ready():
 	rng.randomize()
 	_create_day_night()
 	_create_lightning_flash()
 	call_deferred("_create_rain")
+	call_deferred("_create_aurora_overlay")
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		_set_weather(initial_weather)
 		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 	else:
 		_set_weather(current_weather)
+
+func _create_aurora_overlay():
+	aurora_overlay_layer = CanvasLayer.new()
+	aurora_overlay_layer.layer = 109
+	aurora_overlay = ColorRect.new()
+	aurora_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aurora_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	aurora_overlay.color = Color(0.0, 0.0, 0.0, 0.0)
+	aurora_overlay_layer.add_child(aurora_overlay)
+	get_tree().root.add_child(aurora_overlay_layer)
 
 func _process(delta):
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
@@ -66,9 +83,30 @@ func _process(delta):
 	else:
 		_apply_day_night_color()
 	_update_lightning(delta)
+	_update_aurora_overlay(delta)
+
+func _update_aurora_overlay(delta):
+	if not aurora_overlay:
+		return
+	if aurora_active:
+		_aurora_phase += delta * 0.15
+		_aurora_fade = move_toward(_aurora_fade, 1.0, delta * 0.3)
+		var aurora_tints = [
+			Color(0.45, 0.0, 0.9),
+			Color(0.0, 0.6, 0.5),
+			Color(0.5, 0.0, 1.0),
+			Color(0.0, 0.5, 0.6),
+		]
+		var idx_a = int(_aurora_phase) % aurora_tints.size()
+		var idx_b = (idx_a + 1) % aurora_tints.size()
+		var t = fmod(_aurora_phase, 1.0)
+		var blended = aurora_tints[idx_a].lerp(aurora_tints[idx_b], t)
+		aurora_overlay.color = Color(blended.r, blended.g, blended.b, 0.15 * _aurora_fade)
+	else:
+		_aurora_fade = move_toward(_aurora_fade, 0.0, delta * 0.3)
+		aurora_overlay.color = Color(aurora_overlay.color.r, aurora_overlay.color.g, aurora_overlay.color.b, 0.15 * _aurora_fade)
 
 func _track_clear_days():
-	var current_day = int(time_of_day * 1000) % 1000
 	var day_integer = int(time_of_day)
 	if day_integer != last_day_integer:
 		last_day_integer = day_integer
@@ -122,7 +160,43 @@ func _update_day_night(delta):
 	time_of_day += delta / day_length_seconds
 	if time_of_day >= 1.0:
 		time_of_day -= 1.0
+	var is_night = time_of_day >= 0.92 or time_of_day < 0.20
+	if is_night and not _was_night:
+		_was_night = true
+		if not aurora_active and rng.randf() < 0.15:
+			_start_aurora()
+	if not is_night and _was_night:
+		_was_night = false
+		if aurora_active:
+			_end_aurora()
 	_apply_day_night_color()
+
+func _start_aurora():
+	aurora_active = true
+	if rng.randf() < 0.20:
+		_set_weather(WeatherType.RAIN)
+	else:
+		_set_weather(WeatherType.CLEAR)
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	if extras:
+		extras.set_aurora(true)
+	if multiplayer.has_multiplayer_peer():
+		_sync_aurora.rpc(true)
+
+func _end_aurora():
+	aurora_active = false
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	if extras:
+		extras.set_aurora(false)
+	if multiplayer.has_multiplayer_peer():
+		_sync_aurora.rpc(false)
+
+@rpc("authority", "call_remote", "reliable")
+func _sync_aurora(state: bool):
+	aurora_active = state
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	if extras:
+		extras.set_aurora(state)
 
 func _apply_day_night_color():
 	if not canvas_modulate:
@@ -165,6 +239,9 @@ func is_night() -> bool:
 	return time_of_day < 0.20 or time_of_day >= 0.82
 
 func _pick_next_weather():
+	if aurora_active:
+		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
+		return
 	if clear_day_count >= clear_days_before_event:
 		clear_day_count = 0
 		var roll = rng.randi_range(1, 3)
