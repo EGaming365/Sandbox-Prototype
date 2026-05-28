@@ -311,7 +311,10 @@ func _process(_delta):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	if chat and chat.get("is_open"):
 		return
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 	if Input.is_action_just_pressed("inventory"):
+		if extras and extras.visible:
+			extras.hide()
 		if visible and current_tab == "inventory":
 			toggle()
 		elif visible and current_tab == "recipes":
@@ -321,6 +324,8 @@ func _process(_delta):
 		get_viewport().set_input_as_handled()
 		return
 	if Input.is_action_just_pressed("crafting"):
+		if extras and extras.visible:
+			extras.hide()
 		if visible and current_tab == "recipes":
 			toggle()
 		elif visible and current_tab == "inventory":
@@ -396,7 +401,8 @@ func _process(_delta):
 				var inv_panel = $PanelContainer
 				var mouse = get_global_mouse_position()
 				if not inv_panel.get_global_rect().has_point(mouse):
-					var player = hotbar.get_local_player() if hotbar else null
+					var hotbar2 = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+					var player = hotbar2.get_local_player() if hotbar2 else null
 					if player:
 						var item_type = Inventory.inv_slots[dragging_from]["item"]
 						var count = Inventory.inv_slots[dragging_from]["count"]

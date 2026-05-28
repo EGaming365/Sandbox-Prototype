@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dnuakytcjqnph"
-path="res://.godot/imported/Tilemap_Cave.png-febad1c63be8e32c7ac7a09bda2fa60a.ctex"
+uid="uid://novv2hpoivmq"
+path="res://.godot/imported/Season_Winter.png-0e323720f062c0e4b25c74834254a3bd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Tilemap_Cave.png"
-dest_files=["res://.godot/imported/Tilemap_Cave.png-febad1c63be8e32c7ac7a09bda2fa60a.ctex"]
+source_file="res://Assets/Season_Winter.png"
+dest_files=["res://.godot/imported/Season_Winter.png-0e323720f062c0e4b25c74834254a3bd.ctex"]
 
 [params]
 

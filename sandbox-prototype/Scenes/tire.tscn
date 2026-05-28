@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bl6lbvqksupye"]
 
-[ext_resource type="Script" uid="uid://ubjkqscicjcc" path="res://Scenes/tire.gd" id="1_unugp"]
+[ext_resource type="Script" uid="uid://ubjkqscicjcc" path="res://Scripts/tire.gd" id="1_unugp"]
 [ext_resource type="Texture2D" uid="uid://c1cbdrbnsnq51" path="res://Assets/Trash_Tire.png" id="1_xywmx"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

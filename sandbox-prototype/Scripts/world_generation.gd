@@ -265,58 +265,6 @@ func _get_ocean_biome(tile_coord: Vector2i) -> BiomeType:
 
 	return BiomeType.PLAINS
 
-func _get_ocean_for_region(region: Vector2i) -> Array:
-	if ocean_region_cache.has(region):
-		return ocean_region_cache[region]
-
-	var oceans := []
-	var rng := RandomNumberGenerator.new()
-	rng.seed = _ocean_region_seed(region)
-
-	if rng.randf() <= ocean_chance_per_region:
-		var half := ocean_region_size_tiles / 2
-		var origin := Vector2(region.x * ocean_region_size_tiles, region.y * ocean_region_size_tiles)
-		var center := origin + Vector2(
-			rng.randf_range(half * 0.3, half * 1.7),
-			rng.randf_range(half * 0.3, half * 1.7)
-		)
-		var rx := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
-		var ry := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
-
-		var too_close := false
-		for dx in [-1, 0, 1]:
-			for dy in [-1, 0, 1]:
-				if dx == 0 and dy == 0:
-					continue
-				var neighbor := Vector2i(region.x + dx, region.y + dy)
-				if not ocean_region_cache.has(neighbor):
-					continue
-				for other in ocean_region_cache[neighbor]:
-					var dist := center.distance_to(other["center"])
-					if dist < (rx + other["radius_x"] + ry + other["radius_y"]) * 0.5:
-						too_close = true
-						break
-				if too_close:
-					break
-			if too_close:
-				break
-
-		if not too_close:
-			var islands := []
-			if rng.randf() < island_chance:
-				var island_count := rng.randi_range(1, island_count_max)
-				for _i in island_count:
-					var angle := rng.randf_range(0.0, TAU)
-					var dist := rng.randf_range(0.0, 0.65)
-					var ic := center + Vector2(cos(angle) * rx * dist, sin(angle) * ry * dist)
-					var irx := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
-					var iry := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
-					islands.append({ "center": ic, "radius_x": irx, "radius_y": iry })
-			oceans.append({ "center": center, "radius_x": rx, "radius_y": ry, "islands": islands })
-
-	ocean_region_cache[region] = oceans
-	return oceans
-
 func _calculate_land_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 	if land_biome_cache.has(tile_coord):
 		return land_biome_cache[tile_coord]
@@ -358,14 +306,108 @@ func _get_lakes_for_region(region: Vector2i) -> Array:
 		var count := 2 if rng.randf() < lake_second_chance else 1
 		for i in count:
 			var center := _pick_lake_center_in_region(region, rng)
-			if center != Vector2i(99999999, 99999999):
+			if center == Vector2i(99999999, 99999999):
+				continue
+			var rx := rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles)
+			var ry := rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles)
+			var too_close := false
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					if dx == 0 and dy == 0:
+						continue
+					var neighbor := Vector2i(region.x + dx, region.y + dy)
+					if not lake_region_cache.has(neighbor):
+						continue
+					for other in lake_region_cache[neighbor]:
+						var dist := Vector2(center).distance_to(other["center"])
+						if dist < (rx + other["radius_x"] + ry + other["radius_y"]) * 0.5 + 6.0:
+							too_close = true
+							break
+					if too_close:
+						break
+				if too_close:
+					break
+			for prev in lakes:
+				if too_close:
+					break
+				var dist := Vector2(center).distance_to(prev["center"])
+				if dist < (rx + prev["radius_x"] + ry + prev["radius_y"]) * 0.5 + 6.0:
+					too_close = true
+			if not too_close:
 				lakes.append({
-					"center":   Vector2(center),
-					"radius_x": rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles),
-					"radius_y": rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles)
+					"center": Vector2(center),
+					"radius_x": rx,
+					"radius_y": ry
 				})
 	lake_region_cache[region] = lakes
 	return lakes
+
+func _get_ocean_for_region(region: Vector2i) -> Array:
+	if ocean_region_cache.has(region):
+		return ocean_region_cache[region]
+
+	var oceans := []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _ocean_region_seed(region)
+
+	if rng.randf() <= ocean_chance_per_region:
+		var half := ocean_region_size_tiles / 2
+		var origin := Vector2(region.x * ocean_region_size_tiles, region.y * ocean_region_size_tiles)
+		var center := origin + Vector2(
+			rng.randf_range(half * 0.3, half * 1.7),
+			rng.randf_range(half * 0.3, half * 1.7)
+		)
+		var rx := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
+		var ry := rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
+
+		var too_close := false
+		for dx in [-2, -1, 0, 1, 2]:
+			for dy in [-2, -1, 0, 1, 2]:
+				if dx == 0 and dy == 0:
+					continue
+				var neighbor := Vector2i(region.x + dx, region.y + dy)
+				if not ocean_region_cache.has(neighbor):
+					var neighbor_rng := RandomNumberGenerator.new()
+					neighbor_rng.seed = _ocean_region_seed(neighbor)
+					if neighbor_rng.randf() <= ocean_chance_per_region:
+						var n_half := ocean_region_size_tiles / 2
+						var n_origin := Vector2(neighbor.x * ocean_region_size_tiles, neighbor.y * ocean_region_size_tiles)
+						var n_center := n_origin + Vector2(
+							neighbor_rng.randf_range(n_half * 0.3, n_half * 1.7),
+							neighbor_rng.randf_range(n_half * 0.3, n_half * 1.7)
+						)
+						var n_rx := neighbor_rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
+						var n_ry := neighbor_rng.randf_range(ocean_min_radius_tiles, ocean_max_radius_tiles)
+						var dist := center.distance_to(n_center)
+						if dist < (rx + n_rx + ry + n_ry) * 0.5 + 20.0:
+							too_close = true
+							break
+				else:
+					for other in ocean_region_cache[neighbor]:
+						var dist := center.distance_to(other["center"])
+						if dist < (rx + other["radius_x"] + ry + other["radius_y"]) * 0.5 + 20.0:
+							too_close = true
+							break
+				if too_close:
+					break
+			if too_close:
+				break
+
+		if not too_close:
+			var islands := []
+			if rng.randf() < island_chance:
+				var island_count := rng.randi_range(1, island_count_max)
+				for _i in island_count:
+					var angle := rng.randf_range(0.0, TAU)
+					var dist := rng.randf_range(0.0, 0.65)
+					var ic := center + Vector2(cos(angle) * rx * dist, sin(angle) * ry * dist)
+					var irx := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
+					var iry := rng.randf_range(island_min_radius_tiles, island_max_radius_tiles)
+					islands.append({"center": ic, "radius_x": irx, "radius_y": iry})
+			oceans.append({"center": center, "radius_x": rx, "radius_y": ry, "islands": islands})
+
+	ocean_region_cache[region] = oceans
+	return oceans
 
 func _pick_lake_center_in_region(region: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
 	var origin := Vector2i(region.x * lake_region_size_tiles, region.y * lake_region_size_tiles)

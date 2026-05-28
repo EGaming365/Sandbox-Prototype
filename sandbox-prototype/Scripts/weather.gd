@@ -51,8 +51,13 @@ var rain_particles: GPUParticles2D = null
 var aurora_overlay: ColorRect
 var aurora_overlay_layer: CanvasLayer
 
+var current_season: int = 0
+var total_days_elapsed: int = 0
+const DAYS_PER_SEASON: int = 20
+
 func _ready():
 	rng.randomize()
+	current_season = rng.randi() % 4
 	_create_day_night()
 	_create_lightning_flash()
 	call_deferred("_create_rain")
@@ -114,6 +119,27 @@ func _track_clear_days():
 			clear_day_count += 1
 		else:
 			clear_day_count = 0
+		total_days_elapsed += 1
+		if total_days_elapsed % DAYS_PER_SEASON == 0:
+			_advance_season()
+
+func _advance_season():
+	current_season = (current_season + 1) % 4
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	if extras and extras.has_method("on_season_changed"):
+		extras.on_season_changed(current_season)
+	var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+	if hud and hud.has_method("set_season_icon"):
+		hud.set_season_icon(current_season)
+	if multiplayer.has_multiplayer_peer():
+		_sync_season.rpc(current_season)
+
+@rpc("authority", "call_remote", "reliable")
+func _sync_season(season: int):
+	current_season = season
+	var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+	if hud and hud.has_method("set_season_icon"):
+		hud.set_season_icon(season)
 
 func _create_day_night():
 	canvas_modulate = CanvasModulate.new()

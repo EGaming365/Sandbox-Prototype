@@ -293,8 +293,44 @@ func _handle_command(text: String):
 					if multiplayer.has_multiplayer_peer():
 						weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
 					_add_message("[System] Aurora Borealis summoned.")
+				"none":
+					var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
+					if not weather_node:
+						_add_message("[System] WeatherSystem not found.")
+						return
+					weather_node._end_aurora()
+					if multiplayer.has_multiplayer_peer():
+						weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+					_add_message("[System] Event cleared.")
 				_:
-					_add_message("[System] Unknown event. Use: aurora")
+					_add_message("[System] Unknown event. Use: none|aurora")
+		"/season":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /season <spring|summer|autumn|winter>")
+				return
+			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
+			if not weather_node:
+				_add_message("[System] WeatherSystem not found.")
+				return
+			var season_index: int = -1
+			match parts[1].to_lower():
+				"spring": season_index = 0
+				"summer": season_index = 1
+				"autumn": season_index = 2
+				"winter": season_index = 3
+				_:
+					_add_message("[System] Unknown season. Use: spring, summer, autumn, winter")
+					return
+			weather_node.current_season = season_index
+			var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
+			if hud and hud.has_method("set_season_icon"):
+				hud.set_season_icon(season_index)
+			if multiplayer.has_multiplayer_peer():
+				weather_node._sync_season.rpc(season_index)
+			_add_message("[System] Season set to: " + parts[1].to_lower())
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 

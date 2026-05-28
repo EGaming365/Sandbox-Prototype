@@ -1,6 +1,6 @@
 extends Node2D
 
-@export var prompt_offset: Vector2 = Vector2(-80, -90)
+@export var prompt_offset: Vector2 = Vector2(-80, -40)
 @export var prompt_enter: String = "Right-click to enter cave"
 @export var prompt_exit: String = "Right-click to exit cave"
 
@@ -10,20 +10,19 @@ var _label: Label = null
 var _cave_world_gen: Node = null
 
 func _ready():
+	z_index = 2
 	var area: Area2D = get_node_or_null("Area2D")
 	if area:
 		area.body_entered.connect(_on_body_entered)
 		area.body_exited.connect(_on_body_exited)
 	else:
 		push_error("Cave: Area2D child not found")
-
 	_label = Label.new()
 	_label.text = prompt_enter
 	_label.position = prompt_offset
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.visible = false
 	add_child(_label)
-
 	_cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	if not _cave_world_gen:
 		push_error("Cave: CaveWorldGen not found at Scene/CaveWorldGen")
@@ -31,7 +30,8 @@ func _ready():
 func _process(_delta):
 	if not _player_inside or not _local_player or not _cave_world_gen:
 		return
-
+	if _cave_world_gen.get("_enter_cooldown") != null and _cave_world_gen._enter_cooldown > 0.0:
+		return
 	if Input.is_action_just_pressed("right_click"):
 		if _cave_world_gen.in_cave:
 			_cave_world_gen.exit_cave(_local_player)

@@ -4,6 +4,11 @@ extends Control
 @onready var thirst_bar: ProgressBar = $HBoxContainer/ThirstBar
 @onready var time_icon: TextureRect = $TimeIcon
 @onready var event_icon: TextureRect = $EventIcon
+@onready var season_icon: TextureRect = $SeasonIcon
+@onready var season_info: Label = $SeasonInfo
+@onready var event_info: Label = $EventInfo
+@onready var weather_info: Label = $WeatherInfo
+
 var tex_clear = preload("res://Assets/Weather_Clear.png")
 var tex_rain = preload("res://Assets/Weather_Rain.png")
 var tex_thunder = preload("res://Assets/Weather_Thunder.png")
@@ -12,7 +17,12 @@ var tex_day = preload("res://Assets/Time_Day.png")
 var tex_night = preload("res://Assets/Time_Night.png")
 var tex_morning = preload("res://Assets/Time_Morning.png")
 var tex_evening = preload("res://Assets/Time_Evening.png")
-var tex_aurora_borealis= preload("res://Assets/Event_Aurora_Borealis.png")
+var tex_aurora_borealis = preload("res://Assets/Event_Aurora_Borealis.png")
+var tex_spring = preload("res://Assets/Season_Spring.png")
+var tex_summer = preload("res://Assets/Season_Summer.png")
+var tex_autumn = preload("res://Assets/Season_Autumn.png")
+var tex_winter = preload("res://Assets/Season_Winter.png")
+
 var hunger: float = 100.0
 var thirst: float = 100.0
 var hunger_drain: float = 0.2
@@ -38,19 +48,97 @@ func _ready():
 	thirst_bar.max_value = 100
 	thirst_bar.value = 100
 	aurora_glow_rect = null
+	season_info.visible = false
+	event_info.visible = false
+	weather_info.visible = false
+	$EventDisplay.visible = false
+	_setup_icon_hover()
+	await get_tree().process_frame
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	if weather:
+		set_season_icon(weather.current_season)
+	season_info.add_theme_color_override("font_outline_color", Color.BLACK)
+	season_info.add_theme_constant_override("outline_size", 5)
+	event_info.add_theme_color_override("font_outline_color", Color.BLACK)
+	event_info.add_theme_constant_override("outline_size", 5)
+	weather_info.add_theme_color_override("font_outline_color", Color.BLACK)
+	weather_info.add_theme_constant_override("outline_size", 5)
+
+func _setup_icon_hover():
+	weather_icon.mouse_filter = Control.MOUSE_FILTER_PASS
+	time_icon.mouse_filter = Control.MOUSE_FILTER_PASS
+	event_icon.mouse_filter = Control.MOUSE_FILTER_PASS
+	season_icon.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	weather_icon.mouse_entered.connect(func(): _show_info(weather_info, _get_weather_text()))
+	weather_icon.mouse_exited.connect(func(): weather_info.visible = false)
+	event_icon.mouse_entered.connect(func(): _show_info(event_info, _get_event_text()))
+	event_icon.mouse_exited.connect(func(): event_info.visible = false)
+	season_icon.mouse_entered.connect(func(): _show_info(season_info, _get_season_text()))
+	season_icon.mouse_exited.connect(func(): season_info.visible = false)
+	$WeatherDispay.mouse_entered.connect(func(): _show_info(weather_info, _get_weather_text()))
+	$WeatherDispay.mouse_exited.connect(func(): weather_info.visible = false)
+	$EventDisplay.mouse_entered.connect(func(): _show_info(event_info, _get_event_text()))
+	$EventDisplay.mouse_exited.connect(func(): event_info.visible = false)
+	$SeasonDisplay.mouse_entered.connect(func(): _show_info(season_info, _get_season_text()))
+	$SeasonDisplay.mouse_exited.connect(func(): season_info.visible = false)
+
+func _show_info(label: Label, text: String):
+	if text == "":
+		label.visible = false
+		return
+	label.text = text
+	label.visible = true
+
+func _get_weather_text() -> String:
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	if not weather:
+		return ""
+	match weather.current_weather:
+		0: return "Clear"
+		1: return "Rain"
+		2: return "Thunder"
+		3: return "Thunderstorm"
+	return ""
+
+func _get_time_text() -> String:
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	if not weather:
+		return ""
+	var t = weather.time_of_day
+	if t >= 0.65 and t < 0.82:
+		return "Evening"
+	elif t >= 0.35 and t < 0.65:
+		return "Day"
+	elif t >= 0.2 and t < 0.35:
+		return "Morning"
+	return "Night"
+
+func _get_event_text() -> String:
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	if weather and weather.aurora_active:
+		return "Aurora Borealis"
+	return ""
+
+func _get_season_text() -> String:
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	if not weather:
+		return ""
+	match weather.current_season:
+		0: return "Spring"
+		1: return "Summer"
+		2: return "Autumn"
+		3: return "Winter"
+	return ""
 
 func _process(delta):
 	var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
 	if weather_node:
 		match weather_node.current_weather:
-			0:
-				weather_icon.texture = tex_clear
-			1:
-				weather_icon.texture = tex_rain
-			2:
-				weather_icon.texture = tex_thunder
-			3:
-				weather_icon.texture = tex_thunderstorm
+			0: weather_icon.texture = tex_clear
+			1: weather_icon.texture = tex_rain
+			2: weather_icon.texture = tex_thunder
+			3: weather_icon.texture = tex_thunderstorm
 		var t = weather_node.time_of_day
 		if t >= 0.65 and t < 0.82:
 			time_icon.texture = tex_evening
@@ -60,6 +148,10 @@ func _process(delta):
 			time_icon.texture = tex_morning
 		else:
 			time_icon.texture = tex_night
+	var event_display = $EventDisplay
+	if event_display:
+		var weather = get_tree().root.get_node_or_null("Scene/Weather")
+		event_display.visible = weather != null and weather.aurora_active
 
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 	var in_water = false
@@ -132,7 +224,7 @@ func _process(delta):
 	if not death_message_sent and (player.synced_health <= 0 or prev_health <= 1):
 		death_message_sent = true
 		_send_death_message(death_cause)
-	
+
 	if aurora_glow_rect:
 		var weather = get_tree().root.get_node_or_null("Scene/Weather")
 		var aurora_on = weather and weather.aurora_active
@@ -175,7 +267,6 @@ func _create_aurora_glow():
 	aurora_glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aurora_glow_rect.color = Color(0.0, 0.0, 0.0, 0.0)
 	var event_display = $EventDisplay
-	var event_icon = $EventIcon
 	var glow_parent = event_display.get_parent()
 	glow_parent.add_child(aurora_glow_rect)
 	glow_parent.move_child(aurora_glow_rect, event_display.get_index())
@@ -185,3 +276,10 @@ func set_aurora_icon(active: bool):
 	event_icon.texture = tex_aurora_borealis if active else null
 	if active and not aurora_glow_rect:
 		_create_aurora_glow()
+
+func set_season_icon(season: int):
+	match season:
+		0: season_icon.texture = tex_spring
+		1: season_icon.texture = tex_summer
+		2: season_icon.texture = tex_autumn
+		3: season_icon.texture = tex_winter

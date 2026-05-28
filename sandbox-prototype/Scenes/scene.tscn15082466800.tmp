@@ -25,7 +25,7 @@
 [ext_resource type="PackedScene" uid="uid://dmoccbc5cffu6" path="res://Scenes/extras.tscn" id="19_u8y8g"]
 [ext_resource type="Script" uid="uid://ctsjl5ujr4u7f" path="res://Scripts/environment_gen.gd" id="20_b0t05"]
 [ext_resource type="Texture2D" uid="uid://bvsbfi2l2rg6v" path="res://Assets/Tilemap_Water.png" id="20_r152n"]
-[ext_resource type="Texture2D" uid="uid://dnuakytcjqnph" path="res://Assets/Tilemap_Cave.png" id="22_uc5w8"]
+[ext_resource type="Texture2D" uid="uid://bjq21sfmdrjb7" path="res://Assets/Tilemap_Cave.png" id="22_uc5w8"]
 [ext_resource type="Script" uid="uid://drtjarlyc7qkd" path="res://Scripts/cave_world_gen.gd" id="25_dlgao"]
 [ext_resource type="Script" uid="uid://dns58w03a7qoa" path="res://Scenes/lightingsystem.gd" id="28_oid2v"]
 
@@ -74,20 +74,17 @@ texture = ExtResource("20_r152n")
 0:1/0 = 0
 1:1/0 = 0
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_oid2v"]
-resource_name = "Cave Tiles"
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_dlgao"]
 texture = ExtResource("22_uc5w8")
 0:0/0 = 0
 1:0/0 = 0
 0:1/0 = 0
 1:1/0 = 0
-1:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
 
 [sub_resource type="TileSet" id="TileSet_6yy46"]
-physics_layer_0/collision_layer = 1
 sources/0 = SubResource("TileSetAtlasSource_l8vl3")
 sources/1 = SubResource("TileSetAtlasSource_u8y8g")
-sources/3 = SubResource("TileSetAtlasSource_oid2v")
+sources/2 = SubResource("TileSetAtlasSource_dlgao")
 
 [node name="Scene" type="Node2D" unique_id=399292761]
 y_sort_enabled = true
@@ -236,6 +233,12 @@ limit_enabled = false
 
 [node name="LightingSystem" type="Node2D" parent="." unique_id=879003835]
 script = ExtResource("28_oid2v")
+tile_size = null
+cave_base_darkness = null
+night_base_darkness = null
+day_base_darkness = null
+min_darkness_alpha = null
+update_interval = null
 
 [connection signal="pressed" from="CanvasLayer/Host_Button" to="." method="_on_host_button_pressed"]
 [connection signal="pressed" from="CanvasLayer/Join_Button" to="." method="_on_join_button_pressed"]

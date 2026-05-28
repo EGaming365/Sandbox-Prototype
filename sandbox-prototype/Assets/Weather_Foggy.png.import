@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dnuakytcjqnph"
-path="res://.godot/imported/Tilemap_Cave.png-febad1c63be8e32c7ac7a09bda2fa60a.ctex"
+uid="uid://bbljd725npmxc"
+path="res://.godot/imported/Weather_Foggy.png-c07f237ae7d2b84bb77333a1bc2b668c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Tilemap_Cave.png"
-dest_files=["res://.godot/imported/Tilemap_Cave.png-febad1c63be8e32c7ac7a09bda2fa60a.ctex"]
+source_file="res://Assets/Weather_Foggy.png"
+dest_files=["res://.godot/imported/Weather_Foggy.png-c07f237ae7d2b84bb77333a1bc2b668c.ctex"]
 
 [params]
 

@@ -59,36 +59,54 @@ texture = ExtResource("3_u01gx")
 [node name="SeasonIcon" type="TextureRect" parent="." unique_id=1587178137]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 0
-offset_left = -163.0
-offset_top = 9.000008
-offset_right = -133.0
-offset_bottom = 39.000008
-scale = Vector2(1.1713771, 1.1713771)
+offset_left = -159.0
+offset_top = 13.0
+offset_right = -129.0
+offset_bottom = 43.0
+scale = Vector2(0.9399816, 0.9399816)
+
+[node name="SeasonInfo" type="Label" parent="." unique_id=829503996]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 0
+offset_left = -584.0
+offset_top = 16.0
+offset_right = -184.0
+offset_bottom = 39.0
+horizontal_alignment = 2
 
 [node name="WeatherDispay" type="TextureRect" parent="." unique_id=882705700]
 layout_mode = 0
 offset_left = -168.0
-offset_top = 58.999992
+offset_top = 55.0
 offset_right = -128.0
-offset_bottom = 98.99999
+offset_bottom = 95.0
 scale = Vector2(1.1506686, 1.1506686)
 texture = ExtResource("3_u01gx")
 
 [node name="WeatherIcon" type="TextureRect" parent="." unique_id=2029397126]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 0
-offset_left = -163.0
-offset_top = 65.00001
-offset_right = -133.0
-offset_bottom = 95.00001
-scale = Vector2(1.1713771, 1.1713771)
+offset_left = -161.0
+offset_top = 61.000008
+offset_right = -131.0
+offset_bottom = 91.00001
+scale = Vector2(0.9682676, 0.9682676)
+
+[node name="WeatherInfo" type="Label" parent="." unique_id=1670151887]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 0
+offset_left = -584.0
+offset_top = 66.00001
+offset_right = -184.0
+offset_bottom = 89.00001
+horizontal_alignment = 2
 
 [node name="EventDisplay" type="TextureRect" parent="." unique_id=763591984]
 layout_mode = 0
 offset_left = -168.0
-offset_top = 114.0
+offset_top = 107.0
 offset_right = -128.0
-offset_bottom = 154.0
+offset_bottom = 147.0
 scale = Vector2(1.1506686, 1.1506686)
 texture = ExtResource("3_u01gx")
 
@@ -96,10 +114,19 @@ texture = ExtResource("3_u01gx")
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 0
 offset_left = -163.0
-offset_top = 119.00001
+offset_top = 112.00001
 offset_right = -133.0
-offset_bottom = 149.0
+offset_bottom = 142.0
 scale = Vector2(1.1713771, 1.1713771)
+
+[node name="EventInfo" type="Label" parent="." unique_id=1225325029]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 0
+offset_left = -584.0
+offset_top = 118.0
+offset_right = -184.0
+offset_bottom = 141.0
+horizontal_alignment = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=1114398660]
 custom_minimum_size = Vector2(100, 100)

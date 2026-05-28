@@ -10,15 +10,6 @@ var btn_base_colors: Dictionary = {}
 var selected_fish_btn: Button = null
 var aurora_active: bool = false
 
-func toggle():
-	if visible:
-		hide()
-		_close_info_panel()
-	else:
-		show()
-		_switch_section(current_section)
-		_switch_collection_sub(current_collection_sub)
-
 func _ready():
 	hide()
 	_connect_nav()
@@ -27,17 +18,29 @@ func _ready():
 	_switch_collection_sub("recipes")
 	get_viewport().gui_focus_changed.connect(func(_c): pass)
 
-func _process(_delta):
-	pass
+var _just_opened: bool = false
 
-func _input(event):
-	if Input.is_action_just_pressed("exit"):
-		toggle()
-		get_viewport().set_input_as_handled()
+func toggle():
+	if visible:
+		hide()
+		_close_info_panel()
+	else:
+		show()
+		_just_opened = true
+		_switch_section(current_section)
+		_switch_collection_sub(current_collection_sub)
+
+func _process(_delta):
+	if _just_opened:
+		_just_opened = false
 		return
 	if not visible:
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	if Input.is_action_just_pressed("exit"):
+		hide()
+		get_viewport().set_input_as_handled()
+		return
+	if Input.is_action_just_pressed("click"):
 		if get_viewport().is_input_handled():
 			return
 		var mouse = get_global_mouse_position()
@@ -59,9 +62,14 @@ func _show_aurora_notification():
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if not canvas:
 		return
+
 	var container = HBoxContainer.new()
-	container.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	container.offset_top = 60
+	container.anchor_left = 0.5
+	container.anchor_top = 0.5
+	container.anchor_right = 0.5
+	container.anchor_bottom = 0.5
+	container.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	container.grow_vertical = Control.GROW_DIRECTION_BOTH
 	container.z_index = 20
 	container.alignment = BoxContainer.ALIGNMENT_CENTER
 
@@ -90,6 +98,12 @@ func _show_aurora_notification():
 	container.add_child(part3)
 
 	canvas.add_child(container)
+	await get_tree().process_frame
+	container.offset_left = -container.size.x / 2.0
+	container.offset_right = container.size.x / 2.0
+	container.offset_top = -container.size.y / 2.0 - 600.0
+	container.offset_bottom = container.size.y / 2.0 - 600.0
+
 	var tween = container.create_tween()
 	tween.tween_interval(4.0)
 	tween.tween_property(container, "modulate:a", 0.0, 1.0)

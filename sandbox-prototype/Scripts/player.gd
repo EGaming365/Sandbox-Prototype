@@ -58,6 +58,9 @@ func _enter_tree():
 		set_multiplayer_authority(1)
 
 func _ready():
+	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
+	if lighting:
+		lighting.add_light_source(self, 20, 3.0)
 	z_index = 2
 	add_to_group("players")
 	hair_sprite.visible = true
@@ -254,6 +257,9 @@ func _physics_process(delta):
 		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
 	if not multiplayer.has_multiplayer_peer():
 		return
+	
+	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+		_update_torch_light()
 
 func _input(event):
 	if is_dead:
@@ -472,6 +478,10 @@ func heal(amount: int):
 
 func die():
 	is_dead = true
+	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+		var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+		if cave_gen and cave_gen.get("in_cave"):
+			cave_gen.exit_cave(self)
 	var scene_node = get_tree().root.get_node("Scene")
 	var drops: Array = []
 	for i in Inventory.slots.size():
@@ -486,7 +496,6 @@ func die():
 			var is_fish = slot["item"] in scene_node.FISH_ITEM_NAMES
 			var durability = slot.get("durability", slot["count"] if (slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] or is_fish) else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": false, "index": i})
-
 	for drop in drops:
 		var is_tool = Inventory.non_stackable_items.has(drop["item"])
 		if is_tool:
@@ -518,7 +527,6 @@ func die():
 			else:
 				for i in positions_x.size():
 					scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1)
-
 	for i in Inventory.slots.size():
 		if Inventory.slots[i]["item"] != "":
 			Inventory.remove_item(i, false)
@@ -598,8 +606,13 @@ func _update_drowning(delta: float):
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		return
 
-	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
-	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+	var in_water := false
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	if cave_gen and cave_gen.get("in_cave"):
+		in_water = cave_gen._biome_for_tile(cave_gen.world_to_tile(global_position)) == cave_gen.BiomeType.WATER_LAKE
+	else:
+		var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+		in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
 
 	if in_water:
 		drowning_timer += delta
@@ -761,3 +774,16 @@ func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String)
 	global_position = Vector2(px, py)
 	synced_velocity = Vector2(vx, vy)
 	synced_held_item = held
+
+var _torch_light_id: int = -1
+
+func _update_torch_light():
+	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
+	if not lighting:
+		return
+	var holding_torch = synced_held_item == "Torch"
+	if holding_torch and _torch_light_id == -1:
+		_torch_light_id = lighting.add_light_source(self, 6, 0.85)
+	elif not holding_torch and _torch_light_id != -1:
+		lighting.remove_light_source(_torch_light_id)
+		_torch_light_id = -1

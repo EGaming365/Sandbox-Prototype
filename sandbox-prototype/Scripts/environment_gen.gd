@@ -4,10 +4,10 @@ extends Node2D
 @export var rock_scene_path: String = "res://Scenes/rock.tscn"
 @export var cave_scene_path: String = "res://Scenes/cave.tscn"
 
-@export var render_distance_chunks: int = 2
+@export var render_distance_chunks: int = 3
 @export var unload_distance_chunks: int = 4
 @export var update_interval: float = 0.15
-@export var objects_spawned_per_frame: int = 2
+@export var objects_spawned_per_frame: int = 8
 @export var water_clearance_radius: float = 140.0
 
 @export var forest_trees_per_chunk: float = 16.0
@@ -32,7 +32,7 @@ extends Node2D
 @export var grass_min_distance: float = 60.0
 
 @export var cave_region_size_tiles: int = 64
-@export var cave_chance_per_region: float = 0.95
+@export var cave_chance_per_region: float = 0.30
 @export var cave_spawn_safe_radius: float = 900.0
 
 var scene_node: Node
@@ -83,6 +83,9 @@ var _cave_positions: Dictionary = {}
 var _cave_region_load_queue: Array = []
 
 const _BIOME_CELL: float = 24.0
+const _MAX_BIOME_QUERIES_PER_FRAME: int = 200
+
+var _biome_queries_this_frame: int = 0
 
 func _ready():
 	scene_node = get_tree().root.get_node_or_null("Scene")
@@ -97,7 +100,6 @@ func _ready():
 		return
 	if world_gen and world_gen.get("world_seed") != null:
 		world_seed = world_gen.world_seed
-
 	for i in range(1, 9):
 		var tex = load("res://Assets/Grass" + str(i) + ".png")
 		if tex:
@@ -147,9 +149,6 @@ func _start_chunk_build(chunk_coord: Vector2i):
 		{ "kind": "tree",  "forest": false, "count": plains_trees_per_chunk,  "min_dist": plains_tree_min_distance },
 		{ "kind": "grass", "forest": false, "count": float(grass_count_per_chunk), "min_dist": 0.0 },
 	]
-
-const _MAX_BIOME_QUERIES_PER_FRAME: int = 60
-var _biome_queries_this_frame: int = 0
 
 func _step_chunk_build():
 	_biome_queries_this_frame = 0
@@ -215,6 +214,8 @@ func _build_object_pass(chunk_coord: Vector2i, kind: String, wants_forest: bool,
 			break
 		if not _is_valid_object_position(pos, wants_forest):
 			continue
+		if _is_too_close_to_cave(pos):
+			continue
 		if not _passes_distance_rule(chunk_coord, pos, min_dist):
 			continue
 
@@ -272,12 +273,14 @@ func _build_grass_pass(chunk_coord: Vector2i):
 		if _is_water_cached(pos):
 			continue
 		var too_close_to_water := false
-		for offset in [Vector2(water_clearance_radius, 0), Vector2(-water_clearance_radius, 0),
-				Vector2(0, water_clearance_radius), Vector2(0, -water_clearance_radius)]:
+		for offset in [Vector2(60.0, 0), Vector2(-60.0, 0),
+				Vector2(0, 60.0), Vector2(0, -60.0)]:
 			if _is_water_cached(pos + offset):
 				too_close_to_water = true
 				break
 		if too_close_to_water:
+			continue
+		if _is_too_close_to_cave(pos):
 			continue
 
 		if grass_min_distance > 0.0:
@@ -701,5 +704,11 @@ func _make_env_id(kind: String, chunk_coord: Vector2i, index: int) -> String:
 func _has_property(obj: Object, property_name: String) -> bool:
 	for prop in obj.get_property_list():
 		if prop.name == property_name:
+			return true
+	return false
+
+func _is_too_close_to_cave(pos: Vector2) -> bool:
+	for cave_pos in _cave_positions.values():
+		if pos.distance_to(cave_pos) < 180.0:
 			return true
 	return false
