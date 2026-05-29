@@ -255,11 +255,10 @@ func _physics_process(delta):
 
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
-	if not multiplayer.has_multiplayer_peer():
-		return
-	
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		_update_torch_light()
+	if not multiplayer.has_multiplayer_peer():
+		return
 
 func _input(event):
 	if is_dead:
@@ -487,13 +486,13 @@ func die():
 	for i in Inventory.slots.size():
 		var slot = Inventory.slots[i]
 		if slot["item"] != "":
-			var is_fish = slot["item"] in scene_node.FISH_ITEM_NAMES
+			var is_fish = scene_node._is_fish_item_name(slot["item"]) if scene_node.has_method("_is_fish_item_name") else slot["item"] in scene_node.FISH_ITEM_NAMES
 			var durability = slot.get("durability", slot["count"] if (slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] or is_fish) else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": true, "index": i})
 	for i in Inventory.inv_slots.size():
 		var slot = Inventory.inv_slots[i]
 		if slot["item"] != "":
-			var is_fish = slot["item"] in scene_node.FISH_ITEM_NAMES
+			var is_fish = scene_node._is_fish_item_name(slot["item"]) if scene_node.has_method("_is_fish_item_name") else slot["item"] in scene_node.FISH_ITEM_NAMES
 			var durability = slot.get("durability", slot["count"] if (slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] or is_fish) else 60)
 			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": false, "index": i})
 	for drop in drops:
@@ -781,9 +780,12 @@ func _update_torch_light():
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 	if not lighting:
 		return
-	var holding_torch = synced_held_item == "Torch"
+	var offhand_torch := false
+	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+		offhand_torch = Inventory.offhand_slot.get("item", "") == "Torch"
+	var holding_torch = synced_held_item == "Torch" or offhand_torch
 	if holding_torch and _torch_light_id == -1:
-		_torch_light_id = lighting.add_light_source(self, 6, 0.85)
+		_torch_light_id = lighting.add_light_source(self, 18, 1.0)
 	elif not holding_torch and _torch_light_id != -1:
 		lighting.remove_light_source(_torch_light_id)
 		_torch_light_id = -1

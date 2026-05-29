@@ -1,11 +1,12 @@
 extends Node2D
 
 @export var tile_size: int = 64
+@export var light_detail_tile_size: int = 32
 @export var cave_base_darkness: float = 0.82
 @export var night_base_darkness: float = 0.82
 @export var day_base_darkness: float = 0.0
 @export var min_darkness_alpha: float = 0.95
-@export var update_interval: float = 0.0
+@export var update_interval: float = 0.12
 
 var _light_map: Dictionary = {}
 var _sources: Dictionary = {}
@@ -13,8 +14,12 @@ var _next_source_id: int = 0
 var _dirty: bool = true
 var _timer: float = 0.0
 var _current_darkness: float = 0.0
+var _last_darkness: float = -1.0
 var _draw_rects: Array = []
 var _overlay: Node2D
+var _last_camera_tile: Vector2i = Vector2i(999999, 999999)
+var _last_screen_size: Vector2 = Vector2.ZERO
+var _last_source_tiles: Dictionary = {}
 
 func _ready():
 	set_process(true)
@@ -52,14 +57,51 @@ func _draw():
 
 func _process(delta):
 	_timer -= delta
-	if _timer > 0.0 and not _dirty:
+	_update_darkness_base()
+	var needs_rebuild: float = _dirty or abs(_current_darkness - _last_darkness) > 0.01 or _sources_moved_tiles() or _camera_view_changed()
+	if _timer > 0.0 and not needs_rebuild:
 		return
 	_timer = update_interval
+	if not needs_rebuild:
+		return
 	_dirty = false
-	_update_darkness_base()
+	_last_darkness = _current_darkness
 	_recalculate()
 	_rebuild_draw_rects()
-	_overlay.queue_redraw()
+	if _overlay:
+		_overlay.queue_redraw()
+
+func _camera_view_changed() -> bool:
+	var vp := get_viewport()
+	if not vp:
+		return false
+	var camera := vp.get_camera_2d()
+	if not camera:
+		return false
+	var screen_size := vp.get_visible_rect().size
+	var cam_tile := Vector2i(floori(camera.global_position.x / light_detail_tile_size), floori(camera.global_position.y / light_detail_tile_size))
+	if cam_tile != _last_camera_tile or screen_size != _last_screen_size:
+		_last_camera_tile = cam_tile
+		_last_screen_size = screen_size
+		return true
+	return false
+
+func _sources_moved_tiles() -> bool:
+	var moved := false
+	for source_id in _sources.keys():
+		var src = _sources[source_id]
+		var world_pos: Vector2 = src["position"]
+		if src.get("node") != null and is_instance_valid(src["node"]):
+			world_pos = src["node"].global_position + Vector2(0, -16)
+		var tc := Vector2i(floori(world_pos.x / light_detail_tile_size), floori(world_pos.y / light_detail_tile_size))
+		if _last_source_tiles.get(source_id, Vector2i(999999, 999999)) != tc:
+			_last_source_tiles[source_id] = tc
+			moved = true
+	for source_id in _last_source_tiles.keys().duplicate():
+		if not _sources.has(source_id):
+			_last_source_tiles.erase(source_id)
+			moved = true
+	return moved
 
 func _rebuild_draw_rects():
 	_draw_rects.clear()
@@ -74,7 +116,7 @@ func _rebuild_draw_rects():
 	var screen_size := vp.get_visible_rect().size
 	var cam_pos := camera.global_position
 	var top_left_world := cam_pos - screen_size / 2.0
-	var actual_tile_size: int = 32
+	var actual_tile_size: int = light_detail_tile_size
 	var top_left_tile := Vector2i(
 		floori(top_left_world.x / actual_tile_size) - 2,
 		floori(top_left_world.y / actual_tile_size) - 2)
@@ -130,7 +172,7 @@ func _recalculate():
 			world_pos = src["node"].global_position + Vector2(0, -16)
 		var radius: int = src["radius"]
 		var strength: float = src["strength"]
-		var exact_tile = world_pos / 32.0
+		var exact_tile = world_pos / float(light_detail_tile_size)
 		for dx in range(-radius, radius + 1):
 			for dy in range(-radius, radius + 1):
 				var tc := Vector2i(floori(exact_tile.x) + dx, floori(exact_tile.y) + dy)
@@ -160,6 +202,7 @@ func add_static_light(world_pos: Vector2, radius: int, strength: float) -> int:
 
 func remove_light_source(id: int):
 	_sources.erase(id)
+	_last_source_tiles.erase(id)
 	_dirty = true
 
 func mark_dirty():

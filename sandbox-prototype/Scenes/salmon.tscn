@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c6pt7833aax08"]
 
 [ext_resource type="Script" uid="uid://bnctxufvmul2v" path="res://Scripts/salmon.gd" id="1_5nbs4"]
-[ext_resource type="Texture2D" uid="uid://bl0d30u1oylbm" path="res://Assets/Fish_Clownfish_Raw.png" id="2_7vc75"]
+[ext_resource type="Texture2D" uid="uid://bl02y77fylylh" path="res://Assets/Fish_Catfish_Raw.png" id="2_5nbs4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
 
@@ -11,10 +11,10 @@ script = ExtResource("1_5nbs4")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
 scale = Vector2(1.9712906, 1.9712906)
-texture = ExtResource("2_7vc75")
+texture = ExtResource("2_5nbs4")
 
 [node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
-scale = Vector2(0.56476283, 0.56476283)
+scale = Vector2(1.0550828, 1.0550828)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
 scale = Vector2(1.8857987, 1.8857987)

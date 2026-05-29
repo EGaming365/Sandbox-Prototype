@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://bw74bfqptqerf"]
+
+[ext_resource type="Texture2D" uid="uid://dgtpp6femdhuc" path="res://Assets/Stone.png" id="1_h3623"]
+[ext_resource type="Script" uid="uid://cde38q8sjxt1r" path="res://Scripts/iron.gd" id="2_ywtp7"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_tfydv"]
+radius = 11.901794
+
+[node name="Iron" type="Sprite2D" unique_id=1703092314]
+scale = Vector2(2.3855686, 2.3855686)
+texture = ExtResource("1_h3623")
+script = ExtResource("2_ywtp7")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=367239175]
+position = Vector2(0, 2.392028)
+scale = Vector2(0.024265053, 0.024265053)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=479216491]
+position = Vector2(14.155369, 0)
+scale = Vector2(33.85859, 33.85859)
+shape = SubResource("CircleShape2D_tfydv")
+
+[connection signal="body_entered" from="Area2D" to="." method="_on_area_2d_body_entered"]

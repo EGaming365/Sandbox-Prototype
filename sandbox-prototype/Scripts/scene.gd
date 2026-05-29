@@ -50,7 +50,7 @@ func _refresh_floor_item_visibility():
 
 func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
 	var layer = _get_current_world_layer()
-	if not item_type in NON_STACKABLE_FLOOR_ITEMS:
+	if not item_type in NON_STACKABLE_FLOOR_ITEMS and not _is_fish_item_name(item_type):
 		for item_id in floor_items:
 			var item = floor_items[item_id]
 			if not is_instance_valid(item):
@@ -92,7 +92,7 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 		wardrobe.visible = (layer == _get_current_world_layer())
 		return
 	var item_scene: PackedScene
-	if item_type in FISH_ITEM_NAMES:
+	if _is_fish_item_name(item_type):
 		match item_type:
 			"Perch", "Albino Perch":
 				item_scene = preload("res://Scenes/perch.tscn")
@@ -115,7 +115,7 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 			"Tire", "Albino Tire":
 				item_scene = preload("res://Scenes/tire.tscn")
 			"Salmon", "Albino Salmon":
-				item_scene = preload("res://Scenes/catfish.tscn")
+				item_scene = preload("res://Scenes/salmon.tscn")
 			"Red Tang", "Albino Red Tang":
 				item_scene = preload("res://Scenes/red_tang.tscn")
 			_:
@@ -144,6 +144,12 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 				item_scene = preload("res://Scenes/stone_pickaxe.tscn")
 			"Chicken_Raw":
 				item_scene = preload("res://Scenes/chicken_raw.tscn")
+			"String":
+				item_scene = preload("res://Scenes/string.tscn")
+			"Coal":
+				item_scene = preload("res://Scenes/coal.tscn")
+			"Torch":
+				item_scene = preload("res://Scenes/torch.tscn")
 			"Fishing Rod":
 				item_scene = preload("res://Scenes/fishing_rod.tscn")
 			"Stone Fishing Rod":
@@ -152,7 +158,7 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 				item_scene = preload("res://Scenes/wood.tscn")
 	var item = item_scene.instantiate()
 	item.item_id = item_id
-	if item_type in FISH_ITEM_NAMES:
+	if _is_fish_item_name(item_type):
 		item.item_type = item_type
 		item.durability = durability
 		item.set_meta("item_name", item_type)
@@ -200,6 +206,10 @@ func sync_floor_items_to_peer(peer_id: int):
 			item_type = "Stone Pickaxe"
 		elif script_path.contains("pickaxe"):
 			item_type = "Pickaxe"
+		elif script_path.contains("stone_fishing_rod"):
+			item_type = "Stone Fishing Rod"
+		elif script_path.contains("fishing_rod"):
+			item_type = "Fishing Rod"
 		elif script_path.contains("crafting_bench"):
 			item_type = "Crafting_Bench"
 		elif script_path.contains("stone"):
@@ -208,10 +218,12 @@ func sync_floor_items_to_peer(peer_id: int):
 			item_type = "Wardrobe"
 		elif script_path.contains("chicken_raw"):
 			item_type = "Chicken_Raw"
-		elif script_path.contains("fishing_rod"):
-			item_type = "Fishing Rod"
-		elif script_path.contains("stone_fishing_rod"):
-			item_type = "Stone Fishing Rod"
+		elif script_path.contains("string"):
+			item_type = "String"
+		elif script_path.contains("coal"):
+			item_type = "Coal"
+		elif script_path.contains("torch"):
+			item_type = "Torch"
 		else:
 			item_type = "Wood"
 		var dur: int = item.durability if item.get("durability") != null else 1
@@ -226,6 +238,12 @@ const FISH_ITEM_NAMES: Array = [
 	"Pike", "Albino Pike",
 	"Catfish", "Albino Catfish",
 	"Sturgeon", "Albino Sturgeon",
+	"Salmon", "Albino Salmon",
+	"Clownfish", "Albino Clownfish",
+	"Blue Tang", "Albino Blue Tang",
+	"Red Tang", "Albino Red Tang",
+	"Lionfish", "Albino Lionfish",
+	"Tire", "Albino Tire",
 ]
 
 const NON_STACKABLE_FLOOR_ITEMS: Array = [
@@ -238,7 +256,24 @@ const NON_STACKABLE_FLOOR_ITEMS: Array = [
 	"Pike", "Albino Pike",
 	"Catfish", "Albino Catfish",
 	"Sturgeon", "Albino Sturgeon",
+	"Salmon", "Albino Salmon",
+	"Clownfish", "Albino Clownfish",
+	"Blue Tang", "Albino Blue Tang",
+	"Red Tang", "Albino Red Tang",
+	"Lionfish", "Albino Lionfish",
+	"Tire", "Albino Tire",
 ]
+
+func _is_fish_item_name(item_name: String) -> bool:
+	if item_name in FISH_ITEM_NAMES:
+		return true
+	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
+	if fishing_manager:
+		for fish in fishing_manager.FISH_TABLE:
+			var base_name: String = fish.get("name", "")
+			if item_name == base_name or item_name == "Albino " + base_name:
+				return true
+	return false
 
 func _ready():
 	y_sort_enabled = true

@@ -23,6 +23,7 @@ extends Node2D
 @export var lake_margin_tiles: int = 4
 
 @export var cave_rock_scene_path: String = "res://Scenes/rock.tscn"
+@export var cave_exit_scene_path: String = "res://Scenes/cave.tscn"
 @export var cave_rocks_per_chunk: float = 3.0
 @export var cave_rock_min_distance: float = 200.0
 @export var cave_rock_water_clearance: float = 3.0
@@ -61,12 +62,15 @@ var _chunk_update_timer: float = 0.0
 var _cave_rock_positions: Dictionary = {}
 var _cave_active_rocks: Dictionary = {}
 var _packed_cave_rock_scene: PackedScene = null
+var _packed_cave_exit_scene: PackedScene = null
 var _all_cave_rock_world_positions: Array = []
 
 var _wall_tiles: Dictionary = {}
 var _carved_tiles: Dictionary = {}
 var _reachable_tiles: Dictionary = {}
 var _cave_entrance_tile: Vector2i = Vector2i(0, 0)
+var _cave_exit_tile: Vector2i = Vector2i(0, 0)
+var _cave_exit: Node2D = null
 var _cave_bounds_min: Vector2i = Vector2i(0, 0)
 var _cave_bounds_max: Vector2i = Vector2i(0, 0)
 
@@ -74,6 +78,7 @@ func _ready():
 	await get_tree().process_frame
 	_resolve_refs()
 	_packed_cave_rock_scene = load(cave_rock_scene_path)
+	_packed_cave_exit_scene = load(cave_exit_scene_path)
 
 func _resolve_refs():
 	_tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
@@ -95,7 +100,7 @@ func enter_cave(player: CharacterBody2D):
 	_resolve_refs()
 	in_cave = true
 	_enter_cooldown = ENTER_COOLDOWN_TIME
-	_cave_entrance_tile = _world_gen.world_to_tile(player.global_position) if _world_gen else Vector2i(0, 0)
+	_cave_entrance_tile = _find_linked_overworld_entrance_tile(player.global_position)
 	var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
 	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
 		animal_spawner.clear_all_entities()
@@ -111,6 +116,8 @@ func enter_cave(player: CharacterBody2D):
 		_env_spawner.set_process(false)
 		if _env_spawner.has_method("_unload_all_chunks"):
 			_env_spawner._unload_all_chunks()
+		if _env_spawner.has_method("_unload_all_cave_regions"):
+			_env_spawner._unload_all_cave_regions()
 	else:
 		var fallback := get_tree().root.get_node_or_null("Scene/EnvObjectSpawner")
 		if fallback:
@@ -119,6 +126,7 @@ func enter_cave(player: CharacterBody2D):
 				fallback._unload_all_chunks()
 	var seed: int = _world_gen.world_seed if _world_gen else 0
 	_activate(seed)
+	player.global_position = _tile_to_world_center(_cave_exit_tile)
 	var scene = get_tree().root.get_node_or_null("Scene")
 	if scene and scene.has_method("_refresh_floor_item_visibility"):
 		scene._refresh_floor_item_visibility()
@@ -159,11 +167,13 @@ func _activate(seed: int):
 	_cave_rock_positions.clear()
 	_cave_active_rocks.clear()
 	_all_cave_rock_world_positions.clear()
+	_despawn_cave_exit()
 	_wall_tiles.clear()
 	_carved_tiles.clear()
 	_reachable_tiles.clear()
 	_generate_cave_layout()
 	_flood_fill_reachable()
+	_spawn_cave_exit()
 	_active = true
 	_update_chunks_around_player()
 
@@ -179,6 +189,7 @@ func _generate_cave_layout():
 	var room_centers: Array = []
 	var margin := room_radius_max + 2
 	var first_room := _cave_entrance_tile
+	_cave_exit_tile = first_room
 	var first_radius := rng.randi_range(room_radius_min, room_radius_max)
 	_carve_room(first_room, first_radius, rng)
 	room_centers.append(first_room)
@@ -278,6 +289,7 @@ func _flood_fill_reachable():
 
 func _deactivate():
 	_active = false
+	_despawn_cave_exit()
 	_wall_tiles.clear()
 	_carved_tiles.clear()
 	_reachable_tiles.clear()
@@ -500,6 +512,8 @@ func _spawn_cave_rocks_for_chunk(cc: Vector2i):
 			var tc := Vector2i(tx, ty)
 			if not _tile_is_dry_floor(tc):
 				continue
+			if tc.distance_to(_cave_exit_tile) < 8.0:
+				continue
 			var neighbors_clear := true
 			for dx in [-1, 0, 1]:
 				for dy in [-1, 0, 1]:
@@ -553,6 +567,38 @@ func _spawn_cave_rock(env_id: String, world_pos: Vector2):
 	scene_node.add_child(rock)
 	_cave_active_rocks[env_id] = rock
 
+func _spawn_cave_exit():
+	if _cave_exit or not _packed_cave_exit_scene:
+		return
+	var scene_node := get_tree().root.get_node_or_null("Scene")
+	if not scene_node:
+		return
+	var world_pos := _tile_to_world_center(_cave_exit_tile)
+	_cave_exit = _packed_cave_exit_scene.instantiate()
+	_cave_exit.name = "LinkedCaveExit"
+	_cave_exit.global_position = world_pos
+	_cave_exit.set_meta("linked_overworld_tile", _cave_entrance_tile)
+	_cave_exit.set_meta("cave_room_tile", _cave_exit_tile)
+	scene_node.add_child(_cave_exit)
+
+func _despawn_cave_exit():
+	if _cave_exit and is_instance_valid(_cave_exit):
+		_cave_exit.queue_free()
+	_cave_exit = null
+
+func _find_linked_overworld_entrance_tile(player_pos: Vector2) -> Vector2i:
+	if not _world_gen:
+		return Vector2i(0, 0)
+	var best_pos := player_pos
+	var best_dist_sq := INF
+	if _env_spawner and _env_spawner.get("_cave_positions") != null:
+		for cave_pos in _env_spawner._cave_positions.values():
+			var dist_sq: float = player_pos.distance_squared_to(cave_pos)
+			if dist_sq < best_dist_sq:
+				best_dist_sq = dist_sq
+				best_pos = cave_pos
+	return _world_gen.world_to_tile(best_pos)
+
 func _despawn_cave_rocks_for_chunk(cc: Vector2i):
 	if not _cave_rock_positions.has(cc):
 		return
@@ -573,6 +619,11 @@ func world_to_tile(world_pos: Vector2) -> Vector2i:
 	if _tilemap:
 		return _tilemap.local_to_map(_tilemap.to_local(world_pos))
 	return Vector2i(floori(world_pos.x / 64), floori(world_pos.y / 64))
+
+func _tile_to_world_center(tile: Vector2i) -> Vector2:
+	if _tilemap:
+		return _tilemap.to_global(_tilemap.map_to_local(tile))
+	return Vector2(tile) * 64.0 + Vector2(32.0, 32.0)
 
 func tile_to_chunk(tc: Vector2i) -> Vector2i:
 	return Vector2i(

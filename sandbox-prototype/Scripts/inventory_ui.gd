@@ -242,6 +242,9 @@ func _gui_input_for_slot(event, index):
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.inv_slots[index]["item"]
 				var tex = Inventory.inv_slots[index]["texture"]
+				if item_name == "Torch":
+					_move_inventory_torch_to_offhand(index)
+					return
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				var remaining = Inventory.inv_slots[index]["count"]
 				if _is_fish_item(item_name):
@@ -393,8 +396,11 @@ func _process(_delta):
 			var dropped_on_inv = get_hovered_slot()
 			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 			var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
+			var dropped_on_offhand = hotbar != null and hotbar.has_method("_is_mouse_over_offhand") and hotbar._is_mouse_over_offhand()
 			if dropped_on_inv != -1 and dropped_on_inv != dragging_from:
 				Inventory.move_item(dragging_from, dropped_on_inv, true, true)
+			elif dropped_on_offhand and Inventory.inv_slots[dragging_from]["item"] == "Torch":
+				_move_inventory_torch_to_offhand(dragging_from)
 			elif dropped_on_hotbar != -1:
 				Inventory.move_item(dragging_from, dropped_on_hotbar, true, false)
 			elif dropped_on_inv == -1 and dropped_on_hotbar == -1:
@@ -457,7 +463,7 @@ func _update_recipe_panel():
 			continue
 		if Crafting.bench_recipes.has(recipe) and not Crafting.is_near_bench():
 			continue
-		if recipe["result"] in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe"]:
+		if recipe["result"] in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Fishing Rod", "Stone Fishing Rod"]:
 			equipment.append(recipe)
 		else:
 			blocks.append(recipe)
@@ -620,7 +626,32 @@ func toggle_to(tab: String):
 		update_inventory()
 
 func _is_fish_item(item_name: String) -> bool:
-	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Lionfish", "Tire"]:
+	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
+	if fishing_manager:
+		for fish in fishing_manager.FISH_TABLE:
+			var base_name: String = fish.get("name", "")
+			if item_name == base_name or item_name == "Albino " + base_name:
+				return true
+	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Red Tang", "Lionfish", "Tire"]:
 		if item_name == f or item_name == "Albino " + f:
 			return true
 	return false
+
+func _move_inventory_torch_to_offhand(index: int):
+	var data = Inventory.inv_slots[index]
+	if data["item"] != "Torch" or data["count"] <= 0:
+		return
+	var move_count = data["count"]
+	if Inventory.offhand_slot["item"] == "Torch":
+		move_count = min(data["count"], 99 - Inventory.offhand_slot["count"])
+		if move_count <= 0:
+			return
+		Inventory.offhand_slot["count"] += move_count
+		Inventory.inventory_changed.emit()
+	else:
+		Inventory.set_offhand_item("Torch", data["texture"], move_count)
+	if data["count"] <= move_count:
+		Inventory.inv_slots[index] = {"item": "", "count": 0, "texture": null}
+	else:
+		Inventory.inv_slots[index]["count"] -= move_count
+	Inventory.inventory_changed.emit()

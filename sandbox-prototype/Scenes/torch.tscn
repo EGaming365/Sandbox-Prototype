@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://dxetyjvp7qsxe"]
+
+[ext_resource type="Texture2D" uid="uid://dxwwra3lh3833" path="res://Assets/Wood_Plank_Rotated.png" id="1_h1t0l"]
+[ext_resource type="Script" uid="uid://ch3em4gglsnow" path="res://torch.gd" id="1_wced7"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_beu3c"]
+radius = 11.9
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_spjw2"]
+
+[node name="Torch" type="Sprite2D" unique_id=745701814]
+texture = ExtResource("1_h1t0l")
+script = ExtResource("1_wced7")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=405339615]
+shape = SubResource("CircleShape2D_beu3c")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=1031788213]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1339697735]
+scale = Vector2(3.0546958, 3.0546958)
+shape = SubResource("CircleShape2D_spjw2")

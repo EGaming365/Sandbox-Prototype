@@ -10,6 +10,11 @@ var basic_recipes = [
 		"result": "Crafting_Bench",
 		"result_count": 1,
 		"ingredients": { "Wood Plank": 4 }
+	},
+	{
+		"result": "Torch",
+		"result_count": 4,
+		"ingredients": { "Wood": 1, "Coal": 1 }
 	}
 ]
 var bench_recipes = [
@@ -44,11 +49,22 @@ var bench_recipes = [
 		"ingredients": { "Stone": 3, "Wood": 2 }
 	},
 	{
+		"result": "Fishing Rod",
+		"result_count": 1,
+		"ingredients": { "Wood": 3, "String": 2 }
+	},
+	{
+		"result": "Stone Fishing Rod",
+		"result_count": 1,
+		"ingredients": { "Stone": 2, "Wood": 1, "String": 3 }
+	},
+	{
 		"result": "Wardrobe",
 		"result_count": 1,
 		"ingredients": { "Wood Plank": 5, "Stone": 1 }
 	}
 ]
+var advanced_recipes = bench_recipes
 var plank_texture: Texture2D
 var axe_texture: Texture2D
 var sword_texture: Texture2D
@@ -60,6 +76,11 @@ var stone_axe_texture: Texture2D
 var stone_sword_texture: Texture2D
 var stone_pickaxe_texture: Texture2D
 var wardrobe_texture: Texture2D
+var string_texture: Texture2D
+var coal_texture: Texture2D
+var torch_texture: Texture2D
+var fishing_rod_texture: Texture2D
+var stone_fishing_rod_texture: Texture2D
 
 func _ready():
 	stone_texture = load("res://Assets/Stone.png")
@@ -73,6 +94,11 @@ func _ready():
 	plank_texture = load("res://Assets/Wood_Planks.png")
 	bench_texture = load("res://Assets/Crafting_Bench.png")
 	wardrobe_texture = load("res://Assets/Wardrobe.png")
+	string_texture = load("res://Assets/Wood_Plank_Rotated.png")
+	coal_texture = load("res://Assets/Stone.png")
+	torch_texture = load("res://Assets/Wood_Plank_Rotated.png")
+	fishing_rod_texture = load("res://Assets/Fishing_Rod.png")
+	stone_fishing_rod_texture = load("res://Assets/Stone_Fishing_Rod.png")
 
 func get_item_texture(item_name: String) -> Texture2D:
 	match item_name:
@@ -98,6 +124,16 @@ func get_item_texture(item_name: String) -> Texture2D:
 			return Inventory.stone_pickaxe_texture
 		"Wardrobe":
 			return Inventory.wardrobe_texture
+		"String":
+			return Inventory.string_texture
+		"Coal":
+			return Inventory.coal_texture
+		"Torch":
+			return Inventory.torch_texture
+		"Fishing Rod":
+			return Inventory.fishing_rod_texture
+		"Stone Fishing Rod":
+			return Inventory.stone_fishing_rod_texture
 	return null
 
 func is_near_bench() -> bool:
@@ -213,6 +249,36 @@ func craft(recipe: Dictionary, silent: bool = false):
 					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Stone Pickaxe", 100)
 			else:
 				scene_node.host_spawn_floor_item(drop_pos, "Stone Pickaxe", 100)
+	elif recipe["result"] == "Fishing Rod":
+		if _has_inventory_space():
+			if silent:
+				Inventory.add_item_with_count_silent("Fishing Rod", tex, 50)
+			else:
+				Inventory.add_item_with_count("Fishing Rod", tex, 50)
+		elif player:
+			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, "Fishing Rod", 50)
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Fishing Rod", 50)
+			else:
+				scene_node.host_spawn_floor_item(drop_pos, "Fishing Rod", 50)
+	elif recipe["result"] == "Stone Fishing Rod":
+		if _has_inventory_space():
+			if silent:
+				Inventory.add_item_with_count_silent("Stone Fishing Rod", tex, 100)
+			else:
+				Inventory.add_item_with_count("Stone Fishing Rod", tex, 100)
+		elif player:
+			var drop_pos = player.global_position + Vector2(randf_range(-60, 60), randf_range(-60, 60))
+			if multiplayer.has_multiplayer_peer():
+				if multiplayer.is_server():
+					scene_node.host_spawn_floor_item(drop_pos, "Stone Fishing Rod", 100)
+				else:
+					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Stone Fishing Rod", 100)
+			else:
+				scene_node.host_spawn_floor_item(drop_pos, "Stone Fishing Rod", 100)
 	elif recipe["result"] == "Pickaxe":
 		if _has_inventory_space():
 			if silent:
@@ -309,6 +375,10 @@ func _add_result_silent(recipe: Dictionary):
 		"Stone Sword":
 			Inventory.add_item_with_count_silent(result, tex, 40)
 		"Stone Pickaxe":
+			Inventory.add_item_with_count_silent(result, tex, 100)
+		"Fishing Rod":
+			Inventory.add_item_with_count_silent(result, tex, 50)
+		"Stone Fishing Rod":
 			Inventory.add_item_with_count_silent(result, tex, 100)
 		"Wardrobe":
 			Inventory.add_item_with_count_silent(result, tex, 1)

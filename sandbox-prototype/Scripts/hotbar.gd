@@ -3,6 +3,7 @@ extends Control
 var toggle_ui = true
 var can_toggle_ui = true
 var slots = []
+var offhand_slot: Panel = null
 var dragging_from = -1
 var dragging_from_inv = false
 var drag_node : Control = null
@@ -29,6 +30,7 @@ const TOOL_MAX_DURABILITY = {
 func _ready():
 	for i in range(10):
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
+	_create_offhand_slot()
 	_ready_slots()
 	Inventory.inventory_changed.connect(update_hotbar)
 	_prewarm_textures()
@@ -164,6 +166,68 @@ func update_hotbar():
 				bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
 				bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				bar_bg.add_child(bar)
+				_update_offhand_slot()
+
+func _create_offhand_slot():
+	offhand_slot = Panel.new()
+	offhand_slot.name = "OffhandSlot"
+	offhand_slot.custom_minimum_size = Vector2(64, 64)
+	offhand_slot.add_theme_stylebox_override("panel", hotbar_default)
+	$HBoxContainer.add_child(offhand_slot)
+	offhand_slot.gui_input.connect(_gui_input_for_offhand)
+
+func _update_offhand_slot():
+	if not offhand_slot:
+		return
+	var data = Inventory.offhand_slot
+	var prev_item = offhand_slot.get_meta("last_item", "")
+	var prev_count = offhand_slot.get_meta("last_count", -1)
+	if prev_item == data["item"] and prev_count == data["count"]:
+		return
+	offhand_slot.set_meta("last_item", data["item"])
+	offhand_slot.set_meta("last_count", data["count"])
+	for child in offhand_slot.get_children():
+		child.queue_free()
+	if data["item"] == "":
+		var label = Label.new()
+		label.text = "OFF"
+		label.add_theme_font_size_override("font_size", 12)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		offhand_slot.add_child(label)
+		return
+	var tex = Inventory.get_texture(data["item"])
+	if tex == null:
+		tex = data["texture"]
+	var tex_rect = TextureRect.new()
+	tex_rect.texture = tex
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tex_rect.size = Vector2(offhand_slot.size.x - 12, offhand_slot.size.y - 12)
+	tex_rect.position = Vector2(6, 6)
+	offhand_slot.add_child(tex_rect)
+	var label = Label.new()
+	label.text = str(min(data["count"], 99))
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 4)
+	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	label.offset_top = -24
+	label.offset_bottom = -16
+	label.offset_left = -24 if data["count"] >= 10 else -14
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	offhand_slot.add_child(label)
+
+func _gui_input_for_offhand(event):
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if Inventory.offhand_slot["item"] != "":
+			var added = Inventory.batch_add_item(Inventory.offhand_slot["item"], Inventory.offhand_slot["texture"], Inventory.offhand_slot["count"])
+			if added >= Inventory.offhand_slot["count"]:
+				Inventory.clear_offhand()
 
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -173,6 +237,9 @@ func _gui_input_for_slot(event, index):
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.slots[index]["item"]
 				var tex = Inventory.slots[index]["texture"]
+				if item_name == "Torch":
+					_move_hotbar_torch_to_offhand(index)
+					return
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				var remaining = Inventory.slots[index]["count"]
 				var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
@@ -324,6 +391,8 @@ func _process(delta: float) -> void:
 			var dropped_on_inv = _get_hovered_inv_slot()
 			if dropped_on_hotbar != -1 and dropped_on_hotbar != dragging_from:
 				Inventory.move_item(dragging_from, dropped_on_hotbar, false, false)
+			elif _is_mouse_over_offhand() and Inventory.slots[dragging_from]["item"] == "Torch":
+				_move_hotbar_torch_to_offhand(dragging_from)
 			elif dropped_on_inv != -1:
 				Inventory.move_item(dragging_from, dropped_on_inv, false, true)
 			elif dropped_on_hotbar == -1 and dropped_on_inv == -1:
@@ -437,7 +506,35 @@ func _try_fish_cast(screen_pos: Vector2) -> void:
 		fishing_manager.try_cast(screen_pos)
 
 func _is_fish_item(item_name: String) -> bool:
-	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Lionfish", "Tire"]:
+	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
+	if fishing_manager:
+		for fish in fishing_manager.FISH_TABLE:
+			var base_name: String = fish.get("name", "")
+			if item_name == base_name or item_name == "Albino " + base_name:
+				return true
+	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Red Tang", "Lionfish", "Tire"]:
 		if item_name == f or item_name == "Albino " + f:
 			return true
 	return false
+
+func _is_mouse_over_offhand() -> bool:
+	return offhand_slot != null and offhand_slot.get_global_rect().has_point(get_global_mouse_position())
+
+func _move_hotbar_torch_to_offhand(index: int):
+	var data = Inventory.slots[index]
+	if data["item"] != "Torch" or data["count"] <= 0:
+		return
+	var move_count = data["count"]
+	if Inventory.offhand_slot["item"] == "Torch":
+		move_count = min(data["count"], 99 - Inventory.offhand_slot["count"])
+		if move_count <= 0:
+			return
+		Inventory.offhand_slot["count"] += move_count
+		Inventory.inventory_changed.emit()
+	else:
+		Inventory.set_offhand_item("Torch", data["texture"], move_count)
+	if data["count"] <= move_count:
+		Inventory.slots[index] = {"item": "", "count": 0, "texture": null}
+	else:
+		Inventory.slots[index]["count"] -= move_count
+	Inventory.inventory_changed.emit()

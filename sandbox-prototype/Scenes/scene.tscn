@@ -27,7 +27,7 @@
 [ext_resource type="Texture2D" uid="uid://bvsbfi2l2rg6v" path="res://Assets/Tilemap_Water.png" id="20_r152n"]
 [ext_resource type="Texture2D" uid="uid://dnuakytcjqnph" path="res://Assets/Tilemap_Cave.png" id="22_uc5w8"]
 [ext_resource type="Script" uid="uid://drtjarlyc7qkd" path="res://Scripts/cave_world_gen.gd" id="25_dlgao"]
-[ext_resource type="Script" uid="uid://dns58w03a7qoa" path="res://Scenes/lightingsystem.gd" id="28_oid2v"]
+[ext_resource type="Script" uid="uid://dns58w03a7qoa" path="res://Scripts/lightingsystem.gd" id="28_oid2v"]
 
 [sub_resource type="Gradient" id="Gradient_l8vl3"]
 

@@ -20,6 +20,9 @@ var wardrobe_texture = preload("res://Assets/Wardrobe.png")
 var wood_plank_texture = preload("res://Assets/Wood_Planks.png")
 var stone_texture = preload("res://Assets/Stone.png")
 var chicken_raw_texture = preload("res://Assets/Chicken_Raw.png")
+var string_texture = preload("res://Assets/Wood_Plank_Rotated.png")
+var coal_texture = preload("res://Assets/Stone.png")
+var torch_texture = preload("res://Assets/Wood_Plank_Rotated.png")
 var fishing_rod_texture = preload("res://Assets/Fishing_Rod.png")
 var stone_fishing_rod_texture = preload("res://Assets/Stone_Fishing_Rod.png")
 var tophat_fish_texture = preload("res://Assets/Fish_Tophat_Raw.png")
@@ -56,6 +59,7 @@ var non_stackable_items = [
 	"Red Tang", "Albino Red Tang",
 ]
 var discovered_items: Dictionary = {}
+var offhand_slot: Dictionary = {"item": "", "count": 0, "texture": null}
 
 var _emit_dirty: bool = false
 var _emit_timer: float = 0.0
@@ -74,6 +78,9 @@ func _ready():
 		"Wood Plank": wood_plank_texture,
 		"Stone": stone_texture,
 		"Chicken_Raw": chicken_raw_texture,
+		"String": string_texture,
+		"Coal": coal_texture,
+		"Torch": torch_texture,
 		"Fishing Rod": fishing_rod_texture,
 		"Tophat Fish": tophat_fish_texture,
 		"Albino Tophat Fish": tophat_fish_texture,
@@ -263,6 +270,15 @@ func remove_item(from_index: int, from_inv: bool = false):
 	target[from_index]["item"] = ""
 	target[from_index]["count"] = 0
 	target[from_index]["texture"] = null
+	inventory_changed.emit()
+
+func set_offhand_item(item_name: String, texture: Texture2D, count: int):
+	offhand_slot = {"item": item_name, "count": count, "texture": texture}
+	discover(item_name)
+	inventory_changed.emit()
+
+func clear_offhand():
+	offhand_slot = {"item": "", "count": 0, "texture": null}
 	inventory_changed.emit()
 
 func move_item(from_index: int, to_index: int, from_inv: bool = false, to_inv: bool = false):

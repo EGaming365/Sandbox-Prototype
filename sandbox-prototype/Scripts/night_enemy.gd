@@ -14,9 +14,12 @@ enum State { PASSIVE, CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
 @export var dash_hit_radius: float = 44.0
 @export var post_attack_cooldown: float = 0.9
 @export var despawn_when_day: bool = true
-@export var detection_radius: float = 400.0
-@export var path_step_size: int = 3
+@export var detection_radius: float = 650.0
+@export var path_step_size: int = 2
 @export var path_replan_interval: float = 0.4
+@export var cave_path_replan_interval: float = 1.1
+@export var sense_interval: float = 0.25
+@export var physics_check_interval: float = 0.12
 
 var drowning_timer: float = 0.0
 var drowning_dead: bool = false
@@ -36,6 +39,10 @@ var _path_timer: float = 0.0
 var _wander_target: Vector2 = Vector2.ZERO
 var _wander_idle_timer: float = 0.0
 var _passive_stuck_timer: float = 0.0
+var _sense_timer: float = 0.0
+var _physics_timer: float = 0.0
+var _cached_target: CharacterBody2D = null
+var _cached_position_clear: Dictionary = {}
 
 const PREFERRED_DISTANCE: float = 72.0
 const BLOCKED_ESCAPE_TIME: float = 1.0
@@ -68,15 +75,23 @@ func _process(delta: float) -> void:
 		return
 	if not _is_host():
 		return
-	if despawn_when_day and not _is_night():
-		_die()
+	if despawn_when_day and not _is_in_cave() and not _is_night():
+		_die(false)
 		return
 
 	attack_cooldown = max(attack_cooldown - delta, 0.0)
-	_resolve_overlap()
-	_apply_separation(delta)
+	_physics_timer -= delta
+	if _physics_timer <= 0.0:
+		_physics_timer = physics_check_interval
+		_cached_position_clear.clear()
+		_resolve_overlap()
+		_apply_separation(delta)
 
-	var target := _get_nearest_player()
+	_sense_timer -= delta
+	if _sense_timer <= 0.0 or not is_instance_valid(_cached_target):
+		_sense_timer = sense_interval
+		_cached_target = _get_nearest_player()
+	var target := _cached_target
 
 	match state:
 		State.PASSIVE:
@@ -97,7 +112,7 @@ func _process(delta: float) -> void:
 			else:
 				_path_timer -= delta
 				if _path_timer <= 0.0 or _path.is_empty():
-					_path_timer = path_replan_interval
+					_path_timer = cave_path_replan_interval if _is_in_cave() else path_replan_interval
 					_path = _build_path_to(target.global_position)
 					if _path.is_empty():
 						state = State.PASSIVE
@@ -147,12 +162,10 @@ func _process(delta: float) -> void:
 
 func _do_passive(delta: float, target: CharacterBody2D) -> void:
 	if target and global_position.distance_to(target.global_position) <= detection_radius:
-		var test_path := _build_path_to(target.global_position)
-		if not test_path.is_empty():
-			state = State.CHASE
-			_path = test_path
-			_path_timer = path_replan_interval
-			return
+		state = State.CHASE
+		_path.clear()
+		_path_timer = 0.0
+		return
 
 	_wander_idle_timer -= delta
 	if _wander_idle_timer > 0.0:
@@ -204,6 +217,8 @@ func _follow_path(delta: float) -> void:
 func _build_path_to(target_pos: Vector2) -> Array:
 	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	if cave_gen and cave_gen.get("in_cave") and cave_gen._reachable_tiles.size() > 0:
+		if _path_segment_clear(global_position, target_pos):
+			return _steer_path(target_pos)
 		return _astar_cave(target_pos, cave_gen)
 	return _steer_path(target_pos)
 
@@ -233,7 +248,7 @@ func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
 	open.append(start_tc)
 
 	var iterations := 0
-	var max_iterations := 800
+	var max_iterations := 420
 
 	while not open.is_empty() and iterations < max_iterations:
 		iterations += 1
@@ -435,13 +450,28 @@ func take_damage(amount: int) -> void:
 	if health <= 0:
 		_die()
 
-func _die() -> void:
+func _die(drop_loot: bool = true) -> void:
 	if state == State.DEAD:
 		return
+	if drop_loot:
+		_drop_string()
 	if multiplayer.has_multiplayer_peer():
 		_sync_die_rpc.rpc()
 	else:
 		_play_die_sequence()
+
+func _drop_string() -> void:
+	if not _is_host():
+		return
+	var scene_node = get_tree().root.get_node_or_null("Scene")
+	if not scene_node or not scene_node.has_method("host_spawn_floor_item"):
+		return
+	var drop_count := rng.randi_range(1, 2)
+	for i in drop_count:
+		var angle := rng.randf_range(0.0, TAU)
+		var radius := rng.randf_range(18.0, 44.0)
+		var drop_pos := global_position + Vector2(cos(angle), sin(angle)) * radius
+		scene_node.host_spawn_floor_item(drop_pos, "String", 1)
 
 func _flash_hit() -> void:
 	sprite.modulate = Color(1, 0.1, 0.1, 1)
@@ -473,6 +503,10 @@ func _is_night() -> bool:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	return weather == null or not weather.has_method("is_night") or weather.is_night()
 
+func _is_in_cave() -> bool:
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	return cave_gen != null and cave_gen.get("in_cave")
+
 func _try_move(delta: Vector2) -> void:
 	if delta.length() <= 0.001:
 		return
@@ -501,6 +535,9 @@ func _try_move(delta: Vector2) -> void:
 		_blocked_escape_timer = 0.0
 
 func _is_position_clear(pos: Vector2) -> bool:
+	var key := Vector2i(floori(pos.x / 16.0), floori(pos.y / 16.0))
+	if _cached_position_clear.has(key):
+		return _cached_position_clear[key]
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsShapeQueryParameters2D.new()
 	var shape := CircleShape2D.new()
@@ -515,7 +552,9 @@ func _is_position_clear(pos: Vector2) -> bool:
 	var hits := space.intersect_shape(query)
 	for hit in hits:
 		if hit["collider"] != staticbody:
+			_cached_position_clear[key] = false
 			return false
+	_cached_position_clear[key] = true
 	return true
 
 func _escape_from_blocked_position() -> bool:
@@ -533,8 +572,7 @@ func _update_drowning(delta: float) -> void:
 		return
 	if not _is_host():
 		return
-	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
-	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+	var in_water := _is_current_world_water()
 	if in_water:
 		drowning_timer += delta
 	else:
@@ -546,6 +584,16 @@ func _update_drowning(delta: float) -> void:
 		take_damage(9999)
 	elif drowning_timer <= 0.0:
 		drowning_dead = false
+
+func _is_current_world_water() -> bool:
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	if cave_gen and cave_gen.get("in_cave"):
+		var tc: Vector2i = cave_gen.world_to_tile(global_position)
+		if not cave_gen._reachable_tiles.has(tc):
+			return false
+		return cave_gen._biome_for_tile(tc) == cave_gen.BiomeType.WATER_LAKE
+	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	return world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _sync_charge_glow_rpc(pct: float) -> void:

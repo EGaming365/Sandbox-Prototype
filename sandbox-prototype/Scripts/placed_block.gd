@@ -6,6 +6,7 @@ var block_id: int = -1
 var hits: int = 0
 var max_hits: int = 1
 var current_rotation: float = 0.0
+var _light_id: int = -1
 
 var plank_tex = preload("res://Assets/Wood_Planks.png")
 
@@ -13,6 +14,8 @@ func _get_texture_for_item(i_name: String) -> Texture2D:
 	match i_name:
 		"Wood Plank":
 			return plank_tex
+		"Torch":
+			return Inventory.torch_texture
 		_:
 			return null
 
@@ -53,6 +56,20 @@ func _ready():
 			shape.size = Vector2(64, 48)
 			$CollisionShape2D.shape = shape
 			$CollisionShape2D.position = Vector2(0, 8)
+		"Torch":
+			if item_texture:
+				$Sprite2D.texture = item_texture
+				$Sprite2D.modulate = Color(1.0, 0.72, 0.22, 1.0)
+				$Sprite2D.scale = Vector2(0.28, 0.28)
+				$Sprite2D.centered = true
+				$Sprite2D.position = Vector2(0, -10)
+			var shape = RectangleShape2D.new()
+			shape.size = Vector2(20, 44)
+			$CollisionShape2D.shape = shape
+			$CollisionShape2D.position = Vector2(0, -2)
+			var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
+			if lighting and lighting.has_method("add_static_light"):
+				_light_id = lighting.add_static_light(global_position, 18, 1.0)
 		_:
 			if item_texture:
 				$Sprite2D.texture = item_texture
@@ -103,6 +120,7 @@ func _input(event):
 
 func _break_block():
 	var scene_node = get_tree().root.get_node("Scene")
+	_remove_torch_light()
 	if multiplayer.has_multiplayer_peer():
 		if multiplayer.is_server():
 			Inventory.add_item(item_name, item_texture)
@@ -122,3 +140,14 @@ func _get_local_player():
 			else:
 				return child
 	return null
+
+func _exit_tree():
+	_remove_torch_light()
+
+func _remove_torch_light():
+	if _light_id == -1:
+		return
+	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
+	if lighting and lighting.has_method("remove_light_source"):
+		lighting.remove_light_source(_light_id)
+	_light_id = -1

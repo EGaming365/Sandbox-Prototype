@@ -5,10 +5,14 @@ const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 
 @export var max_chickens_in_radius: int = 10
 @export var max_night_enemies_in_radius: int = 4
+@export var max_cave_night_enemies_in_radius: int = 3
 @export var spawn_radius_min: float = 1000.0
 @export var spawn_radius_max: float = 2000.0
+@export var cave_spawn_radius_min: float = 450.0
+@export var cave_spawn_radius_max: float = 1200.0
 @export var despawn_radius: float = 1600.0
 @export var despawn_grace_period: float = 2.0
+@export var max_spawns_per_tick: int = 1
 
 var _scene_node: Node = null
 var _out_of_range_timers: Dictionary = {}
@@ -41,7 +45,6 @@ func _wait_for_scene() -> void:
 		_wait_for_scene()
 		return
 	await _wait_for_player()
-	_on_spawn_tick()
 	_despawn_timer.start()
 	_spawn_timer.start()
 
@@ -68,30 +71,34 @@ func _on_spawn_tick() -> void:
 	var players := get_tree().get_nodes_in_group("players")
 	if players.is_empty():
 		return
+	var spawned_this_tick := 0
 	if in_cave:
 		var enemy_count := _count_night_enemies_in_radius()
-		while enemy_count < max_night_enemies_in_radius:
+		while enemy_count < max_cave_night_enemies_in_radius and spawned_this_tick < max_spawns_per_tick:
 			var pos := _random_cave_spawn_pos(cave_world_gen, "night_enemies")
 			if pos == Vector2.ZERO:
 				break
 			_spawn_night_enemy(pos)
 			enemy_count += 1
+			spawned_this_tick += 1
 	else:
 		var chicken_count := _count_chickens_in_radius()
-		while chicken_count < max_chickens_in_radius:
+		while chicken_count < max_chickens_in_radius and spawned_this_tick < max_spawns_per_tick:
 			var pos := _random_spawn_pos_near(_get_player_center(), "chickens")
 			if pos == Vector2.ZERO:
 				break
 			_spawn_chicken(pos)
 			chicken_count += 1
+			spawned_this_tick += 1
 		if _is_night():
 			var enemy_count := _count_night_enemies_in_radius()
-			while enemy_count < max_night_enemies_in_radius:
+			while enemy_count < max_night_enemies_in_radius and spawned_this_tick < max_spawns_per_tick:
 				var pos := _random_spawn_pos_near(_get_player_center(), "night_enemies")
 				if pos == Vector2.ZERO:
 					break
 				_spawn_night_enemy(pos)
 				enemy_count += 1
+				spawned_this_tick += 1
 
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
@@ -221,6 +228,8 @@ func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -
 		var pos := center + Vector2(cos(angle), sin(angle)) * dist
 		if cave_world_gen and cave_world_gen.get("in_cave"):
 			continue
+		if _is_position_on_screen(pos):
+			continue
 		if world_gen and world_gen.has_method("is_water_at") and world_gen.is_water_at(pos):
 			continue
 		var too_close := false
@@ -243,7 +252,7 @@ func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_e
 	var tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
 	for i in 60:
 		var angle := randf_range(0.0, TAU)
-		var dist := randf_range(spawn_radius_min, spawn_radius_max)
+		var dist := randf_range(cave_spawn_radius_min, cave_spawn_radius_max)
 		var pos := player.global_position + Vector2(cos(angle), sin(angle)) * dist
 		var tc: Vector2i = cave_world_gen.world_to_tile(pos)
 		if not cave_world_gen._reachable_tiles.has(tc):
@@ -252,6 +261,8 @@ func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_e
 			continue
 		if tilemap:
 			pos = tilemap.to_global(tilemap.map_to_local(tc))
+		if _is_position_on_screen(pos):
+			continue
 		var too_close := false
 		for existing in get_tree().get_nodes_in_group(avoid_group):
 			if pos.distance_to((existing as Node2D).global_position) < 100.0:
@@ -263,6 +274,18 @@ func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_e
 			continue
 		return pos
 	return Vector2.ZERO
+
+func _is_position_on_screen(pos: Vector2, margin: float = 160.0) -> bool:
+	var viewport := get_viewport()
+	if not viewport:
+		return false
+	var camera := viewport.get_camera_2d()
+	if not camera:
+		return false
+	var size := viewport.get_visible_rect().size
+	var top_left := camera.global_position - size * 0.5 - Vector2(margin, margin)
+	var rect := Rect2(top_left, size + Vector2(margin * 2.0, margin * 2.0))
+	return rect.has_point(pos)
 
 func clear_all_entities() -> void:
 	_spawn_timer.stop()

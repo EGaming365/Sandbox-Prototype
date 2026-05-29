@@ -81,6 +81,7 @@ var _loaded_cave_regions: Dictionary = {}
 var _active_caves: Dictionary = {}
 var _cave_positions: Dictionary = {}
 var _cave_region_load_queue: Array = []
+var _reserved_positions_by_chunk: Dictionary = {}
 
 const _BIOME_CELL: float = 24.0
 const _MAX_BIOME_QUERIES_PER_FRAME: int = 200
@@ -125,8 +126,8 @@ func _process(delta):
 	if cave_world_gen and cave_world_gen.get("in_cave"):
 		return
 
-	_update_chunks_around_player()
 	_update_cave_regions()
+	_update_chunks_around_player()
 
 func _process_load_queue_step():
 	if _chunk_load_queue.is_empty():
@@ -216,12 +217,15 @@ func _build_object_pass(chunk_coord: Vector2i, kind: String, wants_forest: bool,
 			continue
 		if _is_too_close_to_cave(pos):
 			continue
-		if not _passes_distance_rule(chunk_coord, pos, min_dist):
+		if not _passes_distance_rule(chunk_coord, pos, min_dist, kind):
 			continue
 
 		var env_id := _make_env_id(kind, chunk_coord, spawned)
 		chunk_objects[chunk_coord].append(env_id)
 		object_positions_by_chunk[chunk_coord].append(pos)
+		if not _reserved_positions_by_chunk.has(chunk_coord):
+			_reserved_positions_by_chunk[chunk_coord] = []
+		_reserved_positions_by_chunk[chunk_coord].append({ "pos": pos, "kind": kind })
 
 		if not destroyed_env_objects.has(env_id):
 			_build_jobs.append({ "env_id": env_id, "kind": kind, "pos": pos, "chunk_coord": chunk_coord })
@@ -421,15 +425,21 @@ func _is_safely_in_biome_cached(pos: Vector2, wants_forest: bool) -> bool:
 			return false
 	return true
 
-func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: float) -> bool:
+func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: float, kind: String = "") -> bool:
 	var min_sq := min_distance * min_distance
 	for dx in [-1, 0, 1]:
 		for dy in [-1, 0, 1]:
 			var cc := chunk_coord + Vector2i(dx, dy)
-			if not object_positions_by_chunk.has(cc):
+			if object_positions_by_chunk.has(cc):
+				for other_pos in object_positions_by_chunk[cc]:
+					if pos.distance_squared_to(other_pos) < min_sq:
+						return false
+			if not _reserved_positions_by_chunk.has(cc):
 				continue
-			for other_pos in object_positions_by_chunk[cc]:
-				if pos.distance_squared_to(other_pos) < min_sq:
+			for entry in _reserved_positions_by_chunk[cc]:
+				if kind != "" and entry.get("kind", "") != "" and entry.get("kind", "") != kind:
+					continue
+				if pos.distance_squared_to(entry["pos"]) < min_sq:
 					return false
 	return true
 
@@ -541,6 +551,7 @@ func _load_cave_region(region: Vector2i):
 			return
 
 	_cave_positions[region] = world_pos
+	_clear_objects_near_cave(world_pos)
 
 	if _active_caves.has(region):
 		return
@@ -550,12 +561,48 @@ func _load_cave_region(region: Vector2i):
 	scene_node.add_child(cave)
 	_active_caves[region] = cave
 
+func _clear_objects_near_cave(cave_pos: Vector2):
+	var clear_radius := 260.0
+	var clear_radius_sq := clear_radius * clear_radius
+	for env_id in active_objects.keys().duplicate():
+		var obj = active_objects[env_id]
+		if not is_instance_valid(obj):
+			active_objects.erase(env_id)
+			continue
+		if not env_id.begins_with("rock:") and not env_id.begins_with("tree:"):
+			continue
+		if obj.global_position.distance_squared_to(cave_pos) <= clear_radius_sq:
+			destroyed_env_objects[env_id] = true
+			_despawn_object(env_id)
+	for i in range(_object_spawn_queue.size() - 1, -1, -1):
+		var job = _object_spawn_queue[i]
+		if str(job.get("kind", "")) != "rock" and str(job.get("kind", "")) != "tree":
+			continue
+		if job.get("pos", Vector2.ZERO).distance_squared_to(cave_pos) <= clear_radius_sq:
+			destroyed_env_objects[job.get("env_id", "")] = true
+			_object_spawn_queue.remove_at(i)
+
 func _unload_cave_region(region: Vector2i):
 	_cave_region_load_queue.erase(region)
 	_loaded_cave_regions.erase(region)
+	_cave_positions.erase(region)
+	if _active_caves.has(region):
+		var cave = _active_caves[region]
+		if is_instance_valid(cave):
+			cave.queue_free()
+		_active_caves.erase(region)
 
 func _unload_all_cave_regions():
 	_cave_region_load_queue.clear()
+	for region in _loaded_cave_regions.keys().duplicate():
+		_unload_cave_region(region)
+	for region in _active_caves.keys().duplicate():
+		if _active_caves.has(region):
+			var cave = _active_caves[region]
+			if is_instance_valid(cave):
+				cave.queue_free()
+			_active_caves.erase(region)
+	_cave_positions.clear()
 	_loaded_cave_regions.clear()
 
 func _tile_to_cave_region(tc: Vector2i) -> Vector2i:
@@ -592,6 +639,9 @@ func _unload_chunk(chunk_coord: Vector2i):
 	if chunk_objects.has(chunk_coord):
 		for env_id in chunk_objects[chunk_coord]:
 			_despawn_object(env_id)
+
+	if _reserved_positions_by_chunk.has(chunk_coord):
+		_reserved_positions_by_chunk.erase(chunk_coord)
 
 	for i in range(_object_spawn_queue.size() - 1, -1, -1):
 		if _object_spawn_queue[i]["chunk_coord"] == chunk_coord:

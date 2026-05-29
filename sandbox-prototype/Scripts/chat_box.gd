@@ -81,6 +81,7 @@ func _handle_command(text: String):
 				"stone": item_name = "Stone"
 				"pickaxe": item_name = "Pickaxe"
 				"wardrobe": item_name = "Wardrobe"
+				"string": item_name = "String"
 				"fishing rod": item_name = "Fishing Rod"
 				"stone fishing rod": item_name = "Stone Fishing Rod"
 				"tophat fish": item_name = "Tophat Fish"
@@ -90,6 +91,12 @@ func _handle_command(text: String):
 				"pike": item_name = "Pike"
 				"catfish": item_name = "Catfish"
 				"sturgeon": item_name = "Sturgeon"
+				"salmon": item_name = "Salmon"
+				"clownfish": item_name = "Clownfish"
+				"blue tang": item_name = "Blue Tang"
+				"red tang": item_name = "Red Tang"
+				"lionfish": item_name = "Lionfish"
+				"tire": item_name = "Tire"
 				"albino minnow": item_name = "Albino Minnow"
 				"albino perch": item_name = "Albino Perch"
 				"albino bass": item_name = "Albino Bass"
@@ -97,6 +104,12 @@ func _handle_command(text: String):
 				"albino catfish": item_name = "Albino Catfish"
 				"albino sturgeon": item_name = "Albino Sturgeon"
 				"albino tophat fish": item_name = "Albino Tophat Fish"
+				"albino salmon": item_name = "Albino Salmon"
+				"albino clownfish": item_name = "Albino Clownfish"
+				"albino blue tang": item_name = "Albino Blue Tang"
+				"albino red tang": item_name = "Albino Red Tang"
+				"albino lionfish": item_name = "Albino Lionfish"
+				"albino tire": item_name = "Albino Tire"
 			_give_item_to_player(target_name, item_name, amount, weight_kg)
 		"/weather":
 			if my_steam_id != ADMIN_STEAM_ID:
@@ -429,7 +442,8 @@ func _rpc_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 
 func _get_item_texture(item_name: String) -> Texture2D:
 	if item_name in FISH_ITEM_NAMES:
-		return tophat_fish_texture
+		var tex := Inventory.get_texture(item_name)
+		return tex if tex != null else tophat_fish_texture
 	match item_name.to_lower():
 		"wood": return wood_texture
 		"wood plank": return Crafting.plank_texture
@@ -444,6 +458,7 @@ func _get_item_texture(item_name: String) -> Texture2D:
 		"wardrobe": return wardrobe_texture
 		"fishing rod": return fishing_rod_texture
 		"stone fishing rod": return stone_fishing_rod_texture
+		"string": return Inventory.string_texture
 		"tophat fish": return tophat_fish_texture
 	return null
 
@@ -455,11 +470,19 @@ const FISH_ITEM_NAMES: Array = [
 	"Pike", "Albino Pike",
 	"Catfish", "Albino Catfish",
 	"Sturgeon", "Albino Sturgeon",
+	"Salmon", "Albino Salmon",
+	"Clownfish", "Albino Clownfish",
+	"Blue Tang", "Albino Blue Tang",
+	"Red Tang", "Albino Red Tang",
+	"Lionfish", "Albino Lionfish",
+	"Tire", "Albino Tire",
 ]
 
 const FISH_BASE_WEIGHTS: Dictionary = {
 	"Minnow": 0.08, "Perch": 0.3, "Bass": 1.2, "Pike": 2.5,
 	"Catfish": 4.0, "Sturgeon": 12.0, "Tophat Fish": 0.6,
+	"Salmon": 3.0, "Clownfish": 0.1, "Blue Tang": 0.9,
+	"Red Tang": 2.5, "Lionfish": 0.8, "Tire": 10.0,
 }
 
 func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
