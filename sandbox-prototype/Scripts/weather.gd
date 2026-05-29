@@ -42,6 +42,7 @@ var aurora_active: bool = false
 var _was_night: bool = false
 var _aurora_phase: float = 0.0
 var _aurora_fade: float = 0.0
+var _weather_initialized: bool = false
 
 var rng := RandomNumberGenerator.new()
 var canvas_modulate: CanvasModulate
@@ -67,6 +68,8 @@ func _ready():
 		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 	else:
 		_set_weather(current_weather)
+	_weather_initialized = true
+	
 
 func _create_aurora_overlay():
 	aurora_overlay_layer = CanvasLayer.new()
@@ -152,22 +155,6 @@ func _create_rain():
 		print("ERROR: RainParticles not found")
 		return
 	rain_particles.emitting = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
-
-func _set_weather(new_weather: WeatherType):
-	current_weather = new_weather
-	var raining = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
-	if rain_particles:
-		rain_particles.emitting = raining
-		rain_particles.set_storm_intensity(current_weather == WeatherType.THUNDERSTORM)
-	match current_weather:
-		WeatherType.CLEAR:
-			lightning_timer = 0.0
-		WeatherType.RAIN:
-			lightning_timer = 0.0
-		WeatherType.THUNDER:
-			lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
-		WeatherType.THUNDERSTORM:
-			lightning_timer = rng.randf_range(1, 1)
 
 func _create_lightning_flash():
 	lightning_flash_layer = CanvasLayer.new()
@@ -444,3 +431,48 @@ func _is_position_on_screen(world_pos: Vector2) -> bool:
 	var cam_pos = camera.get_screen_center_position()
 	var screen_rect = Rect2(cam_pos - screen_size / 2.0 - Vector2(lightning_render_padding, lightning_render_padding), screen_size + Vector2(lightning_render_padding * 2.0, lightning_render_padding * 2.0))
 	return screen_rect.has_point(world_pos)
+
+func _set_weather(new_weather: WeatherType):
+	var was_raining = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	print("_set_weather called: ", new_weather, " was_raining=", was_raining, " initialized=", _weather_initialized, " aurora=", aurora_active)
+	current_weather = new_weather
+	var raining = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	if rain_particles:
+		rain_particles.emitting = raining
+		rain_particles.set_storm_intensity(current_weather == WeatherType.THUNDERSTORM)
+	if _weather_initialized:
+		if raining and not was_raining:
+			if not aurora_active:
+				_show_rain_notification("It has started raining.")
+		elif not raining and was_raining:
+			_show_rain_notification("The rain has stopped.")
+	match current_weather:
+		WeatherType.CLEAR:
+			lightning_timer = 0.0
+		WeatherType.RAIN:
+			lightning_timer = 0.0
+		WeatherType.THUNDER:
+			lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
+		WeatherType.THUNDERSTORM:
+			lightning_timer = rng.randf_range(1, 1)
+
+func _show_rain_notification(msg: String):
+	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
+	if not canvas:
+		return
+	var vp_size = get_viewport().get_visible_rect().size
+	var label = Label.new()
+	label.text = msg
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 5)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.z_index = 20
+	label.size = Vector2(600, 40)
+	label.position = Vector2(vp_size.x / 2.0 - 300.0, 60.0)
+	canvas.add_child(label)
+	var tween = label.create_tween()
+	tween.tween_interval(4.0)
+	tween.tween_property(label, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(label.queue_free)

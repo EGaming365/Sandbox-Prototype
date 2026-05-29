@@ -201,6 +201,10 @@ func _do_wander(delta: float) -> void:
 		sprite.play("idle")
 		return
 	var dir := (_wander_target - global_position).normalized()
+	var next_pos := global_position + dir * speed_wander * delta
+	if _is_water_at(next_pos):
+		_pick_wander_target()
+		return
 	var prev_pos := global_position
 	_try_move(dir * speed_wander * delta)
 	if global_position.distance_to(prev_pos) < 0.01:
@@ -240,37 +244,19 @@ func _do_flee(delta: float) -> void:
 		_stuck_timer = 0.0
 	sprite.play("walk_down")
 
-func _try_move(delta: Vector2) -> void:
-	if delta.length() <= 0.001:
-		return
-	var target = global_position + delta
-	if _is_position_clear(target):
-		global_position = target
-		_blocked_escape_timer = 0.0
-		return
-	_blocked_escape_timer += get_process_delta_time()
-	var slide_dirs = [
-		Vector2(delta.x, 0),
-		Vector2(0, delta.y),
-		Vector2(-delta.y, delta.x).normalized() * delta.length(),
-		Vector2(delta.y, -delta.x).normalized() * delta.length()
-	]
-	for slide in slide_dirs:
-		if slide.length() <= 0.001:
-			continue
-		var slide_target = global_position + slide
-		if _is_position_clear(slide_target):
-			global_position = slide_target
-			_wander_target = global_position + slide.normalized() * 160.0
-			_blocked_escape_timer = 0.0
-			return
-	if _blocked_escape_timer >= BLOCKED_ESCAPE_TIME:
-		if _escape_from_blocked_position():
-			_blocked_escape_timer = 0.0
+func _is_water_at(pos: Vector2) -> bool:
+	if _world_gen and _world_gen.has_method("is_water_at"):
+		return _world_gen.is_water_at(pos)
+	return false
 
 func _pick_wander_target() -> void:
-	var offset := Vector2(randf_range(-180.0, 180.0), randf_range(-180.0, 180.0))
-	_wander_target = global_position + offset
+	for _attempt in 12:
+		var offset := Vector2(rng.randf_range(-180.0, 180.0), rng.randf_range(-180.0, 180.0))
+		var candidate := global_position + offset
+		if not _is_water_at(candidate):
+			_wander_target = candidate
+			return
+	_wander_target = global_position
 
 func _get_nearest_player() -> CharacterBody2D:
 	var nearest: CharacterBody2D = null
@@ -374,6 +360,34 @@ func _is_position_clear(pos: Vector2) -> bool:
 		if hit["collider"] != staticbody:
 			return false
 	return true
+
+func _try_move(delta: Vector2) -> void:
+	if delta.length() <= 0.001:
+		return
+	var target = global_position + delta
+	if _is_position_clear(target):
+		global_position = target
+		_blocked_escape_timer = 0.0
+		return
+	_blocked_escape_timer += get_process_delta_time()
+	var slide_dirs = [
+		Vector2(delta.x, 0),
+		Vector2(0, delta.y),
+		Vector2(-delta.y, delta.x).normalized() * delta.length(),
+		Vector2(delta.y, -delta.x).normalized() * delta.length()
+	]
+	for slide in slide_dirs:
+		if slide.length() <= 0.001:
+			continue
+		var slide_target = global_position + slide
+		if _is_position_clear(slide_target):
+			global_position = slide_target
+			_wander_target = global_position + slide.normalized() * 160.0
+			_blocked_escape_timer = 0.0
+			return
+	if _blocked_escape_timer >= BLOCKED_ESCAPE_TIME:
+		if _escape_from_blocked_position():
+			_blocked_escape_timer = 0.0
 
 func _escape_from_blocked_position() -> bool:
 	for i in ESCAPE_ATTEMPTS:

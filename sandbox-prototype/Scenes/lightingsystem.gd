@@ -22,7 +22,7 @@ func _ready():
 
 func _setup_overlay():
 	var canvas := CanvasLayer.new()
-	canvas.layer = 5
+	canvas.layer = 0
 	canvas.follow_viewport_enabled = false
 	get_tree().root.add_child(canvas)
 	var overlay_script := GDScript.new()
@@ -115,6 +115,9 @@ func _update_darkness_base():
 			_current_darkness = lerp(day_base_darkness, night_base_darkness, blend)
 		else:
 			_current_darkness = day_base_darkness
+
+		if weather.aurora_active:
+			_current_darkness = lerp(_current_darkness, 0.0, 0.6)
 	else:
 		_current_darkness = day_base_darkness
 

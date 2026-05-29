@@ -62,16 +62,23 @@ func _show_aurora_notification():
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if not canvas:
 		return
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	var is_raining = weather and (weather.current_weather == weather.WeatherType.RAIN or \
+		weather.current_weather == weather.WeatherType.THUNDER or \
+		weather.current_weather == weather.WeatherType.THUNDERSTORM)
 
-	var container = HBoxContainer.new()
-	container.anchor_left = 0.5
-	container.anchor_top = 0.5
-	container.anchor_right = 0.5
-	container.anchor_bottom = 0.5
-	container.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	container.grow_vertical = Control.GROW_DIRECTION_BOTH
-	container.z_index = 20
-	container.alignment = BoxContainer.ALIGNMENT_CENTER
+	var vbox = VBoxContainer.new()
+	vbox.anchor_left = 0.5
+	vbox.anchor_top = 0.5
+	vbox.anchor_right = 0.5
+	vbox.anchor_bottom = 0.5
+	vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	vbox.grow_vertical = Control.GROW_DIRECTION_BOTH
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.z_index = 20
+
+	var row1 = HBoxContainer.new()
+	row1.alignment = BoxContainer.ALIGNMENT_CENTER
 
 	var part1 = Label.new()
 	part1.text = "Tonight is the illusive "
@@ -79,7 +86,7 @@ func _show_aurora_notification():
 	part1.add_theme_color_override("font_color", Color.WHITE)
 	part1.add_theme_color_override("font_outline_color", Color.BLACK)
 	part1.add_theme_constant_override("outline_size", 5)
-	container.add_child(part1)
+	row1.add_child(part1)
 
 	var part2 = Label.new()
 	part2.text = "Aurora Borealis"
@@ -87,7 +94,7 @@ func _show_aurora_notification():
 	part2.add_theme_color_override("font_color", Color(0.18, 0.85, 0.65))
 	part2.add_theme_color_override("font_outline_color", Color.BLACK)
 	part2.add_theme_constant_override("outline_size", 5)
-	container.add_child(part2)
+	row1.add_child(part2)
 
 	var part3 = Label.new()
 	part3.text = "! Luck is Drastically Increased."
@@ -95,19 +102,31 @@ func _show_aurora_notification():
 	part3.add_theme_color_override("font_color", Color.WHITE)
 	part3.add_theme_color_override("font_outline_color", Color.BLACK)
 	part3.add_theme_constant_override("outline_size", 5)
-	container.add_child(part3)
+	row1.add_child(part3)
 
-	canvas.add_child(container)
+	vbox.add_child(row1)
+
+	if is_raining:
+		var row2 = Label.new()
+		row2.text = "It has started raining."
+		row2.add_theme_font_size_override("font_size", 22)
+		row2.add_theme_color_override("font_color", Color.WHITE)
+		row2.add_theme_color_override("font_outline_color", Color.BLACK)
+		row2.add_theme_constant_override("outline_size", 5)
+		row2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(row2)
+
+	canvas.add_child(vbox)
 	await get_tree().process_frame
-	container.offset_left = -container.size.x / 2.0
-	container.offset_right = container.size.x / 2.0
-	container.offset_top = -container.size.y / 2.0 - 600.0
-	container.offset_bottom = container.size.y / 2.0 - 600.0
+	vbox.offset_left = -vbox.size.x / 2.0
+	vbox.offset_right = vbox.size.x / 2.0
+	vbox.offset_top = -vbox.size.y / 2.0 - 600.0
+	vbox.offset_bottom = vbox.size.y / 2.0 - 600.0
 
-	var tween = container.create_tween()
+	var tween = vbox.create_tween()
 	tween.tween_interval(4.0)
-	tween.tween_property(container, "modulate:a", 0.0, 1.0)
-	tween.tween_callback(container.queue_free)
+	tween.tween_property(vbox, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(vbox.queue_free)
 
 func _cache_base_colors():
 	for n in ["Game", "Settings", "Collection", "Mastery", "Blank"]:

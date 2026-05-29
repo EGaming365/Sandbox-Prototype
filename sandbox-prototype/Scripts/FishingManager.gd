@@ -166,15 +166,38 @@ func _pick_random_fish() -> Dictionary:
 	var rod_tension: int = _get_rod_stats().get("tension", 1)
 	var weights := RARITY_WEIGHTS.duplicate()
 
-	for rarity in ["Trash", "Common", "Uncommon", "Unusual"]:
-		if weights.has(rarity):
-			weights[rarity] *= luck
-
+	var luck_multiplier: float = luck
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
-	if weather and weather.aurora_active:
-		for rarity in ["Rare", "Epic", "Legendary"]:
-			if weights.has(rarity):
-				weights[rarity] *= 9.0
+	if weather:
+		if weather.aurora_active:
+			luck_multiplier *= 9.0
+		if weather.current_weather == weather.WeatherType.RAIN or \
+		   weather.current_weather == weather.WeatherType.THUNDER or \
+		   weather.current_weather == weather.WeatherType.THUNDERSTORM:
+			luck_multiplier *= 1.5
+
+	var boost_rarities: Array = []
+	var nerf_rarities: Array = []
+
+	if luck_multiplier >= 9.0:
+		boost_rarities = ["Legendary", "Mythic", "Exotic"]
+		nerf_rarities = ["Trash", "Common", "Uncommon", "Unusual", "Rare", "Epic"]
+	elif luck_multiplier >= 6.0:
+		boost_rarities = ["Epic", "Legendary", "Mythic", "Exotic"]
+		nerf_rarities = ["Trash", "Common", "Uncommon", "Unusual", "Rare"]
+	elif luck_multiplier >= 3.0:
+		boost_rarities = ["Rare", "Epic", "Legendary", "Mythic", "Exotic"]
+		nerf_rarities = ["Trash", "Common", "Uncommon", "Unusual"]
+	elif luck_multiplier >= 1.0:
+		boost_rarities = ["Unusual", "Rare", "Epic", "Legendary", "Mythic", "Exotic"]
+		nerf_rarities = ["Trash", "Common"]
+
+	for rarity in boost_rarities:
+		if weights.has(rarity):
+			weights[rarity] *= luck_multiplier
+	for rarity in nerf_rarities:
+		if weights.has(rarity):
+			weights[rarity] /= luck_multiplier
 
 	var available_rarities: Dictionary = {}
 	for f in FISH_TABLE:

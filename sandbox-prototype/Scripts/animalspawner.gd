@@ -3,7 +3,7 @@ extends Node
 const CHICKEN_SCENE := preload("res://Scenes/chicken.tscn")
 const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 
-@export var max_chickens_in_radius: int = 10.0
+@export var max_chickens_in_radius: int = 10
 @export var max_night_enemies_in_radius: int = 4
 @export var spawn_radius_min: float = 1000.0
 @export var spawn_radius_max: float = 2000.0
@@ -64,21 +64,48 @@ func _on_spawn_tick() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
 	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
-	if cave_world_gen and cave_world_gen.get("in_cave"):
-		return
+	var in_cave: bool = cave_world_gen != null and cave_world_gen.get("in_cave")
 	var players := get_tree().get_nodes_in_group("players")
 	if players.is_empty():
 		return
+	if in_cave:
+		var enemy_count := _count_night_enemies_in_radius()
+		while enemy_count < max_night_enemies_in_radius:
+			var pos := _random_cave_spawn_pos(cave_world_gen, "night_enemies")
+			if pos == Vector2.ZERO:
+				break
+			_spawn_night_enemy(pos)
+			enemy_count += 1
+	else:
+		var chicken_count := _count_chickens_in_radius()
+		while chicken_count < max_chickens_in_radius:
+			var pos := _random_spawn_pos_near(_get_player_center(), "chickens")
+			if pos == Vector2.ZERO:
+				break
+			_spawn_chicken(pos)
+			chicken_count += 1
+		if _is_night():
+			var enemy_count := _count_night_enemies_in_radius()
+			while enemy_count < max_night_enemies_in_radius:
+				var pos := _random_spawn_pos_near(_get_player_center(), "night_enemies")
+				if pos == Vector2.ZERO:
+					break
+				_spawn_night_enemy(pos)
+				enemy_count += 1
 
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
+	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	var in_cave: bool = cave_world_gen != null and cave_world_gen.get("in_cave")
 	var players := get_tree().get_nodes_in_group("players")
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		var c := chicken as Node2D
 		if not is_instance_valid(c):
 			continue
-		# Only despawn if ALL players are out of range
+		if in_cave:
+			c.queue_free()
+			continue
 		var all_out_of_range := true
 		for p in players:
 			if is_instance_valid(p):
@@ -101,7 +128,7 @@ func _check_despawn() -> void:
 		var e := enemy as Node2D
 		if not is_instance_valid(e):
 			continue
-		if not _is_night():
+		if not in_cave and not _is_night():
 			e.queue_free()
 			continue
 		var all_out := true
@@ -154,46 +181,21 @@ func _count_night_enemies_in_radius() -> int:
 				count += 1
 	return count
 
-func _random_spawn_pos(avoid_group: String = "chickens") -> Vector2:
-	var center := _get_player_center()
-	for i in 30:
-		var angle := randf_range(0.0, TAU)
-		var dist := randf_range(spawn_radius_min, spawn_radius_max)
-		var pos := center + Vector2(cos(angle), sin(angle)) * dist
-		var too_close := false
-
-		for existing in get_tree().get_nodes_in_group(avoid_group):
-			if pos.distance_to((existing as Node2D).global_position) < 100.0:
-				too_close = true
-				break
-
-		if too_close:
-			continue
-
-		if not _is_spawn_pos_clear(pos):
-			continue
-
-		return pos
-
-	return Vector2.ZERO
-
 func _get_player_center() -> Vector2:
+	var players := get_tree().get_nodes_in_group("players")
+	if players.is_empty():
+		return Vector2.ZERO
 	if multiplayer.has_multiplayer_peer():
-		# Use all players' positions for spawn/despawn so none get despawned unfairly
-		var players := get_tree().get_nodes_in_group("players")
-		if players.is_empty():
-			return Vector2.ZERO
-		var furthest_dist := 0.0
-		var best_pos := Vector2.ZERO
-		# Find the player furthest from origin as reference
+		var sum := Vector2.ZERO
+		var valid := 0
 		for p in players:
 			if is_instance_valid(p):
-				best_pos += (p as Node2D).global_position
-		return best_pos / players.size()
-	else:
-		var players := get_tree().get_nodes_in_group("players")
-		if players.is_empty():
+				sum += (p as Node2D).global_position
+				valid += 1
+		if valid == 0:
 			return Vector2.ZERO
+		return sum / valid
+	else:
 		return (players[0] as Node2D).global_position
 
 func _is_spawn_pos_clear(pos: Vector2) -> bool:
@@ -204,7 +206,6 @@ func _is_spawn_pos_clear(pos: Vector2) -> bool:
 	query.shape = shape
 	query.transform = Transform2D(0, pos)
 	query.collision_mask = 1
-
 	return space.intersect_shape(query).is_empty()
 
 func _is_night() -> bool:
@@ -233,3 +234,46 @@ func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -
 			continue
 		return pos
 	return Vector2.ZERO
+
+func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_enemies") -> Vector2:
+	var players := get_tree().get_nodes_in_group("players")
+	if players.is_empty():
+		return Vector2.ZERO
+	var player := players[0] as Node2D
+	var tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
+	for i in 60:
+		var angle := randf_range(0.0, TAU)
+		var dist := randf_range(spawn_radius_min, spawn_radius_max)
+		var pos := player.global_position + Vector2(cos(angle), sin(angle)) * dist
+		var tc: Vector2i = cave_world_gen.world_to_tile(pos)
+		if not cave_world_gen._reachable_tiles.has(tc):
+			continue
+		if cave_world_gen._biome_for_tile(tc) != cave_world_gen.BiomeType.CAVE_FLOOR:
+			continue
+		if tilemap:
+			pos = tilemap.to_global(tilemap.map_to_local(tc))
+		var too_close := false
+		for existing in get_tree().get_nodes_in_group(avoid_group):
+			if pos.distance_to((existing as Node2D).global_position) < 100.0:
+				too_close = true
+				break
+		if too_close:
+			continue
+		if not _is_spawn_pos_clear(pos):
+			continue
+		return pos
+	return Vector2.ZERO
+
+func clear_all_entities() -> void:
+	_spawn_timer.stop()
+	_despawn_timer.stop()
+	for chicken in get_tree().get_nodes_in_group("chickens"):
+		if is_instance_valid(chicken):
+			chicken.free()
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy):
+			enemy.free()
+	_out_of_range_timers.clear()
+	await get_tree().create_timer(3.0).timeout
+	_spawn_timer.start()
+	_despawn_timer.start()

@@ -1,6 +1,6 @@
 extends Node2D
 
-enum State { CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
+enum State { PASSIVE, CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
 
 @export var enemy_id: int = -1
 @export var speed: float = 170.0
@@ -14,12 +14,15 @@ enum State { CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
 @export var dash_hit_radius: float = 44.0
 @export var post_attack_cooldown: float = 0.9
 @export var despawn_when_day: bool = true
+@export var detection_radius: float = 400.0
+@export var path_step_size: int = 3
+@export var path_replan_interval: float = 0.4
 
 var drowning_timer: float = 0.0
 var drowning_dead: bool = false
 const DROWN_TIME: float = 5.0
 
-var state: State = State.CHASE
+var state: State = State.PASSIVE
 var attack_cooldown: float = 0.0
 var charge_timer: float = 0.0
 var dash_timer: float = 0.0
@@ -28,12 +31,20 @@ var dash_origin: Vector2 = Vector2.ZERO
 var _blocked_escape_timer: float = 0.0
 var rng := RandomNumberGenerator.new()
 
+var _path: Array = []
+var _path_timer: float = 0.0
+var _wander_target: Vector2 = Vector2.ZERO
+var _wander_idle_timer: float = 0.0
+var _passive_stuck_timer: float = 0.0
+
 const PREFERRED_DISTANCE: float = 72.0
 const BLOCKED_ESCAPE_TIME: float = 1.0
 const ESCAPE_SEARCH_RADIUS: float = 120.0
 const ESCAPE_ATTEMPTS: int = 12
 const SEPARATION_RADIUS: float = 52.0
 const SEPARATION_FORCE: float = 600.0
+const PATH_NODE_REACH_DIST: float = 24.0
+const PASSIVE_WANDER_RANGE: float = 160.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var staticbody: StaticBody2D = $StaticBody2D
@@ -49,6 +60,7 @@ func _ready() -> void:
 	staticbody.position.y = -6
 	sprite.play("walk_down")
 	attack_cooldown = rng.randf_range(0.5, attack_cooldown_max)
+	_pick_passive_wander_target()
 
 func _process(delta: float) -> void:
 	_update_drowning(delta)
@@ -63,20 +75,40 @@ func _process(delta: float) -> void:
 	attack_cooldown = max(attack_cooldown - delta, 0.0)
 	_resolve_overlap()
 	_apply_separation(delta)
-	var target := _get_nearest_player()
-	if not target:
-		return
 
-	var distance := global_position.distance_to(target.global_position)
+	var target := _get_nearest_player()
 
 	match state:
+		State.PASSIVE:
+			_do_passive(delta, target)
+
 		State.CHASE:
-			if distance <= attack_range and attack_cooldown <= 0.0:
+			if not target:
+				state = State.PASSIVE
+				_pick_passive_wander_target()
+				return
+			if target.global_position.distance_to(global_position) > detection_radius * 1.5:
+				state = State.PASSIVE
+				_path.clear()
+				_pick_passive_wander_target()
+				return
+			if attack_cooldown <= 0.0 and global_position.distance_to(target.global_position) <= attack_range:
 				_begin_charge(target)
 			else:
-				_chase(target, delta)
+				_path_timer -= delta
+				if _path_timer <= 0.0 or _path.is_empty():
+					_path_timer = path_replan_interval
+					_path = _build_path_to(target.global_position)
+					if _path.is_empty():
+						state = State.PASSIVE
+						_pick_passive_wander_target()
+						return
+				_follow_path(delta)
 
 		State.CHARGING:
+			if not target:
+				state = State.PASSIVE
+				return
 			sprite.play("idle")
 			charge_timer += delta
 			var pct: float = clamp(charge_timer / charge_time, 0.0, 1.0)
@@ -88,6 +120,9 @@ func _process(delta: float) -> void:
 				_begin_dash()
 
 		State.DASHING:
+			if not target:
+				_on_dash_miss()
+				return
 			dash_timer += delta
 			var step := dash_direction * dash_speed * delta
 			var next_pos := global_position + step
@@ -95,8 +130,7 @@ func _process(delta: float) -> void:
 				_on_dash_miss()
 				return
 			global_position = next_pos
-			var dist_to_target := global_position.distance_to(target.global_position)
-			if dist_to_target <= dash_hit_radius:
+			if global_position.distance_to(target.global_position) <= dash_hit_radius:
 				_on_dash_hit(target)
 				return
 			if dash_timer >= dash_duration:
@@ -110,6 +144,162 @@ func _process(delta: float) -> void:
 			var scene = get_tree().root.get_node_or_null("Scene")
 			if scene:
 				scene.sync_enemy_state_rpc.rpc(enemy_id, global_position.x, global_position.y, int(state), health)
+
+func _do_passive(delta: float, target: CharacterBody2D) -> void:
+	if target and global_position.distance_to(target.global_position) <= detection_radius:
+		var test_path := _build_path_to(target.global_position)
+		if not test_path.is_empty():
+			state = State.CHASE
+			_path = test_path
+			_path_timer = path_replan_interval
+			return
+
+	_wander_idle_timer -= delta
+	if _wander_idle_timer > 0.0:
+		sprite.play("idle")
+		return
+
+	if global_position.distance_to(_wander_target) < 12.0:
+		_wander_idle_timer = rng.randf_range(1.5, 4.0)
+		_pick_passive_wander_target()
+		return
+
+	var dir := (_wander_target - global_position).normalized()
+	var prev := global_position
+	_try_move(dir * speed * 0.45 * delta)
+	if global_position.distance_to(prev) < 0.01:
+		_passive_stuck_timer += delta
+		if _passive_stuck_timer > 0.5:
+			_passive_stuck_timer = 0.0
+			_pick_passive_wander_target()
+	else:
+		_passive_stuck_timer = 0.0
+	sprite.play("walk_down")
+
+func _pick_passive_wander_target() -> void:
+	for _attempt in 10:
+		var angle := rng.randf_range(0.0, TAU)
+		var dist := rng.randf_range(40.0, PASSIVE_WANDER_RANGE)
+		var candidate := global_position + Vector2(cos(angle), sin(angle)) * dist
+		if _is_position_clear(candidate):
+			_wander_target = candidate
+			return
+	_wander_target = global_position
+
+func _follow_path(delta: float) -> void:
+	if _path.is_empty():
+		return
+	var next_point: Vector2 = _path[0]
+	var to_next := next_point - global_position
+	if to_next.length() < PATH_NODE_REACH_DIST:
+		_path.pop_front()
+		if _path.is_empty():
+			return
+		next_point = _path[0]
+		to_next = next_point - global_position
+	var dir := to_next.normalized()
+	_try_move(dir * speed * delta)
+	sprite.play("walk_down")
+
+func _build_path_to(target_pos: Vector2) -> Array:
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	if cave_gen and cave_gen.get("in_cave") and cave_gen._reachable_tiles.size() > 0:
+		return _astar_cave(target_pos, cave_gen)
+	return _steer_path(target_pos)
+
+func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
+	var tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
+	if not tilemap:
+		return _steer_path(target_pos)
+
+	var start_tc: Vector2i = cave_gen.world_to_tile(global_position)
+	var goal_tc: Vector2i = cave_gen.world_to_tile(target_pos)
+
+	if not cave_gen._reachable_tiles.has(goal_tc):
+		return []
+
+	var dirs := [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+		Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)
+	]
+
+	var open: Array = []
+	var came_from: Dictionary = {}
+	var g_score: Dictionary = {}
+	var f_score: Dictionary = {}
+
+	g_score[start_tc] = 0.0
+	f_score[start_tc] = start_tc.distance_to(goal_tc)
+	open.append(start_tc)
+
+	var iterations := 0
+	var max_iterations := 800
+
+	while not open.is_empty() and iterations < max_iterations:
+		iterations += 1
+		open.sort_custom(func(a, b): return f_score.get(a, INF) < f_score.get(b, INF))
+		var current: Vector2i = open.pop_front()
+
+		if current == goal_tc:
+			var world_path: Array = []
+			var node := goal_tc
+			while came_from.has(node):
+				world_path.push_front(tilemap.to_global(tilemap.map_to_local(node)))
+				node = came_from[node]
+			return _simplify_path(world_path)
+
+		for dir in dirs:
+			var neighbor: Vector2i = current + dir * path_step_size
+			if not cave_gen._reachable_tiles.has(neighbor):
+				continue
+			if cave_gen._biome_for_tile(neighbor) == cave_gen.BiomeType.WATER_LAKE:
+				continue
+			var step_cost := 1.0 if (dir.x == 0 or dir.y == 0) else 1.414
+			var tentative_g: float = g_score.get(current, INF) + step_cost * path_step_size
+			if tentative_g < g_score.get(neighbor, INF):
+				came_from[neighbor] = current
+				g_score[neighbor] = tentative_g
+				f_score[neighbor] = tentative_g + neighbor.distance_to(goal_tc)
+				if not neighbor in open:
+					open.append(neighbor)
+
+	return []
+
+func _steer_path(target_pos: Vector2) -> Array:
+	var path: Array = []
+	var pos := global_position
+	var steps := 12
+	for i in steps:
+		var t := float(i + 1) / float(steps)
+		var point := global_position.lerp(target_pos, t)
+		if not _is_position_clear(point):
+			break
+		path.append(point)
+	return path
+
+func _simplify_path(path: Array) -> Array:
+	if path.size() <= 2:
+		return path
+	var simplified: Array = [path[0]]
+	var i := 0
+	while i < path.size() - 1:
+		var j := path.size() - 1
+		while j > i + 1:
+			if _path_segment_clear(path[i], path[j]):
+				break
+			j -= 1
+		simplified.append(path[j])
+		i = j
+	return simplified
+
+func _path_segment_clear(from: Vector2, to: Vector2) -> bool:
+	var steps := int(from.distance_to(to) / 24.0) + 1
+	for i in range(1, steps + 1):
+		var t := float(i) / float(steps)
+		var point := from.lerp(to, t)
+		if not _is_position_clear(point):
+			return false
+	return true
 
 func _is_position_clear_for_dash(pos: Vector2) -> bool:
 	var space := get_world_2d().direct_space_state
@@ -187,17 +377,6 @@ func _play_miss_stumble() -> void:
 func _reset_visuals() -> void:
 	sprite.modulate = Color(1, 1, 1, 1)
 
-func _chase(target: CharacterBody2D, delta: float) -> void:
-	state = State.CHASE
-	var to_target := target.global_position - global_position
-	var distance := to_target.length()
-	var dir := to_target.normalized()
-	if distance < PREFERRED_DISTANCE:
-		_try_move(-dir * speed * delta)
-	else:
-		_try_move(dir * speed * delta)
-	sprite.play("walk_down")
-
 func _apply_separation(delta: float) -> void:
 	for other in get_tree().get_nodes_in_group("night_enemies"):
 		if other == self or not is_instance_valid(other):
@@ -247,6 +426,8 @@ func take_damage(amount: int) -> void:
 	if not _is_host():
 		return
 	health -= amount
+	if state == State.PASSIVE:
+		state = State.CHASE
 	if multiplayer.has_multiplayer_peer():
 		_sync_flash_hit_rpc.rpc()
 	else:
@@ -347,6 +528,25 @@ func _escape_from_blocked_position() -> bool:
 			return true
 	return false
 
+func _update_drowning(delta: float) -> void:
+	if state == State.DEAD:
+		return
+	if not _is_host():
+		return
+	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+	if in_water:
+		drowning_timer += delta
+	else:
+		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
+	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
+	sprite.modulate.a = alpha
+	if drowning_timer >= DROWN_TIME and not drowning_dead:
+		drowning_dead = true
+		take_damage(9999)
+	elif drowning_timer <= 0.0:
+		drowning_dead = false
+
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _sync_charge_glow_rpc(pct: float) -> void:
 	_set_charge_glow(pct)
@@ -369,22 +569,3 @@ func _sync_flash_hit_rpc() -> void:
 @rpc("authority", "call_local", "reliable")
 func _sync_die_rpc() -> void:
 	_play_die_sequence()
-
-func _update_drowning(delta: float) -> void:
-	if state == State.DEAD:
-		return
-	if not _is_host():
-		return
-	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
-	var in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
-	if in_water:
-		drowning_timer += delta
-	else:
-		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
-	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
-	sprite.modulate.a = alpha
-	if drowning_timer >= DROWN_TIME and not drowning_dead:
-		drowning_dead = true
-		take_damage(9999)
-	elif drowning_timer <= 0.0:
-		drowning_dead = false

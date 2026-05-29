@@ -28,16 +28,12 @@ extends Node2D
 @export var cave_rock_water_clearance: float = 3.0
 @export var cave_rock_spawn_attempts: int = 20
 
-@export var tunnel_radius: int = 6
-@export var tunnel_turn_chance: float = 0.3
-@export var tunnel_length_min: int = 12
-@export var tunnel_length_max: int = 40
-@export var tunnel_branch_chance: float = 0.5
-@export var tunnel_count_min: int = 10
-@export var tunnel_count_max: int = 30
-@export var room_chance: float = 0.5
-@export var room_radius_min: int = 6
-@export var room_radius_max: int = 30
+@export var tunnel_radius: int = 4
+@export var room_radius_min: int = 8
+@export var room_radius_max: int = 20
+@export var cave_half_extent: int = 180
+@export var room_count_min: int = 8
+@export var room_count_max: int = 16
 
 enum BiomeType { CAVE_FLOOR, CAVE_WALL, WATER_LAKE }
 
@@ -67,8 +63,12 @@ var _cave_active_rocks: Dictionary = {}
 var _packed_cave_rock_scene: PackedScene = null
 var _all_cave_rock_world_positions: Array = []
 
+var _wall_tiles: Dictionary = {}
 var _carved_tiles: Dictionary = {}
+var _reachable_tiles: Dictionary = {}
 var _cave_entrance_tile: Vector2i = Vector2i(0, 0)
+var _cave_bounds_min: Vector2i = Vector2i(0, 0)
+var _cave_bounds_max: Vector2i = Vector2i(0, 0)
 
 func _ready():
 	await get_tree().process_frame
@@ -96,6 +96,9 @@ func enter_cave(player: CharacterBody2D):
 	in_cave = true
 	_enter_cooldown = ENTER_COOLDOWN_TIME
 	_cave_entrance_tile = _world_gen.world_to_tile(player.global_position) if _world_gen else Vector2i(0, 0)
+	var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
+		animal_spawner.clear_all_entities()
 	if _world_gen:
 		_world_gen.set_process(false)
 		if _tilemap:
@@ -127,6 +130,9 @@ func exit_cave(player: CharacterBody2D):
 		return
 	in_cave = false
 	_enter_cooldown = ENTER_COOLDOWN_TIME
+	var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
+		animal_spawner.clear_all_entities()
 	_deactivate()
 	if _world_gen:
 		_world_gen.set_process(true)
@@ -153,76 +159,128 @@ func _activate(seed: int):
 	_cave_rock_positions.clear()
 	_cave_active_rocks.clear()
 	_all_cave_rock_world_positions.clear()
+	_wall_tiles.clear()
 	_carved_tiles.clear()
+	_reachable_tiles.clear()
 	_generate_cave_layout()
+	_flood_fill_reachable()
 	_active = true
 	_update_chunks_around_player()
 
 func _generate_cave_layout():
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(world_seed ^ 0xCAFEBABE)
-	var directions := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	var area_count := rng.randi_range(4, 7)
-	var area_centers: Array = []
-	var start := _cave_entrance_tile
-	area_centers.append(start)
-	for _a in range(1, area_count):
-		var angle := rng.randf_range(0.0, TAU)
-		var dist := rng.randf_range(60, 120)
-		var offset := Vector2i(int(cos(angle) * dist), int(sin(angle) * dist))
-		area_centers.append(start + offset)
-	for area_center in area_centers:
-		var room_count := rng.randi_range(3, 6)
-		var room_centers: Array = []
-		var first_room: Vector2 = area_center
-		_carve_room(first_room, rng.randi_range(room_radius_min, room_radius_max), rng)
-		room_centers.append(first_room)
-		for _r in range(1, room_count):
-			var prev: Vector2i = room_centers[room_centers.size() - 1]
-			var angle := rng.randf_range(0.0, TAU)
-			var dist := rng.randi_range(tunnel_length_min * 2, tunnel_length_max * 3)
-			var next := prev + Vector2i(int(cos(angle) * dist), int(sin(angle) * dist))
-			_carve_room(next, rng.randi_range(room_radius_min, room_radius_max), rng)
-			room_centers.append(next)
-			_carve_tunnel_between(prev, next, rng, directions)
-		if room_centers.size() > 2 and rng.randf() < 0.5:
-			var a: Vector2i = room_centers[rng.randi() % room_centers.size()]
-			var b: Vector2i = room_centers[rng.randi() % room_centers.size()]
-			if a != b:
-				_carve_tunnel_between(a, b, rng, directions)
+	_cave_bounds_min = _cave_entrance_tile - Vector2i(cave_half_extent, cave_half_extent)
+	_cave_bounds_max = _cave_entrance_tile + Vector2i(cave_half_extent, cave_half_extent)
+	for x in range(_cave_bounds_min.x, _cave_bounds_max.x + 1):
+		for y in range(_cave_bounds_min.y, _cave_bounds_max.y + 1):
+			_wall_tiles[Vector2i(x, y)] = true
+	var room_count := rng.randi_range(room_count_min, room_count_max)
+	var room_centers: Array = []
+	var margin := room_radius_max + 2
+	var first_room := _cave_entrance_tile
+	var first_radius := rng.randi_range(room_radius_min, room_radius_max)
+	_carve_room(first_room, first_radius, rng)
+	room_centers.append(first_room)
+	for _i in range(1, room_count):
+		for _attempt in 40:
+			var cx := rng.randi_range(_cave_bounds_min.x + margin, _cave_bounds_max.x - margin)
+			var cy := rng.randi_range(_cave_bounds_min.y + margin, _cave_bounds_max.y - margin)
+			var candidate := Vector2i(cx, cy)
+			var too_close := false
+			for existing in room_centers:
+				if candidate.distance_to(existing) < room_radius_max * 2:
+					too_close = true
+					break
+			if too_close:
+				continue
+			var radius := rng.randi_range(room_radius_min, room_radius_max)
+			_carve_room(candidate, radius, rng)
+			room_centers.append(candidate)
+			break
+	for i in range(room_centers.size() - 1):
+		_carve_tunnel_between(room_centers[i], room_centers[i + 1])
+	var extra_connections := rng.randi_range(2, 5)
+	for _e in extra_connections:
+		var a: Vector2i = room_centers[rng.randi() % room_centers.size()]
+		var b: Vector2i = room_centers[rng.randi() % room_centers.size()]
+		if a != b:
+			_carve_tunnel_between(a, b)
 
-func _carve_tunnel_between(from: Vector2i, to: Vector2i, rng: RandomNumberGenerator, directions: Array):
+func _carve_room(center: Vector2i, radius: int, rng: RandomNumberGenerator):
+	var wobble := radius / 3
+	for dx in range(-radius - wobble, radius + wobble + 1):
+		for dy in range(-radius - wobble, radius + wobble + 1):
+			var dist := Vector2(dx, dy).length()
+			var wobbled_radius := radius + rng.randf_range(-wobble * 0.4, wobble * 0.4)
+			if dist <= wobbled_radius:
+				var tc := center + Vector2i(dx, dy)
+				if tc.x >= _cave_bounds_min.x and tc.x <= _cave_bounds_max.x and \
+				   tc.y >= _cave_bounds_min.y and tc.y <= _cave_bounds_max.y:
+					_carved_tiles[tc] = true
+					_wall_tiles.erase(tc)
+
+func _carve_tunnel_between(from: Vector2i, to: Vector2i):
 	var pos := from
-	var max_steps := 200
+	var max_steps := 600
 	var steps := 0
 	while pos != to and steps < max_steps:
 		steps += 1
 		var diff := to - pos
-		var step: Vector2i
-		if rng.randf() < tunnel_turn_chance:
-			step = directions[rng.randi() % directions.size()]
-		elif abs(diff.x) > abs(diff.y):
-			step = Vector2i(sign(diff.x), 0)
+		if abs(diff.x) > abs(diff.y):
+			pos += Vector2i(sign(diff.x), 0)
 		else:
-			step = Vector2i(0, sign(diff.y))
-		pos += step
+			pos += Vector2i(0, sign(diff.y))
 		for dr in range(-tunnel_radius, tunnel_radius + 1):
 			for dc in range(-tunnel_radius, tunnel_radius + 1):
 				if Vector2(dr, dc).length() <= tunnel_radius:
-					_carved_tiles[pos + Vector2i(dr, dc)] = true
+					var tc := pos + Vector2i(dr, dc)
+					if tc.x >= _cave_bounds_min.x and tc.x <= _cave_bounds_max.x and \
+					   tc.y >= _cave_bounds_min.y and tc.y <= _cave_bounds_max.y:
+						_carved_tiles[tc] = true
+						_wall_tiles.erase(tc)
 
-func _carve_room(center: Vector2i, radius: int, rng: RandomNumberGenerator):
-	var wobble := radius / 2
-	for dx in range(-radius - wobble, radius + wobble + 1):
-		for dy in range(-radius - wobble, radius + wobble + 1):
-			var dist := Vector2(dx, dy).length()
-			var wobbled_radius := radius + rng.randf_range(-wobble * 0.5, wobble * 0.5)
-			if dist <= wobbled_radius:
-				_carved_tiles[center + Vector2i(dx, dy)] = true
+func _flood_fill_reachable():
+	var seed_tile := Vector2i(0, 0)
+	var found := false
+	for radius in range(0, 200):
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				if abs(dx) != radius and abs(dy) != radius:
+					continue
+				var tc := _cave_entrance_tile + Vector2i(dx, dy)
+				if _carved_tiles.has(tc):
+					seed_tile = tc
+					found = true
+					break
+			if found:
+				break
+		if found:
+			break
+	if not found:
+		return
+	var queue: Array = [seed_tile]
+	var directions := [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+		Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)
+	]
+	while not queue.is_empty():
+		var current: Vector2i = queue.pop_back()
+		if _reachable_tiles.has(current):
+			continue
+		if not _carved_tiles.has(current):
+			continue
+		_reachable_tiles[current] = true
+		for dir in directions:
+			var neighbor: Vector2i = current + dir
+			if _carved_tiles.has(neighbor) and not _reachable_tiles.has(neighbor):
+				queue.append(neighbor)
 
 func _deactivate():
 	_active = false
+	_wall_tiles.clear()
 	_carved_tiles.clear()
+	_reachable_tiles.clear()
 	_all_cave_rock_world_positions.clear()
 	for cc in loaded_chunks.keys():
 		_erase_chunk_tiles(cc)
@@ -301,7 +359,8 @@ func _paint_next_tiles():
 			_paint_index = 0
 			continue
 		var entry = _paint_tiles[_paint_index]
-		_apply_tile(entry[0], entry[1])
+		if entry[1] != null:
+			_apply_tile(entry[0], entry[1])
 		_paint_index += 1
 		painted += 1
 
@@ -310,9 +369,24 @@ func _precompute_chunk(chunk_coord: Vector2i):
 	var start := chunk_to_start_tile(chunk_coord)
 	var total := chunk_size_tiles * chunk_size_tiles
 	_paint_tiles.resize(total)
+	var chunk_has_content := false
 	for i in total:
 		var tc := Vector2i(start.x + i % chunk_size_tiles, start.y + i / chunk_size_tiles)
-		_paint_tiles[i] = [tc, _biome_for_tile(tc)]
+		if _carved_tiles.has(tc) or _wall_tiles.has(tc):
+			chunk_has_content = true
+			break
+	if not chunk_has_content:
+		for i in total:
+			_paint_tiles[i] = [Vector2i(start.x + i % chunk_size_tiles, start.y + i / chunk_size_tiles), null]
+		return
+	for i in total:
+		var tc := Vector2i(start.x + i % chunk_size_tiles, start.y + i / chunk_size_tiles)
+		if _wall_tiles.has(tc):
+			_paint_tiles[i] = [tc, BiomeType.CAVE_WALL]
+		elif _reachable_tiles.has(tc):
+			_paint_tiles[i] = [tc, _biome_for_tile(tc)]
+		else:
+			_paint_tiles[i] = [tc, null]
 	_spawn_cave_rocks_for_chunk(chunk_coord)
 
 func _apply_tile(tc: Vector2i, biome: BiomeType):
@@ -328,17 +402,22 @@ func _apply_tile(tc: Vector2i, biome: BiomeType):
 			_tilemap.set_cell(0, tc, cave_source_id, cave_atlas)
 
 func _biome_for_tile(tc: Vector2i) -> BiomeType:
-	if _carved_tiles.has(tc):
-		var region := Vector2i(
-			floori(float(tc.x) / float(lake_region_size_tiles)),
-			floori(float(tc.y) / float(lake_region_size_tiles)))
-		for lake in _get_lakes_for_region(region):
-			var off: Vector2 = Vector2(tc) - lake["center"]
-			if (off.x * off.x) / (lake["rx"] * lake["rx"]) + \
-			   (off.y * off.y) / (lake["ry"] * lake["ry"]) <= 1.0:
-				return BiomeType.WATER_LAKE
-		return BiomeType.CAVE_FLOOR
-	return BiomeType.CAVE_WALL
+	if not _reachable_tiles.has(tc):
+		return BiomeType.CAVE_WALL
+	var region := Vector2i(
+		floori(float(tc.x) / float(lake_region_size_tiles)),
+		floori(float(tc.y) / float(lake_region_size_tiles)))
+	for lake in _get_lakes_for_region(region):
+		var off: Vector2 = Vector2(tc) - lake["center"]
+		if (off.x * off.x) / (lake["rx"] * lake["rx"]) + \
+		   (off.y * off.y) / (lake["ry"] * lake["ry"]) <= 1.0:
+			return BiomeType.WATER_LAKE
+	return BiomeType.CAVE_FLOOR
+
+func _tile_is_dry_floor(tc: Vector2i) -> bool:
+	if not _reachable_tiles.has(tc):
+		return false
+	return _biome_for_tile(tc) == BiomeType.CAVE_FLOOR
 
 func _unload_chunk(cc: Vector2i):
 	pending_chunks.erase(cc)
@@ -364,29 +443,36 @@ func _get_lakes_for_region(region: Vector2i) -> Array:
 	rng.seed = _lake_seed(region)
 	if rng.randf() <= lake_chance_per_region:
 		var count := 2 if rng.randf() < lake_second_chance else 1
-		var cave_positions := _get_cave_entrance_positions()
 		for _i in count:
-			var origin := Vector2i(region.x * lake_region_size_tiles, region.y * lake_region_size_tiles)
-			var center := origin + Vector2i(
-				rng.randi_range(lake_margin_tiles, lake_region_size_tiles - lake_margin_tiles),
-				rng.randi_range(lake_margin_tiles, lake_region_size_tiles - lake_margin_tiles))
-			var world_center := Vector2(center) * 64.0
-			if _tilemap:
-				world_center = _tilemap.to_global(_tilemap.map_to_local(center))
-			var too_close_to_cave := false
-			for cave_pos in cave_positions:
-				if world_center.distance_to(cave_pos) < 600.0:
-					too_close_to_cave = true
-					break
-			if too_close_to_cave:
+			var rx := rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles)
+			var ry := rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles)
+			var center := _pick_cave_lake_center(region, rx, ry, rng)
+			if center == Vector2(-99999, -99999):
 				continue
-			lakes.append({
-				"center": Vector2(center),
-				"rx": rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles),
-				"ry": rng.randf_range(lake_min_radius_tiles, lake_max_radius_tiles),
-			})
+			lakes.append({"center": center, "rx": rx, "ry": ry})
 	lake_region_cache[region] = lakes
 	return lakes
+
+func _pick_cave_lake_center(region: Vector2i, rx: float, ry: float, rng: RandomNumberGenerator) -> Vector2:
+	var origin := Vector2i(region.x * lake_region_size_tiles, region.y * lake_region_size_tiles)
+	for _attempt in 20:
+		var center := Vector2i(
+			origin.x + rng.randi_range(lake_margin_tiles, lake_region_size_tiles - lake_margin_tiles),
+			origin.y + rng.randi_range(lake_margin_tiles, lake_region_size_tiles - lake_margin_tiles))
+		var check_radius := int(max(rx, ry)) + 2
+		var all_carved := true
+		for dx in range(-check_radius, check_radius + 1):
+			for dy in range(-check_radius, check_radius + 1):
+				var off := Vector2(dx, dy)
+				if (off.x * off.x) / (rx * rx) + (off.y * off.y) / (ry * ry) <= 1.0:
+					if not _reachable_tiles.has(center + Vector2i(dx, dy)):
+						all_carved = false
+						break
+			if not all_carved:
+				break
+		if all_carved:
+			return Vector2(center)
+	return Vector2(-99999, -99999)
 
 func _spawn_cave_rocks_for_chunk(cc: Vector2i):
 	if not _packed_cave_rock_scene:
@@ -412,9 +498,17 @@ func _spawn_cave_rocks_for_chunk(cc: Vector2i):
 			var tx := rng.randi_range(start_tile.x, start_tile.x + chunk_size_tiles - 1)
 			var ty := rng.randi_range(start_tile.y, start_tile.y + chunk_size_tiles - 1)
 			var tc := Vector2i(tx, ty)
-			if not _carved_tiles.has(tc):
+			if not _tile_is_dry_floor(tc):
 				continue
-			if _biome_for_tile(tc) == BiomeType.WATER_LAKE:
+			var neighbors_clear := true
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					if not _tile_is_dry_floor(Vector2i(tx + dx, ty + dy)):
+						neighbors_clear = false
+						break
+				if not neighbors_clear:
+					break
+			if not neighbors_clear:
 				continue
 			var world_pos: Vector2
 			if _tilemap:

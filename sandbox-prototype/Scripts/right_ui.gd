@@ -63,6 +63,10 @@ func _ready():
 	event_info.add_theme_constant_override("outline_size", 5)
 	weather_info.add_theme_color_override("font_outline_color", Color.BLACK)
 	weather_info.add_theme_constant_override("outline_size", 5)
+	$EffectLabel.add_theme_color_override("font_color", Color.GREEN)
+	$EffectLabel.add_theme_color_override("font_outline_color", Color.BLACK)
+	$EffectLabel.add_theme_constant_override("outline_size", 5)
+	$EffectLabel.visible = false
 
 func _setup_icon_hover():
 	weather_icon.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -189,6 +193,27 @@ func _process(delta):
 	if is_instance_valid(thirst_bar):
 		thirst_bar.value = thirst
 
+	# luck block goes here, before the early return
+	var luck_multi: float = 1.0
+	var w = get_tree().root.get_node_or_null("Scene/Weather")
+	if w:
+		if w.aurora_active:
+			luck_multi *= 9.0
+		if w.current_weather == w.WeatherType.RAIN or \
+		   w.current_weather == w.WeatherType.THUNDER or \
+		   w.current_weather == w.WeatherType.THUNDERSTORM:
+			luck_multi *= 1.5
+	if luck_multi > 1.0:
+		var luck_str: String
+		if luck_multi == float(int(luck_multi)):
+			luck_str = str(int(luck_multi))
+		else:
+			luck_str = str(snappedf(luck_multi, 0.1))
+		$EffectLabel.text = "Luck: " + luck_str + "x"
+		$EffectLabel.visible = true
+	else:
+		$EffectLabel.visible = false
+
 	if hunger >= regen_hunger_min and thirst >= regen_thirst_min:
 		regen_timer += delta
 		if regen_timer >= regen_interval:
@@ -244,6 +269,7 @@ func _process(delta):
 			aurora_glow_rect.color = Color(blended.r, blended.g, blended.b, pulse)
 		else:
 			aurora_glow_rect.color = aurora_glow_rect.color.lerp(Color(0, 0, 0, 0), delta * 2.0)
+			
 
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")

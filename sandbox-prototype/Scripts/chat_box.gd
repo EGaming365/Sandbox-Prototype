@@ -35,7 +35,7 @@ func _get_steam_name_for_peer(peer_id: int) -> String:
 			var name = Steam.getFriendPersonaName(steam_id)
 			if name != "" and name != null:
 				return name
-			name = Steam.requestUserInformation(steam_id, true)
+			Steam.requestUserInformation(steam_id, true)
 			var persona = Steam.getFriendPersonaName(steam_id)
 			if persona != "" and persona != null:
 				return persona
@@ -332,16 +332,67 @@ func _handle_command(text: String):
 			if multiplayer.has_multiplayer_peer():
 				weather_node._sync_season.rpc(season_index)
 			_add_message("[System] Season set to: " + parts[1].to_lower())
+		"/world":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /world <overworld|cave>")
+				return
+			var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+			if not cave_gen:
+				_add_message("[System] CaveWorldGen not found.")
+				return
+			var in_cave: bool = cave_gen.get("in_cave")
+			match parts[1].to_lower():
+				"cave":
+					if in_cave:
+						_add_message("[System] You are already in the cave.")
+						return
+					var local_player = _get_local_player()
+					if not local_player:
+						_add_message("[System] Player not found.")
+						return
+					var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+					if animal_spawner and animal_spawner.has_method("clear_all_entities"):
+						animal_spawner.clear_all_entities()
+					cave_gen.enter_cave(local_player)
+					await get_tree().process_frame
+					await get_tree().process_frame
+					var safe := _find_safe_cave_pos(cave_gen, local_player.global_position)
+					if safe != Vector2.ZERO:
+						local_player.global_position = safe
+					_add_message("[System] Teleported to cave.")
+				"overworld":
+					if not in_cave:
+						_add_message("[System] You are already in the overworld.")
+						return
+					var local_player = _get_local_player()
+					if not local_player:
+						_add_message("[System] Player not found.")
+						return
+					var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+					if animal_spawner and animal_spawner.has_method("clear_all_entities"):
+						animal_spawner.clear_all_entities()
+					cave_gen.exit_cave(local_player)
+					await get_tree().process_frame
+					await get_tree().process_frame
+					var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+					if world_gen:
+						var safe := _find_safe_overworld_pos(world_gen, local_player.global_position)
+						if safe != Vector2.ZERO:
+							local_player.global_position = safe
+					_add_message("[System] Teleported to overworld.")
+				_:
+					_add_message("[System] Unknown world. Use: overworld, cave")
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 
 func _give_item_to_player(target_name: String, item_name: String, amount: int, weight_kg: float = 0.0):
 	var scene_node = get_tree().root.get_node("Scene")
-	var target_peer_id: int = -1
-	var found_name: String = ""
 	var my_steam_id = Steam.getSteamID()
 	if not multiplayer.has_multiplayer_peer():
-		found_name = Steam.getFriendPersonaName(my_steam_id)
+		var found_name = Steam.getFriendPersonaName(my_steam_id)
 		if not found_name.to_lower().begins_with(target_name.to_lower()):
 			_add_message("[System] Player '" + target_name + "' not found.")
 			return
@@ -364,8 +415,8 @@ func _give_item_to_player(target_name: String, item_name: String, amount: int, w
 			names += m["name"] + ", "
 		_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
 		return
-	target_peer_id = matches[0]["peer_id"]
-	found_name = matches[0]["name"]
+	var target_peer_id = matches[0]["peer_id"]
+	var found_name = matches[0]["name"]
 	if target_peer_id == multiplayer.get_unique_id():
 		_do_give_item(item_name, amount, weight_kg)
 	else:
@@ -424,19 +475,21 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 		var final_kg: float = weight_kg if weight_kg > 0.0 else base_kg
 		var grams: int = int(round(final_kg * 1000.0))
 		for i in amount:
+			var placed := false
 			for slot in Inventory.slots:
 				if slot["item"] == "":
 					slot["item"] = item_name
 					slot["count"] = grams
 					slot["texture"] = tex
+					placed = true
 					break
-				else:
-					for j in 20:
-						if Inventory.inv_slots[j]["item"] == "":
-							Inventory.inv_slots[j]["item"] = item_name
-							Inventory.inv_slots[j]["count"] = grams
-							Inventory.inv_slots[j]["texture"] = tex
-							break
+			if not placed:
+				for j in 20:
+					if Inventory.inv_slots[j]["item"] == "":
+						Inventory.inv_slots[j]["item"] = item_name
+						Inventory.inv_slots[j]["count"] = grams
+						Inventory.inv_slots[j]["texture"] = tex
+						break
 		Inventory.inventory_changed.emit()
 		return
 	const UNLOCKED_INV_SLOTS = 20
@@ -554,9 +607,6 @@ func _add_message(msg: String):
 	await get_tree().process_frame
 	scroll_container.scroll_vertical = scroll_container.get_v_scroll_bar().max_value
 
-func _update_messages_visibility():
-	scroll_container.visible = not messages.is_empty()
-
 func _on_input_submitted(text: String):
 	var trimmed = text.strip_edges()
 	if trimmed == "":
@@ -576,25 +626,6 @@ func _send_chat(text: String):
 		_broadcast_message.rpc(msg)
 	else:
 		_add_message(msg)
-
-func _give_item(item_name: String, amount: int):
-	var tex = _get_item_texture(item_name)
-	if tex == null:
-		var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-		img.fill(Color.WHITE)
-		tex = ImageTexture.create_from_image(img)
-	if item_name in ["Axe", "Sword", "Fishing Rod"]:
-		var dur: int
-		match item_name:
-			"Axe": dur = 80
-			"Sword": dur = 30
-			"Fishing Rod": dur = 100
-		for i in amount:
-			Inventory.add_item_with_count(item_name, tex, dur)
-	else:
-		for i in amount:
-			Inventory.add_item(item_name, tex)
-	_add_message("[System] Gave " + str(amount) + "x " + item_name)
 
 @rpc("any_peer", "call_local", "reliable")
 func _broadcast_message(msg: String):
@@ -642,3 +673,36 @@ func _rpc_kill_player():
 	var local_player = _get_local_player()
 	if local_player:
 		local_player.take_damage(local_player.synced_health)
+
+func _find_safe_cave_pos(cave_gen: Node, near: Vector2) -> Vector2:
+	var tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
+	for radius in [0, 64, 128, 256, 512]:
+		var attempts := 1 if radius == 0 else 16
+		for i in attempts:
+			var pos: Vector2
+			if radius == 0:
+				pos = near
+			else:
+				var angle := (float(i) / float(attempts)) * TAU
+				pos = near + Vector2(cos(angle), sin(angle)) * radius
+			var tc: Vector2i = cave_gen.world_to_tile(pos)
+			if cave_gen._biome_for_tile(tc) == cave_gen.BiomeType.CAVE_FLOOR:
+				if tilemap:
+					pos = tilemap.to_global(tilemap.map_to_local(tc))
+				return pos
+	return Vector2.ZERO
+
+func _find_safe_overworld_pos(world_gen: Node, near: Vector2) -> Vector2:
+	for radius in [0, 64, 128, 256, 512]:
+		var attempts := 1 if radius == 0 else 16
+		for i in attempts:
+			var pos: Vector2
+			if radius == 0:
+				pos = near
+			else:
+				var angle := (float(i) / float(attempts)) * TAU
+				pos = near + Vector2(cos(angle), sin(angle)) * radius
+			if world_gen.has_method("is_water_at") and world_gen.is_water_at(pos):
+				continue
+			return pos
+	return Vector2.ZERO
