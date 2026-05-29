@@ -6,12 +6,14 @@ const PLACE_RANGE = 300.0
 const ITEM_PLACED_SCALE = {
 	"Wardrobe": Vector2(3.2, 3.2),
 	"Crafting_Bench": Vector2(2, 2),
+	"Torch": Vector2(0.28, 0.28),
 }
 const DEFAULT_PLACED_SCALE = Vector2(1, 1)
 
 const ITEM_SPAWN_OFFSET = {
 	"Wardrobe": Vector2(0, -48),
 	"Crafting_Bench": Vector2(0, -24),
+	"Torch": Vector2(0, -10),
 }
 
 var preview_sprite: Sprite2D

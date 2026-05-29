@@ -68,12 +68,10 @@ func do_mine(miner_id: int = 1, held_item: String = ""):
 	var angle = randf_range(0, TAU)
 	var radius = randf_range(75, 95) + 40
 	var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
-	scene_node.host_spawn_floor_item(drop_pos, "Stone", 1)
 	if randf() < clamp(average_coal_per_rock / float(max_hits), 0.0, 1.0):
-		var coal_angle = randf_range(0, TAU)
-		var coal_radius = randf_range(75, 95) + 40
-		var coal_pos = global_position + Vector2(cos(coal_angle), sin(coal_angle)) * coal_radius + Vector2(0, -40)
-		scene_node.host_spawn_floor_item(coal_pos, "Coal", 1)
+		scene_node.host_spawn_floor_item(drop_pos, "Coal", 1)
+	else:
+		scene_node.host_spawn_floor_item(drop_pos, "Stone", 1)
 	if hits >= max_hits:
 		if env_id != "":
 			if multiplayer.has_multiplayer_peer():

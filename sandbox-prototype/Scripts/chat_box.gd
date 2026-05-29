@@ -20,6 +20,73 @@ var fishing_rod_texture: Texture2D = preload("res://Assets/Fishing_Rod.png")
 var stone_fishing_rod_texture: Texture2D = preload("res://Assets/Stone_Fishing_Rod.png")
 var tophat_fish_texture: Texture2D = preload("res://Assets/Fish_Tophat_Raw.png")
 
+const ITEM_ALIASES: Dictionary = {
+	"wood": "Wood",
+	"log": "Wood",
+	"plank": "Wood Plank",
+	"planks": "Wood Plank",
+	"wood plank": "Wood Plank",
+	"wood planks": "Wood Plank",
+	"axe": "Axe",
+	"wood axe": "Axe",
+	"wooden axe": "Axe",
+	"sword": "Sword",
+	"wood sword": "Sword",
+	"wooden sword": "Sword",
+	"pickaxe": "Pickaxe",
+	"wood pickaxe": "Pickaxe",
+	"wooden pickaxe": "Pickaxe",
+	"crafting bench": "Crafting_Bench",
+	"crafting_bench": "Crafting_Bench",
+	"bench": "Crafting_Bench",
+	"stone": "Stone",
+	"stone axe": "Stone Axe",
+	"stone sword": "Stone Sword",
+	"stone pickaxe": "Stone Pickaxe",
+	"wardrobe": "Wardrobe",
+	"string": "String",
+	"coal": "Coal",
+	"torch": "Torch",
+	"chicken": "Chicken_Raw",
+	"raw chicken": "Chicken_Raw",
+	"chicken raw": "Chicken_Raw",
+	"chicken_raw": "Chicken_Raw",
+	"fishing rod": "Fishing Rod",
+	"stone fishing rod": "Stone Fishing Rod",
+	"tophat fish": "Tophat Fish",
+	"top hat fish": "Tophat Fish",
+	"minnow": "Minnow",
+	"perch": "Perch",
+	"bass": "Bass",
+	"pike": "Pike",
+	"catfish": "Catfish",
+	"sturgeon": "Sturgeon",
+	"salmon": "Salmon",
+	"clownfish": "Clownfish",
+	"clown fish": "Clownfish",
+	"blue tang": "Blue Tang",
+	"red tang": "Red Tang",
+	"lionfish": "Lionfish",
+	"lion fish": "Lionfish",
+	"tire": "Tire",
+	"albino minnow": "Albino Minnow",
+	"albino perch": "Albino Perch",
+	"albino bass": "Albino Bass",
+	"albino pike": "Albino Pike",
+	"albino catfish": "Albino Catfish",
+	"albino sturgeon": "Albino Sturgeon",
+	"albino tophat fish": "Albino Tophat Fish",
+	"albino top hat fish": "Albino Tophat Fish",
+	"albino salmon": "Albino Salmon",
+	"albino clownfish": "Albino Clownfish",
+	"albino clown fish": "Albino Clownfish",
+	"albino blue tang": "Albino Blue Tang",
+	"albino red tang": "Albino Red Tang",
+	"albino lionfish": "Albino Lionfish",
+	"albino lion fish": "Albino Lionfish",
+	"albino tire": "Albino Tire",
+}
+
 @onready var scroll_container: ScrollContainer = $ChatContainer/ScrollContainer
 @onready var messages_container: VBoxContainer = $ChatContainer/ScrollContainer/Messages
 @onready var input_row: HBoxContainer = $ChatContainer/InputRow
@@ -72,44 +139,7 @@ func _handle_command(text: String):
 				item_name = " ".join(parts.slice(2, parts.size() - 1))
 			else:
 				item_name = " ".join(parts.slice(2))
-			match item_name.to_lower():
-				"wood": item_name = "Wood"
-				"wood plank": item_name = "Wood Plank"
-				"axe": item_name = "Axe"
-				"sword": item_name = "Sword"
-				"crafting bench": item_name = "Crafting_Bench"
-				"stone": item_name = "Stone"
-				"pickaxe": item_name = "Pickaxe"
-				"wardrobe": item_name = "Wardrobe"
-				"string": item_name = "String"
-				"fishing rod": item_name = "Fishing Rod"
-				"stone fishing rod": item_name = "Stone Fishing Rod"
-				"tophat fish": item_name = "Tophat Fish"
-				"minnow": item_name = "Minnow"
-				"perch": item_name = "Perch"
-				"bass": item_name = "Bass"
-				"pike": item_name = "Pike"
-				"catfish": item_name = "Catfish"
-				"sturgeon": item_name = "Sturgeon"
-				"salmon": item_name = "Salmon"
-				"clownfish": item_name = "Clownfish"
-				"blue tang": item_name = "Blue Tang"
-				"red tang": item_name = "Red Tang"
-				"lionfish": item_name = "Lionfish"
-				"tire": item_name = "Tire"
-				"albino minnow": item_name = "Albino Minnow"
-				"albino perch": item_name = "Albino Perch"
-				"albino bass": item_name = "Albino Bass"
-				"albino pike": item_name = "Albino Pike"
-				"albino catfish": item_name = "Albino Catfish"
-				"albino sturgeon": item_name = "Albino Sturgeon"
-				"albino tophat fish": item_name = "Albino Tophat Fish"
-				"albino salmon": item_name = "Albino Salmon"
-				"albino clownfish": item_name = "Albino Clownfish"
-				"albino blue tang": item_name = "Albino Blue Tang"
-				"albino red tang": item_name = "Albino Red Tang"
-				"albino lionfish": item_name = "Albino Lionfish"
-				"albino tire": item_name = "Albino Tire"
+			item_name = _canonical_item_name(item_name)
 			_give_item_to_player(target_name, item_name, amount, weight_kg)
 		"/weather":
 			if my_steam_id != ADMIN_STEAM_ID:
@@ -440,17 +470,41 @@ func _give_item_to_player(target_name: String, item_name: String, amount: int, w
 func _rpc_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 	_do_give_item(item_name, amount, weight_kg)
 
+func _normalize_item_key(item_name: String) -> String:
+	var key := item_name.strip_edges().to_lower().replace("_", " ")
+	while key.contains("  "):
+		key = key.replace("  ", " ")
+	return key
+
+func _canonical_item_name(raw_item_name: String) -> String:
+	var key := _normalize_item_key(raw_item_name)
+	if ITEM_ALIASES.has(key):
+		return ITEM_ALIASES[key]
+	for fish_name in FISH_ITEM_NAMES:
+		if _normalize_item_key(fish_name) == key:
+			return fish_name
+	for item_name in Inventory.TEXTURE_MAP.keys():
+		if _normalize_item_key(str(item_name)) == key:
+			return str(item_name)
+	return raw_item_name.strip_edges()
+
 func _get_item_texture(item_name: String) -> Texture2D:
+	var tex := Inventory.get_texture(item_name)
+	if tex != null:
+		return tex
 	if item_name in FISH_ITEM_NAMES:
-		var tex := Inventory.get_texture(item_name)
 		return tex if tex != null else tophat_fish_texture
+	if Crafting.has_method("get_item_texture"):
+		tex = Crafting.get_item_texture(item_name)
+		if tex != null:
+			return tex
 	match item_name.to_lower():
 		"wood": return wood_texture
 		"wood plank": return Crafting.plank_texture
 		"axe": return axe_texture
 		"sword": return sword_texture
 		"pickaxe": return pickaxe_texture
-		"crafting bench": return Crafting.bench_texture
+		"crafting_bench", "crafting bench": return Crafting.bench_texture
 		"stone axe": return stone_axe_texture
 		"stone sword": return stone_sword_texture
 		"stone pickaxe": return stone_pickaxe_texture
@@ -459,6 +513,9 @@ func _get_item_texture(item_name: String) -> Texture2D:
 		"fishing rod": return fishing_rod_texture
 		"stone fishing rod": return stone_fishing_rod_texture
 		"string": return Inventory.string_texture
+		"coal": return Inventory.coal_texture
+		"torch": return Inventory.torch_texture
+		"chicken_raw": return Inventory.chicken_raw_texture
 		"tophat fish": return tophat_fish_texture
 	return null
 
@@ -486,6 +543,7 @@ const FISH_BASE_WEIGHTS: Dictionary = {
 }
 
 func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
+	item_name = _canonical_item_name(item_name)
 	var tex = _get_item_texture(item_name)
 	if tex == null:
 		var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
@@ -516,19 +574,14 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 		Inventory.inventory_changed.emit()
 		return
 	const UNLOCKED_INV_SLOTS = 20
-	if item_name in ["Axe", "Sword", "Fishing Rod", "Stone Fishing Rod"]:
-		var dur: int
-		match item_name:
-			"Axe": dur = 80
-			"Sword": dur = 30
-			"Fishing Rod": dur = 50
-			"Stone Fishing Rod": dur = 100
+	if Inventory.non_stackable_items.has(item_name):
+		var item_count := _get_non_stackable_start_count(item_name)
 		for i in amount:
 			var added = false
 			for slot in Inventory.slots:
 				if slot["item"] == "":
 					slot["item"] = item_name
-					slot["count"] = dur
+					slot["count"] = item_count
 					slot["texture"] = tex
 					added = true
 					break
@@ -537,7 +590,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 					var slot = Inventory.inv_slots[j]
 					if slot["item"] == "":
 						slot["item"] = item_name
-						slot["count"] = dur
+						slot["count"] = item_count
 						slot["texture"] = tex
 						break
 	else:
@@ -577,6 +630,27 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				slot["texture"] = tex
 				remaining -= add
 	Inventory.inventory_changed.emit()
+
+func _get_non_stackable_start_count(item_name: String) -> int:
+	match item_name:
+		"Axe":
+			return 80
+		"Sword":
+			return 30
+		"Pickaxe":
+			return 80
+		"Stone Axe":
+			return 120
+		"Stone Sword":
+			return 40
+		"Stone Pickaxe":
+			return 100
+		"Fishing Rod":
+			return 50
+		"Stone Fishing Rod":
+			return 100
+		_:
+			return 1
 
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():

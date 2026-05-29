@@ -162,9 +162,8 @@ text = "Game"
 z_index = 1
 layout_mode = 0
 offset_top = 66.00001
-offset_right = 40.584
-offset_bottom = 70.00001
-scale = Vector2(2.7104402, 11.33905)
+offset_right = 110.0
+offset_bottom = 91.00001
 color = Color(0.9137255, 0.015686275, 0.05882353, 1)
 
 [node name="Settings" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1557571044]
@@ -177,9 +176,8 @@ text = "Settings"
 z_index = 1
 layout_mode = 0
 offset_top = 66.00001
-offset_right = 40.583817
-offset_bottom = 70.00001
-scale = Vector2(2.7104402, 11.33905)
+offset_right = 110.0
+offset_bottom = 91.00001
 color = Color(0.28627452, 0.6627451, 1, 1)
 
 [node name="Collection" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1045155085]
@@ -192,9 +190,8 @@ text = "Collection"
 z_index = 1
 layout_mode = 0
 offset_top = 66.00001
-offset_right = 40.584
-offset_bottom = 70.00001
-scale = Vector2(2.7104402, 11.33905)
+offset_right = 110.0
+offset_bottom = 91.00001
 color = Color(0.14509805, 0.84313726, 0.14509805, 1)
 
 [node name="Mastery" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1272633948]
@@ -207,9 +204,8 @@ text = "Mastery"
 z_index = 1
 layout_mode = 0
 offset_top = 66.00001
-offset_right = 40.584
-offset_bottom = 70.00001
-scale = Vector2(2.7104402, 11.33905)
+offset_right = 110.0
+offset_bottom = 91.00001
 color = Color(0.8509804, 0.73333335, 0.06666667, 1)
 
 [node name="Blank" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=21442252]
@@ -222,9 +218,8 @@ text = "Blank"
 z_index = 1
 layout_mode = 0
 offset_top = 66.00001
-offset_right = 40.584
-offset_bottom = 70.00001
-scale = Vector2(2.7104402, 11.33905)
+offset_right = 110.0
+offset_bottom = 91.00001
 color = Color(0.8862745, 0, 0.8862745, 1)
 
 [node name="Panel" type="Panel" parent="PanelContainer" unique_id=555028127]
@@ -349,6 +344,13 @@ offset_right = 800.32544
 offset_bottom = 81.59763
 scale = Vector2(10.950758, 11.843295)
 color = Color(0.16924512, 0.16924536, 0.16924521, 1)
+
+[node name="Dropdown" type="Panel" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=424258934]
+layout_mode = 0
+offset_left = 19.07032
+offset_top = 760.4903
+offset_right = 219.07031
+offset_bottom = 820.4903
 
 [node name="Info" type="Control" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=1379341296]
 anchors_preset = 0

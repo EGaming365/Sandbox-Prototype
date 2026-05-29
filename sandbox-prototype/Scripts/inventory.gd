@@ -20,9 +20,9 @@ var wardrobe_texture = preload("res://Assets/Wardrobe.png")
 var wood_plank_texture = preload("res://Assets/Wood_Planks.png")
 var stone_texture = preload("res://Assets/Stone.png")
 var chicken_raw_texture = preload("res://Assets/Chicken_Raw.png")
-var string_texture = preload("res://Assets/Wood_Plank_Rotated.png")
+var string_texture = preload("res://Assets/String.png")
 var coal_texture = preload("res://Assets/Stone.png")
-var torch_texture = preload("res://Assets/Wood_Plank_Rotated.png")
+var torch_texture = preload("res://Assets/Torch.png")
 var fishing_rod_texture = preload("res://Assets/Fishing_Rod.png")
 var stone_fishing_rod_texture = preload("res://Assets/Stone_Fishing_Rod.png")
 var tophat_fish_texture = preload("res://Assets/Fish_Tophat_Raw.png")
@@ -60,6 +60,7 @@ var non_stackable_items = [
 ]
 var discovered_items: Dictionary = {}
 var offhand_slot: Dictionary = {"item": "", "count": 0, "texture": null}
+var offhand_allowed_items: Array = ["Torch"]
 
 var _emit_dirty: bool = false
 var _emit_timer: float = 0.0
@@ -280,6 +281,49 @@ func set_offhand_item(item_name: String, texture: Texture2D, count: int):
 func clear_offhand():
 	offhand_slot = {"item": "", "count": 0, "texture": null}
 	inventory_changed.emit()
+
+func can_item_go_offhand(item_name: String) -> bool:
+	return item_name == "" or offhand_allowed_items.has(item_name)
+
+func move_slot_to_offhand(index: int, from_inv: bool = false) -> bool:
+	var source = inv_slots if from_inv else slots
+	if index < 0 or index >= source.size():
+		return false
+	var data = source[index]
+	if data["item"] == "":
+		return false
+	if not can_item_go_offhand(data["item"]):
+		return false
+	if offhand_slot["item"] == data["item"] and not non_stackable_items.has(data["item"]):
+		var move_count = min(data["count"], 99 - offhand_slot["count"])
+		if move_count <= 0:
+			return false
+		offhand_slot["count"] += move_count
+		data["count"] -= move_count
+		if data["count"] <= 0:
+			source[index] = {"item": "", "count": 0, "texture": null}
+	else:
+		source[index] = offhand_slot.duplicate()
+		offhand_slot = data.duplicate()
+	if offhand_slot["item"] != "":
+		discover(offhand_slot["item"])
+	inventory_changed.emit()
+	return true
+
+func swap_hotbar_with_offhand(index: int) -> bool:
+	if index < 0 or index >= slots.size():
+		return false
+	if not can_item_go_offhand(slots[index]["item"]):
+		return false
+	var temp = slots[index].duplicate()
+	slots[index] = offhand_slot.duplicate()
+	offhand_slot = temp
+	if offhand_slot["item"] != "":
+		discover(offhand_slot["item"])
+	if slots[index]["item"] != "":
+		discover(slots[index]["item"])
+	inventory_changed.emit()
+	return true
 
 func move_item(from_index: int, to_index: int, from_inv: bool = false, to_inv: bool = false):
 	var from_arr = inv_slots if from_inv else slots

@@ -242,8 +242,10 @@ func _gui_input_for_slot(event, index):
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.inv_slots[index]["item"]
 				var tex = Inventory.inv_slots[index]["texture"]
-				if item_name == "Torch":
-					_move_inventory_torch_to_offhand(index)
+				if Input.is_key_pressed(KEY_CTRL):
+					var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+					if not Inventory.move_slot_to_offhand(index, true) and hotbar and hotbar.has_method("_flash_offhand_red"):
+						hotbar._flash_offhand_red()
 					return
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				var remaining = Inventory.inv_slots[index]["count"]
@@ -392,15 +394,19 @@ func _process(_delta):
 		return
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
+		var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+		if hotbar and hotbar.has_method("_is_mouse_over_offhand") and hotbar.has_method("set_offhand_drag_valid"):
+			var over_offhand = hotbar._is_mouse_over_offhand()
+			hotbar.set_offhand_drag_valid(not over_offhand or Inventory.can_item_go_offhand(Inventory.inv_slots[dragging_from]["item"]))
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			var dropped_on_inv = get_hovered_slot()
-			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 			var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
 			var dropped_on_offhand = hotbar != null and hotbar.has_method("_is_mouse_over_offhand") and hotbar._is_mouse_over_offhand()
 			if dropped_on_inv != -1 and dropped_on_inv != dragging_from:
 				Inventory.move_item(dragging_from, dropped_on_inv, true, true)
-			elif dropped_on_offhand and Inventory.inv_slots[dragging_from]["item"] == "Torch":
-				_move_inventory_torch_to_offhand(dragging_from)
+			elif dropped_on_offhand:
+				if not Inventory.move_slot_to_offhand(dragging_from, true) and hotbar and hotbar.has_method("_flash_offhand_red"):
+					hotbar._flash_offhand_red()
 			elif dropped_on_hotbar != -1:
 				Inventory.move_item(dragging_from, dropped_on_hotbar, true, false)
 			elif dropped_on_inv == -1 and dropped_on_hotbar == -1:
@@ -421,6 +427,8 @@ func _process(_delta):
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
+			if hotbar and hotbar.has_method("set_offhand_drag_valid"):
+				hotbar.set_offhand_drag_valid(true)
 			var now_hovered = get_hovered_slot()
 			if now_hovered != -1:
 				_on_slot_hover(now_hovered)
@@ -636,22 +644,3 @@ func _is_fish_item(item_name: String) -> bool:
 		if item_name == f or item_name == "Albino " + f:
 			return true
 	return false
-
-func _move_inventory_torch_to_offhand(index: int):
-	var data = Inventory.inv_slots[index]
-	if data["item"] != "Torch" or data["count"] <= 0:
-		return
-	var move_count = data["count"]
-	if Inventory.offhand_slot["item"] == "Torch":
-		move_count = min(data["count"], 99 - Inventory.offhand_slot["count"])
-		if move_count <= 0:
-			return
-		Inventory.offhand_slot["count"] += move_count
-		Inventory.inventory_changed.emit()
-	else:
-		Inventory.set_offhand_item("Torch", data["texture"], move_count)
-	if data["count"] <= move_count:
-		Inventory.inv_slots[index] = {"item": "", "count": 0, "texture": null}
-	else:
-		Inventory.inv_slots[index]["count"] -= move_count
-	Inventory.inventory_changed.emit()

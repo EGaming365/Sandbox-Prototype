@@ -94,9 +94,9 @@ func _ready():
 	plank_texture = load("res://Assets/Wood_Planks.png")
 	bench_texture = load("res://Assets/Crafting_Bench.png")
 	wardrobe_texture = load("res://Assets/Wardrobe.png")
-	string_texture = load("res://Assets/Wood_Plank_Rotated.png")
+	string_texture = load("res://Assets/String.png")
 	coal_texture = load("res://Assets/Stone.png")
-	torch_texture = load("res://Assets/Wood_Plank_Rotated.png")
+	torch_texture = load("res://Assets/Torch.png")
 	fishing_rod_texture = load("res://Assets/Fishing_Rod.png")
 	stone_fishing_rod_texture = load("res://Assets/Stone_Fishing_Rod.png")
 

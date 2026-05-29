@@ -5,8 +5,10 @@ extends Node2D
 @export var cave_base_darkness: float = 0.82
 @export var night_base_darkness: float = 0.82
 @export var day_base_darkness: float = 0.0
-@export var min_darkness_alpha: float = 0.95
+@export var min_darkness_alpha: float = 1.0
 @export var update_interval: float = 0.12
+@export var torch_bright_radius: int = 4
+@export var torch_bright_level: float = 1.0
 
 var _light_map: Dictionary = {}
 var _sources: Dictionary = {}
@@ -182,21 +184,39 @@ func _recalculate():
 				if dist > radius:
 					continue
 				var level := strength * (1.0 - dist / float(radius))
+				if src.get("bright_close", false) and dist <= src.get("bright_radius", torch_bright_radius):
+					level = max(level, src.get("bright_level", torch_bright_level))
 				level = clamp(level, 0.0, 1.0)
 				if not _light_map.has(tc) or _light_map[tc] < level:
 					_light_map[tc] = level
 
-func add_light_source(node: Node2D, radius: int, strength: float) -> int:
+func add_light_source(node: Node2D, radius: int, strength: float, bright_close: bool = false) -> int:
 	var id := _next_source_id
 	_next_source_id += 1
-	_sources[id] = {"node": node, "position": Vector2.ZERO, "radius": radius, "strength": strength}
+	_sources[id] = {
+		"node": node,
+		"position": Vector2.ZERO,
+		"radius": radius,
+		"strength": strength,
+		"bright_close": bright_close,
+		"bright_radius": torch_bright_radius,
+		"bright_level": torch_bright_level,
+	}
 	_dirty = true
 	return id
 
-func add_static_light(world_pos: Vector2, radius: int, strength: float) -> int:
+func add_static_light(world_pos: Vector2, radius: int, strength: float, bright_close: bool = false) -> int:
 	var id := _next_source_id
 	_next_source_id += 1
-	_sources[id] = {"node": null, "position": world_pos, "radius": radius, "strength": strength}
+	_sources[id] = {
+		"node": null,
+		"position": world_pos,
+		"radius": radius,
+		"strength": strength,
+		"bright_close": bright_close,
+		"bright_radius": torch_bright_radius,
+		"bright_level": torch_bright_level,
+	}
 	_dirty = true
 	return id
 
@@ -204,6 +224,10 @@ func remove_light_source(id: int):
 	_sources.erase(id)
 	_last_source_tiles.erase(id)
 	_dirty = true
+
+func get_light_level_at(world_pos: Vector2) -> float:
+	var tile := Vector2i(floori(world_pos.x / light_detail_tile_size), floori(world_pos.y / light_detail_tile_size))
+	return _light_map.get(tile, 0.0)
 
 func mark_dirty():
 	_dirty = true

@@ -8,6 +8,8 @@ var dragging_from = -1
 var dragging_from_inv = false
 var drag_node : Control = null
 var hovered_hotbar_slot: int = -1
+var offhand_drag_valid: bool = true
+var offhand_flash_timer: float = 0.0
 
 var current_slot = 1
 var hotbar_default: StyleBox = preload("res://Resources/hotbar_default.tres")
@@ -166,13 +168,15 @@ func update_hotbar():
 				bar.set_anchor_and_offset(SIDE_RIGHT, pct, 0)
 				bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				bar_bg.add_child(bar)
-				_update_offhand_slot()
+	_update_offhand_slot()
 
 func _create_offhand_slot():
 	offhand_slot = Panel.new()
 	offhand_slot.name = "OffhandSlot"
 	offhand_slot.custom_minimum_size = Vector2(64, 64)
 	offhand_slot.add_theme_stylebox_override("panel", hotbar_default)
+	offhand_slot.modulate = Color(1, 1, 1, 1)
+	$HBoxContainer.add_spacer(false)
 	$HBoxContainer.add_child(offhand_slot)
 	offhand_slot.gui_input.connect(_gui_input_for_offhand)
 
@@ -189,14 +193,6 @@ func _update_offhand_slot():
 	for child in offhand_slot.get_children():
 		child.queue_free()
 	if data["item"] == "":
-		var label = Label.new()
-		label.text = "OFF"
-		label.add_theme_font_size_override("font_size", 12)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		offhand_slot.add_child(label)
 		return
 	var tex = Inventory.get_texture(data["item"])
 	if tex == null:
@@ -237,8 +233,9 @@ func _gui_input_for_slot(event, index):
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.slots[index]["item"]
 				var tex = Inventory.slots[index]["texture"]
-				if item_name == "Torch":
-					_move_hotbar_torch_to_offhand(index)
+				if Input.is_key_pressed(KEY_CTRL):
+					if not Inventory.move_slot_to_offhand(index, false):
+						_flash_offhand_red()
 					return
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				var remaining = Inventory.slots[index]["count"]
@@ -333,6 +330,9 @@ func _process(delta: float) -> void:
 
 	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	var inv_open = inv_ui and inv_ui.visible
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	var extras_open = extras and extras.visible
+	var block_slot_scroll = inv_open or extras_open
 
 	for i in range(1, 11):
 		var panel: Panel = $HBoxContainer.get_node("Item" + str(i))
@@ -367,16 +367,17 @@ func _process(delta: float) -> void:
 		current_slot = 9
 	if Input.is_action_just_pressed("slot_0"):
 		current_slot = 10
-	if Input.is_action_just_pressed("slot_up"):
-		if current_slot == 1:
-			current_slot = 10
-		else:
-			current_slot = current_slot - 1
-	if Input.is_action_just_pressed("slot_down"):
-		if current_slot == 10:
-			current_slot = 1
-		else:
-			current_slot = current_slot + 1
+	if not block_slot_scroll:
+		if Input.is_action_just_pressed("slot_up"):
+			if current_slot == 1:
+				current_slot = 10
+			else:
+				current_slot = current_slot - 1
+		if Input.is_action_just_pressed("slot_down"):
+			if current_slot == 10:
+				current_slot = 1
+			else:
+				current_slot = current_slot + 1
 	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
 	if current_slot != prev_slot and fishing_manager:
 		if fishing_manager._minigame_active or fishing_manager._catch_icon_scene != null:
@@ -384,15 +385,25 @@ func _process(delta: float) -> void:
 		elif fishing_manager._waiting_for_bite:
 			fishing_manager._cancel_cast()
 
+	if Input.is_action_just_pressed("swap") and not drag_node:
+		if not Inventory.swap_hotbar_with_offhand(current_slot - 1):
+			_flash_offhand_red()
+		get_viewport().set_input_as_handled()
+
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
+		if _is_mouse_over_offhand():
+			set_offhand_drag_valid(Inventory.can_item_go_offhand(Inventory.slots[dragging_from]["item"]))
+		else:
+			set_offhand_drag_valid(true)
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			var dropped_on_hotbar = _get_hovered_slot()
 			var dropped_on_inv = _get_hovered_inv_slot()
 			if dropped_on_hotbar != -1 and dropped_on_hotbar != dragging_from:
 				Inventory.move_item(dragging_from, dropped_on_hotbar, false, false)
-			elif _is_mouse_over_offhand() and Inventory.slots[dragging_from]["item"] == "Torch":
-				_move_hotbar_torch_to_offhand(dragging_from)
+			elif _is_mouse_over_offhand():
+				if not Inventory.move_slot_to_offhand(dragging_from, false):
+					_flash_offhand_red()
 			elif dropped_on_inv != -1:
 				Inventory.move_item(dragging_from, dropped_on_inv, false, true)
 			elif dropped_on_hotbar == -1 and dropped_on_inv == -1:
@@ -415,6 +426,15 @@ func _process(delta: float) -> void:
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
+			set_offhand_drag_valid(true)
+
+	if offhand_flash_timer > 0.0:
+		offhand_flash_timer = max(offhand_flash_timer - delta, 0.0)
+		offhand_slot.modulate = Color(1.0, 0.25, 0.25, 1.0)
+	elif not offhand_drag_valid:
+		offhand_slot.modulate = Color(1.0, 0.55, 0.55, 1.0)
+	else:
+		offhand_slot.modulate = Color(1, 1, 1, 1)
 
 	if Input.is_action_just_pressed("toggle_ui"):
 		if toggle_ui == true and can_toggle_ui == true:
@@ -520,21 +540,8 @@ func _is_fish_item(item_name: String) -> bool:
 func _is_mouse_over_offhand() -> bool:
 	return offhand_slot != null and offhand_slot.get_global_rect().has_point(get_global_mouse_position())
 
-func _move_hotbar_torch_to_offhand(index: int):
-	var data = Inventory.slots[index]
-	if data["item"] != "Torch" or data["count"] <= 0:
-		return
-	var move_count = data["count"]
-	if Inventory.offhand_slot["item"] == "Torch":
-		move_count = min(data["count"], 99 - Inventory.offhand_slot["count"])
-		if move_count <= 0:
-			return
-		Inventory.offhand_slot["count"] += move_count
-		Inventory.inventory_changed.emit()
-	else:
-		Inventory.set_offhand_item("Torch", data["texture"], move_count)
-	if data["count"] <= move_count:
-		Inventory.slots[index] = {"item": "", "count": 0, "texture": null}
-	else:
-		Inventory.slots[index]["count"] -= move_count
-	Inventory.inventory_changed.emit()
+func set_offhand_drag_valid(is_valid: bool) -> void:
+	offhand_drag_valid = is_valid
+
+func _flash_offhand_red() -> void:
+	offhand_flash_timer = 0.22

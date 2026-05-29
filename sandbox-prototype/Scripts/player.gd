@@ -60,7 +60,7 @@ func _enter_tree():
 func _ready():
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 	if lighting:
-		lighting.add_light_source(self, 12.0, 3.0)
+		lighting.add_light_source(self, 8.0, 1.0)
 	z_index = 2
 	add_to_group("players")
 	hair_sprite.visible = true
@@ -785,7 +785,7 @@ func _update_torch_light():
 		offhand_torch = Inventory.offhand_slot.get("item", "") == "Torch"
 	var holding_torch = synced_held_item == "Torch" or offhand_torch
 	if holding_torch and _torch_light_id == -1:
-		_torch_light_id = lighting.add_light_source(self, 18, 1.0)
+		_torch_light_id = lighting.add_light_source(self, 22, 1.35, true)
 	elif not holding_torch and _torch_light_id != -1:
 		lighting.remove_light_source(_torch_light_id)
 		_torch_light_id = -1

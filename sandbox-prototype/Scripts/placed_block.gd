@@ -69,7 +69,7 @@ func _ready():
 			$CollisionShape2D.position = Vector2(0, -2)
 			var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 			if lighting and lighting.has_method("add_static_light"):
-				_light_id = lighting.add_static_light(global_position, 18, 1.0)
+				_light_id = lighting.add_static_light(global_position, 22, 1.35, true)
 		_:
 			if item_texture:
 				$Sprite2D.texture = item_texture

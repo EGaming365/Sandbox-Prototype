@@ -13,6 +13,7 @@ const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 @export var despawn_radius: float = 1600.0
 @export var despawn_grace_period: float = 2.0
 @export var max_spawns_per_tick: int = 1
+@export var max_enemy_spawn_light_level: float = 0.35
 
 var _scene_node: Node = null
 var _out_of_range_timers: Dictionary = {}
@@ -78,6 +79,8 @@ func _on_spawn_tick() -> void:
 			var pos := _random_cave_spawn_pos(cave_world_gen, "night_enemies")
 			if pos == Vector2.ZERO:
 				break
+			if _is_too_bright_for_enemy_spawn(pos):
+				break
 			_spawn_night_enemy(pos)
 			enemy_count += 1
 			spawned_this_tick += 1
@@ -95,6 +98,8 @@ func _on_spawn_tick() -> void:
 			while enemy_count < max_night_enemies_in_radius and spawned_this_tick < max_spawns_per_tick:
 				var pos := _random_spawn_pos_near(_get_player_center(), "night_enemies")
 				if pos == Vector2.ZERO:
+					break
+				if _is_too_bright_for_enemy_spawn(pos):
 					break
 				_spawn_night_enemy(pos)
 				enemy_count += 1
@@ -164,6 +169,8 @@ func _spawn_chicken(pos: Vector2) -> void:
 		chicken.set_meta("sync_ready", true)
 
 func _spawn_night_enemy(pos: Vector2) -> void:
+	if _is_too_bright_for_enemy_spawn(pos):
+		return
 	var enemy = NIGHT_ENEMY_SCENE.instantiate()
 	enemy.enemy_id = _next_night_enemy_id
 	enemy.name = "Enemy_" + str(_next_night_enemy_id)
@@ -215,6 +222,12 @@ func _is_spawn_pos_clear(pos: Vector2) -> bool:
 	query.collision_mask = 1
 	return space.intersect_shape(query).is_empty()
 
+func _is_too_bright_for_enemy_spawn(pos: Vector2) -> bool:
+	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
+	if not lighting or not lighting.has_method("get_light_level_at"):
+		return false
+	return lighting.get_light_level_at(pos) > max_enemy_spawn_light_level
+
 func _is_night() -> bool:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	return weather != null and weather.has_method("is_night") and weather.is_night()
@@ -240,6 +253,8 @@ func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -
 		if too_close:
 			continue
 		if not _is_spawn_pos_clear(pos):
+			continue
+		if avoid_group == "night_enemies" and _is_too_bright_for_enemy_spawn(pos):
 			continue
 		return pos
 	return Vector2.ZERO
@@ -271,6 +286,8 @@ func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_e
 		if too_close:
 			continue
 		if not _is_spawn_pos_clear(pos):
+			continue
+		if avoid_group == "night_enemies" and _is_too_bright_for_enemy_spawn(pos):
 			continue
 		return pos
 	return Vector2.ZERO
