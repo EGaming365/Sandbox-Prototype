@@ -227,7 +227,7 @@ func _sync_aurora(state: bool):
 func _apply_day_night_color():
 	if not canvas_modulate:
 		return
-	var night_color = Color(0.16, 0.20, 0.34)
+	var night_color = Color(1.0, 1.0, 1.0, 1.0)
 	var morning_color = Color(1.0, 0.86, 0.62)
 	var day_color = Color(1.0, 0.98, 0.9)
 	var evening_color = Color(0.95, 0.55, 0.35)

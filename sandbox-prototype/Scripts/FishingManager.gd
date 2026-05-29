@@ -3,7 +3,7 @@ extends Node
 const CAST_RANGE: float = 200.0
 const MINIGAME_SCENE: String = "res://Scenes/fishing_minigame.tscn"
 var _minigame_packed: PackedScene = preload("res://Scenes/fishing_minigame.tscn")
-var _cast_water_type: String = "both"
+var _cast_water_type: String = "all"
 var _active_fish: Dictionary = {}
 
 const RARITY_WEIGHTS: Dictionary = {
@@ -178,8 +178,8 @@ func _pick_random_fish() -> Dictionary:
 
 	var available_rarities: Dictionary = {}
 	for f in FISH_TABLE:
-		var h: String = f.get("habitat", "both")
-		if (h == "both" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+		var h: String = f.get("habitat", "all")
+		if (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
 			available_rarities[f["rarity"]] = true
 
 	var filtered_weights: Dictionary = {}
@@ -208,8 +208,8 @@ func _pick_random_fish() -> Dictionary:
 		if rolled in PRECIOUS:
 			var valid := false
 			for f in FISH_TABLE:
-				var h: String = f.get("habitat", "both")
-				if f["rarity"] == rolled and (h == "both" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+				var h: String = f.get("habitat", "all")
+				if f["rarity"] == rolled and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
 					valid = true
 					break
 			if not valid:
@@ -221,8 +221,8 @@ func _pick_random_fish() -> Dictionary:
 
 	var pool: Array = []
 	for f in FISH_TABLE:
-		var h: String = f.get("habitat", "both")
-		if f["rarity"] == chosen_rarity and (h == "both" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+		var h: String = f.get("habitat", "all")
+		if f["rarity"] == chosen_rarity and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
 			pool.append(f)
 	if pool.is_empty():
 		for f in FISH_TABLE:

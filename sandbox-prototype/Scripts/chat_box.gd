@@ -320,6 +320,7 @@ func _handle_command(text: String):
 				"spring": season_index = 0
 				"summer": season_index = 1
 				"autumn": season_index = 2
+				"fall": season_index = 2
 				"winter": season_index = 3
 				_:
 					_add_message("[System] Unknown season. Use: spring, summer, autumn, winter")

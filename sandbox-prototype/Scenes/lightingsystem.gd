@@ -1,7 +1,7 @@
 extends Node2D
 
 @export var tile_size: int = 64
-@export var cave_base_darkness: float = 0.92
+@export var cave_base_darkness: float = 0.82
 @export var night_base_darkness: float = 0.82
 @export var day_base_darkness: float = 0.0
 @export var min_darkness_alpha: float = 0.95
