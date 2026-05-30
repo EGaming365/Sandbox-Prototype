@@ -161,6 +161,10 @@ func add_item(item_name, texture):
 	discover(item_name)
 	var stackable = not non_stackable_items.has(item_name)
 	if stackable:
+		if offhand_slot["item"] == item_name and offhand_slot["count"] < 99:
+			offhand_slot["count"] += 1
+			_queue_emit()
+			return
 		for slot in slots:
 			if slot["item"] == item_name and slot["count"] < 99:
 				slot["count"] += 1
@@ -232,6 +236,10 @@ func batch_add_item(item_name: String, texture: Texture2D, count: int = 1) -> in
 	var remaining = count
 	var stackable = not non_stackable_items.has(item_name)
 	if stackable:
+		if offhand_slot["item"] == item_name and offhand_slot["count"] < 99:
+			var add = min(99 - offhand_slot["count"], remaining)
+			offhand_slot["count"] += add
+			remaining -= add
 		for slot in slots:
 			if remaining <= 0:
 				break
@@ -335,6 +343,12 @@ func move_item(from_index: int, to_index: int, from_inv: bool = false, to_inv: b
 
 func remove_item_by_name(item_name: String, amount: int):
 	var remaining = amount
+	if offhand_slot["item"] == item_name:
+		var take = min(offhand_slot["count"], remaining)
+		offhand_slot["count"] -= take
+		remaining -= take
+		if offhand_slot["count"] <= 0:
+			offhand_slot = {"item": "", "count": 0, "texture": null}
 	for i in slots.size():
 		if remaining <= 0:
 			break
@@ -357,6 +371,8 @@ func remove_item_by_name(item_name: String, amount: int):
 
 func count_item(item_name: String) -> int:
 	var total = 0
+	if offhand_slot["item"] == item_name:
+		total += offhand_slot["count"]
 	for slot in slots:
 		if slot["item"] == item_name:
 			total += slot["count"]

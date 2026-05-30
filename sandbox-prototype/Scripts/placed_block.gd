@@ -60,13 +60,13 @@ func _ready():
 			if item_texture:
 				$Sprite2D.texture = item_texture
 				$Sprite2D.modulate = Color(1.0, 0.72, 0.22, 1.0)
-				$Sprite2D.scale = Vector2(0.28, 0.28)
+				$Sprite2D.scale = Vector2(0.42, 0.42)
 				$Sprite2D.centered = true
-				$Sprite2D.position = Vector2(0, -10)
+				$Sprite2D.position = Vector2(0, -14)
 			var shape = RectangleShape2D.new()
-			shape.size = Vector2(20, 44)
+			shape.size = Vector2(28, 56)
 			$CollisionShape2D.shape = shape
-			$CollisionShape2D.position = Vector2(0, -2)
+			$CollisionShape2D.position = Vector2(0, -4)
 			var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 			if lighting and lighting.has_method("add_static_light"):
 				_light_id = lighting.add_static_light(global_position, 22, 1.35, true)

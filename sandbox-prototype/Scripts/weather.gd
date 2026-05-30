@@ -4,7 +4,10 @@ enum WeatherType {
 	CLEAR,
 	RAIN,
 	THUNDER,
-	THUNDERSTORM
+	THUNDERSTORM,
+	WIND,
+	FOGGY,
+	MISTY
 }
 
 @export var lightning_render_padding: float = 500.0
@@ -24,6 +27,17 @@ enum WeatherType {
 @export var rain_max_speed: float = 900.0
 @export var rain_slant: float = -12.0
 @export var rain_alpha: float = 0.62
+@export var fog_clear_radius: float = 170.0
+@export var fog_fade_radius: float = 430.0
+@export var fog_max_alpha: float = 1.0
+@export var mist_clear_radius: float = 250.0
+@export var mist_fade_radius: float = 620.0
+@export var mist_max_alpha: float = 0.62
+@export var wind_particle_count: int = 950
+@export var wind_min_speed: float = 650.0
+@export var wind_max_speed: float = 1200.0
+@export var wind_gust_min_seconds: float = 6.0
+@export var wind_gust_max_seconds: float = 12.0
 
 @export var day_length_seconds: float = 1350.0
 @export var weather_min_seconds: float = 450.0
@@ -39,6 +53,8 @@ var lightning_alpha: float = 0.0
 var clear_day_count: int = 0
 var last_day_integer: int = 0
 var aurora_active: bool = false
+var day_event: String = ""
+var day_event_timer: float = 0.0
 var _was_night: bool = false
 var _aurora_phase: float = 0.0
 var _aurora_fade: float = 0.0
@@ -51,6 +67,13 @@ var lightning_flash_layer: CanvasLayer
 var rain_particles: GPUParticles2D = null
 var aurora_overlay: ColorRect
 var aurora_overlay_layer: CanvasLayer
+var fog_overlay: ColorRect
+var fog_overlay_layer: CanvasLayer
+var fog_material: ShaderMaterial
+var wind_particles: GPUParticles2D
+var wind_layer: CanvasLayer
+var wind_gust_timer: float = 0.0
+var wind_direction: Vector2 = Vector2.RIGHT
 
 var current_season: int = 0
 var total_days_elapsed: int = 0
@@ -63,13 +86,14 @@ func _ready():
 	_create_lightning_flash()
 	call_deferred("_create_rain")
 	call_deferred("_create_aurora_overlay")
+	call_deferred("_create_fog_overlay")
+	call_deferred("_create_wind_particles")
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		_set_weather(initial_weather)
 		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 	else:
 		_set_weather(current_weather)
 	_weather_initialized = true
-	
 
 func _create_aurora_overlay():
 	aurora_overlay_layer = CanvasLayer.new()
@@ -80,6 +104,76 @@ func _create_aurora_overlay():
 	aurora_overlay.color = Color(0.0, 0.0, 0.0, 0.0)
 	aurora_overlay_layer.add_child(aurora_overlay)
 	get_tree().root.add_child(aurora_overlay_layer)
+
+func _create_fog_overlay():
+	fog_overlay_layer = CanvasLayer.new()
+	fog_overlay_layer.layer = 0
+	fog_overlay_layer.follow_viewport_enabled = false
+	fog_overlay = ColorRect.new()
+	fog_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fog_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fog_overlay.color = Color.WHITE
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
+uniform vec2 player_screen_pos = vec2(960.0, 540.0);
+uniform float clear_radius = 260.0;
+uniform float fade_radius = 620.0;
+uniform float fog_alpha = 0.0;
+uniform float distortion_strength = 0.0;
+uniform float time = 0.0;
+uniform vec4 fog_color : source_color = vec4(0.58, 0.60, 0.58, 1.0);
+
+void fragment() {
+	float dist_to_player = distance(FRAGCOORD.xy, player_screen_pos);
+	float edge = smoothstep(clear_radius, fade_radius, dist_to_player);
+	vec2 wobble = vec2(
+		sin(FRAGCOORD.y * 0.028 + time * 1.7),
+		cos(FRAGCOORD.x * 0.021 + time * 1.25)
+	) * distortion_strength;
+	vec3 warped = texture(screen_texture, SCREEN_UV + wobble).rgb;
+	vec3 color = mix(warped, fog_color.rgb, clamp(fog_alpha, 0.0, 1.0));
+	COLOR = vec4(color, edge * fog_alpha);
+}
+"""
+	fog_material = ShaderMaterial.new()
+	fog_material.shader = shader
+	fog_overlay.material = fog_material
+	fog_overlay_layer.add_child(fog_overlay)
+	get_tree().root.add_child(fog_overlay_layer)
+
+func _create_wind_particles():
+	wind_layer = CanvasLayer.new()
+	wind_layer.layer = 0
+	wind_layer.follow_viewport_enabled = false
+	wind_particles = GPUParticles2D.new()
+	wind_particles.name = "WindParticles"
+	wind_particles.amount = wind_particle_count
+	wind_particles.lifetime = 2.0
+	wind_particles.explosiveness = 0.0
+	wind_particles.randomness = 0.45
+	wind_particles.fixed_fps = 0
+	wind_particles.local_coords = true
+	wind_particles.emitting = false
+	wind_particles.visibility_rect = Rect2(-600, -600, 4000, 3000)
+	var img = Image.create(28, 2, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.86, 0.9, 0.92, 0.75))
+	wind_particles.texture = ImageTexture.create_from_image(img)
+	var mat = ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(64, 1400, 1)
+	mat.direction = Vector3(1, 0, 0)
+	mat.spread = 18.0
+	mat.gravity = Vector3.ZERO
+	mat.initial_velocity_min = wind_min_speed
+	mat.initial_velocity_max = wind_max_speed
+	mat.scale_min = 0.6
+	mat.scale_max = 1.8
+	wind_particles.process_material = mat
+	wind_particles.modulate = Color(0.85, 0.9, 0.92, 0.65)
+	wind_layer.add_child(wind_particles)
+	get_tree().root.add_child(wind_layer)
 
 func _process(delta):
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
@@ -92,6 +186,9 @@ func _process(delta):
 		_apply_day_night_color()
 	_update_lightning(delta)
 	_update_aurora_overlay(delta)
+	_update_fog_overlay(delta)
+	_update_wind_particles(delta)
+	_update_day_event(delta)
 
 func _update_aurora_overlay(delta):
 	if not aurora_overlay:
@@ -113,6 +210,70 @@ func _update_aurora_overlay(delta):
 	else:
 		_aurora_fade = move_toward(_aurora_fade, 0.0, delta * 0.3)
 		aurora_overlay.color = Color(aurora_overlay.color.r, aurora_overlay.color.g, aurora_overlay.color.b, 0.15 * _aurora_fade)
+
+func _update_fog_overlay(delta):
+	if not fog_overlay or not fog_material:
+		return
+	var target_alpha := 0.0
+	var clear_radius := fog_clear_radius
+	var fade_radius := fog_fade_radius
+	var fog_color := Color(0.58, 0.60, 0.58, 1.0)
+	var distortion := 0.0
+	if current_weather == WeatherType.FOGGY:
+		target_alpha = fog_max_alpha
+		fog_color = Color(0.55, 0.56, 0.55, 1.0)
+	elif current_weather == WeatherType.MISTY:
+		target_alpha = mist_max_alpha
+		clear_radius = mist_clear_radius
+		fade_radius = mist_fade_radius
+		fog_color = Color(0.70, 0.74, 0.76, 1.0)
+	var c := fog_overlay.color
+	c.a = move_toward(c.a, target_alpha, delta * 1.5)
+	fog_overlay.color = c
+	var player_screen := get_viewport().get_visible_rect().size * 0.5
+	var player = _get_local_player()
+	if player:
+		player_screen = get_viewport().get_canvas_transform() * player.global_position
+	fog_material.set_shader_parameter("player_screen_pos", player_screen)
+	fog_material.set_shader_parameter("clear_radius", clear_radius)
+	fog_material.set_shader_parameter("fade_radius", fade_radius)
+	fog_material.set_shader_parameter("fog_alpha", c.a)
+	fog_material.set_shader_parameter("fog_color", fog_color)
+	fog_material.set_shader_parameter("distortion_strength", distortion)
+	fog_material.set_shader_parameter("time", Time.get_ticks_msec() / 1000.0)
+
+func _update_wind_particles(delta):
+	if not wind_particles:
+		return
+	var windy := current_weather == WeatherType.WIND
+	wind_particles.emitting = windy
+	if not windy:
+		return
+	var vp_size := get_viewport().get_visible_rect().size
+	var max_dim: float = max(vp_size.x, vp_size.y) * 1.5
+	wind_particles.position = vp_size * 0.5 - wind_direction * (max_dim * 0.65)
+	wind_particles.rotation = wind_direction.angle()
+	wind_particles.amount = wind_particle_count
+	wind_gust_timer -= delta
+	if wind_gust_timer <= 0.0:
+		wind_gust_timer = rng.randf_range(wind_gust_min_seconds, wind_gust_max_seconds)
+		var angle := rng.randf_range(0.0, TAU)
+		wind_direction = Vector2(cos(angle), sin(angle)).normalized()
+		var mat := wind_particles.process_material as ParticleProcessMaterial
+		if mat:
+			mat.direction = Vector3(1, 0, 0)
+			var speed_boost := rng.randf_range(0.85, 1.35)
+			mat.initial_velocity_min = wind_min_speed * speed_boost
+			mat.initial_velocity_max = wind_max_speed * speed_boost
+			mat.emission_box_extents = Vector3(64, max_dim * 0.7, 1)
+		wind_particles.modulate = Color(0.85, 0.9, 0.92, rng.randf_range(0.45, 0.8))
+
+func _update_day_event(delta):
+	if day_event_timer <= 0.0:
+		return
+	day_event_timer -= delta
+	if day_event_timer <= 0.0:
+		day_event = ""
 
 func _track_clear_days():
 	var day_integer = int(time_of_day)
@@ -173,7 +334,7 @@ func _update_day_night(delta):
 	time_of_day += delta / day_length_seconds
 	if time_of_day >= 1.0:
 		time_of_day -= 1.0
-	var is_night = time_of_day >= 0.92 or time_of_day < 0.20
+	var is_night: bool = time_of_day >= 0.92 or time_of_day < 0.20
 	if is_night and not _was_night:
 		_was_night = true
 		if not aurora_active and rng.randf() < 0.15:
@@ -214,33 +375,43 @@ func _sync_aurora(state: bool):
 func _apply_day_night_color():
 	if not canvas_modulate:
 		return
-	var night_color = Color(1.0, 1.0, 1.0, 1.0)
-	var morning_color = Color(1.0, 0.86, 0.62)
-	var day_color = Color(1.0, 0.98, 0.9)
-	var evening_color = Color(0.95, 0.55, 0.35)
+	# CanvasModulate handles ONLY colour warmth/hue tint — never brightness/darkening.
+	# Darkness is handled entirely by the lighting manager's black overlay rects,
+	# so torches can fully cancel it. Keeping RGB channels at 1.0 in the white ranges
+	# means lit areas stay true-colour regardless of time of day.
+	var morning_tint := Color(1.0, 0.88, 0.72)   # warm amber sunrise
+	var day_tint     := Color(1.0, 0.98, 0.92)   # very slight warmth
+	var evening_tint := Color(1.0, 0.78, 0.52)   # golden hour
+	var night_tint   := Color(0.62, 0.68, 0.82)  # cool blue moonlight tint
 	var tint: Color
 	if time_of_day < 0.20:
-		tint = night_color
+		tint = night_tint
 	elif time_of_day < 0.35:
-		var t = inverse_lerp(0.20, 0.35, time_of_day)
-		tint = night_color.lerp(morning_color, t)
+		tint = night_tint.lerp(morning_tint, inverse_lerp(0.20, 0.35, time_of_day))
+	elif time_of_day < 0.50:
+		tint = morning_tint.lerp(day_tint, inverse_lerp(0.35, 0.50, time_of_day))
 	elif time_of_day < 0.65:
-		tint = day_color
+		tint = day_tint
 	elif time_of_day < 0.82:
-		var t = inverse_lerp(0.65, 0.82, time_of_day)
-		tint = day_color.lerp(evening_color, t)
+		tint = day_tint.lerp(evening_tint, inverse_lerp(0.65, 0.82, time_of_day))
 	elif time_of_day < 0.92:
-		var t = inverse_lerp(0.82, 0.92, time_of_day)
-		tint = evening_color.lerp(night_color, t)
+		tint = evening_tint.lerp(night_tint, inverse_lerp(0.82, 0.92, time_of_day))
 	else:
-		tint = night_color
-	if current_weather == WeatherType.RAIN:
-		tint = tint.darkened(0.12)
-	elif current_weather == WeatherType.THUNDER:
-		tint = tint.darkened(0.24)
-	elif current_weather == WeatherType.THUNDERSTORM:
-		tint = tint.darkened(0.38)
-		tint = tint.lerp(Color(0.1, 0.13, 0.22), 0.35)
+		tint = night_tint
+	# Weather shifts hue only — no darkening here, lighting manager draws darkness
+	match current_weather:
+		WeatherType.RAIN:
+			tint = tint.lerp(Color(0.78, 0.82, 0.88), 0.18)
+		WeatherType.THUNDER:
+			tint = tint.lerp(Color(0.70, 0.74, 0.82), 0.28)
+		WeatherType.THUNDERSTORM:
+			tint = tint.lerp(Color(0.55, 0.58, 0.72), 0.40)
+		WeatherType.WIND:
+			tint = tint.lerp(Color(0.88, 0.95, 1.0), 0.08)
+		WeatherType.FOGGY:
+			tint = tint.lerp(Color(0.78, 0.82, 0.78), 0.22)
+		WeatherType.MISTY:
+			tint = tint.lerp(Color(0.82, 0.88, 0.92), 0.14)
 	canvas_modulate.color = tint
 
 func _update_weather_timer(delta):
@@ -267,18 +438,26 @@ func _pick_next_weather():
 		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 		return
 	var roll = rng.randi_range(1, 100)
-	if roll <= 80:
+	if roll <= 74:
 		_set_weather(WeatherType.CLEAR)
-	elif roll <= 92:
+	elif roll <= 86:
 		_set_weather(WeatherType.RAIN)
+	elif roll <= 91:
+		_set_weather(WeatherType.WIND)
+	elif roll <= 95:
+		_set_weather(WeatherType.FOGGY)
 	elif roll <= 98:
+		_set_weather(WeatherType.MISTY)
+	elif roll <= 99:
 		_set_weather(WeatherType.THUNDER)
 	else:
 		_set_weather(WeatherType.THUNDERSTORM)
+	if current_weather == WeatherType.CLEAR and not is_night() and rng.randf() < 0.12:
+		_start_day_event("Rainbow" if rng.randf() < 0.65 else "Divine Blessing")
 	weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 
 func _update_lightning(delta):
-	var is_electric = current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	var is_electric: bool = current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
 	if not is_electric:
 		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
 		if lightning_flash and lightning_flash_enabled:
@@ -433,10 +612,10 @@ func _is_position_on_screen(world_pos: Vector2) -> bool:
 	return screen_rect.has_point(world_pos)
 
 func _set_weather(new_weather: WeatherType):
-	var was_raining = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	var was_raining: bool = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
 	print("_set_weather called: ", new_weather, " was_raining=", was_raining, " initialized=", _weather_initialized, " aurora=", aurora_active)
 	current_weather = new_weather
-	var raining = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	var raining: bool = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
 	if rain_particles:
 		rain_particles.emitting = raining
 		rain_particles.set_storm_intensity(current_weather == WeatherType.THUNDERSTORM)
@@ -455,6 +634,42 @@ func _set_weather(new_weather: WeatherType):
 			lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
 		WeatherType.THUNDERSTORM:
 			lightning_timer = rng.randf_range(1, 1)
+		_:
+			lightning_timer = 0.0
+
+func _start_day_event(event_name: String):
+	day_event = event_name
+	day_event_timer = rng.randf_range(90.0, 180.0)
+	if event_name == "Divine Blessing":
+		for player in get_tree().get_nodes_in_group("players"):
+			if is_instance_valid(player) and player.has_method("heal"):
+				player.heal(2)
+	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	if extras and extras.has_method("show_day_event_notification"):
+		extras.show_day_event_notification(event_name)
+	else:
+		_show_rain_notification(event_name + " has begun.")
+
+func start_day_event(event_name: String):
+	_start_day_event(event_name)
+	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		_sync_day_event.rpc(event_name, day_event_timer)
+
+func clear_day_event():
+	day_event = ""
+	day_event_timer = 0.0
+	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		_sync_clear_day_event.rpc()
+
+@rpc("authority", "call_remote", "reliable")
+func _sync_day_event(event_name: String, timer: float):
+	_start_day_event(event_name)
+	day_event_timer = timer
+
+@rpc("authority", "call_remote", "reliable")
+func _sync_clear_day_event():
+	day_event = ""
+	day_event_timer = 0.0
 
 func _show_rain_notification(msg: String):
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")

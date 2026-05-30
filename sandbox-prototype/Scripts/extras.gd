@@ -49,6 +49,18 @@ func _process(_delta):
 		var safe_rect = panel_rect.merge(nav_rect)
 		if not safe_rect.has_point(mouse):
 			hide()
+			get_viewport().set_input_as_handled()
+
+func _input(event):
+	if _just_opened or not visible:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse = get_global_mouse_position()
+		var panel_rect = $PanelContainer.get_global_rect()
+		var nav_rect = $PanelContainer/VBoxContainer/HBoxContainer.get_global_rect()
+		if not panel_rect.merge(nav_rect).has_point(mouse):
+			hide()
+			get_viewport().set_input_as_handled()
 
 func set_aurora(state: bool):
 	aurora_active = state
@@ -115,6 +127,50 @@ func _show_aurora_notification():
 		row2.add_theme_constant_override("outline_size", 5)
 		row2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(row2)
+
+	canvas.add_child(vbox)
+	await get_tree().process_frame
+	vbox.offset_left = -vbox.size.x / 2.0
+	vbox.offset_right = vbox.size.x / 2.0
+	vbox.offset_top = -vbox.size.y / 2.0 - 600.0
+	vbox.offset_bottom = vbox.size.y / 2.0 - 600.0
+
+	var tween = vbox.create_tween()
+	tween.tween_interval(4.0)
+	tween.tween_property(vbox, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(vbox.queue_free)
+
+func show_day_event_notification(event_name: String):
+	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
+	if not canvas:
+		return
+	var vbox = VBoxContainer.new()
+	vbox.anchor_left = 0.5
+	vbox.anchor_top = 0.5
+	vbox.anchor_right = 0.5
+	vbox.anchor_bottom = 0.5
+	vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	vbox.grow_vertical = Control.GROW_DIRECTION_BOTH
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.z_index = 20
+
+	var title = Label.new()
+	title.text = event_name
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.18) if event_name == "Divine Blessing" else Color(0.35, 0.9, 1.0))
+	title.add_theme_color_override("font_outline_color", Color.BLACK)
+	title.add_theme_constant_override("outline_size", 5)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var detail = Label.new()
+	detail.text = "A day event has begun."
+	detail.add_theme_font_size_override("font_size", 20)
+	detail.add_theme_color_override("font_color", Color.WHITE)
+	detail.add_theme_color_override("font_outline_color", Color.BLACK)
+	detail.add_theme_constant_override("outline_size", 5)
+	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(detail)
 
 	canvas.add_child(vbox)
 	await get_tree().process_frame
@@ -232,7 +288,9 @@ func _populate_fish_panel(panel: Control, info: Control):
 	scroll.offset_bottom = 0.0
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.scroll_vertical_custom_step = 28.0
 	panel.add_child(scroll)
+	call_deferred("_style_fish_scrollbar", scroll)
 
 	var vbox = VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -381,7 +439,7 @@ func _show_fish_detail(fish: Dictionary, detail: Control, discovered: bool):
 	fish_image.texture = tex
 	fish_image.modulate = Color(0, 0, 0, 1) if not discovered else Color(1, 1, 1, 1)
 
-	habitat_label.text = "Habitat: " + fish.get("habitat", "?").capitalize()
+	habitat_label.text = "Location: " + fish.get("habitat", "?").capitalize()
 	habitat_label.modulate = Color(0.7, 0.7, 0.7)
 	habitat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
@@ -499,6 +557,14 @@ func _format_weight(kg: float) -> String:
 	if kg < 1.0:
 		return str(int(kg * 1000)) + "g"
 	return str(snappedf(kg, 0.01)) + "kg"
+
+func _style_fish_scrollbar(scroll: ScrollContainer):
+	var bar := scroll.get_v_scroll_bar()
+	if not bar:
+		return
+	bar.custom_minimum_size.x = 18
+	bar.size.x = 18
+	bar.position.x = scroll.size.x + 8
 
 func _close_info_panel():
 	var info = _get_info()

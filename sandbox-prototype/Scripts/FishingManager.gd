@@ -118,6 +118,21 @@ var catch_textures = {
 }
 
 var bobber_texture = preload("res://Assets/Fishing_Bobber.png")
+const FISH_TEXTURE_PATHS: Dictionary = {
+	"Minnow": "res://Assets/Fish_Minnow_Raw.png",
+	"Perch": "res://Assets/Fish_Perch_Raw.png",
+	"Bass": "res://Assets/Fish_Bass_Raw.png",
+	"Pike": "res://Assets/Fish_Pike_Raw.png",
+	"Catfish": "res://Assets/Fish_Catfish_Raw.png",
+	"Sturgeon": "res://Assets/Fish_Sturgeon_Raw.png",
+	"Tophat Fish": "res://Assets/Fish_Tophat_Raw.png",
+	"Clownfish": "res://Assets/Fish_Clownfish_Raw.png",
+	"Blue Tang": "res://Assets/Fish_Blue_Tang_Raw.png",
+	"Red Tang": "res://Assets/Fish_Red_Tang_Raw.png",
+	"Salmon": "res://Assets/Fish_Catfish_Raw.png",
+	"Lionfish": "res://Assets/Fish_Lionfish_Raw.png",
+	"Tire": "res://Assets/Trash_Tire.png",
+}
 
 var _waiting_for_bite: bool = false
 var _minigame_active: bool = false
@@ -244,7 +259,7 @@ func _pick_random_fish() -> Dictionary:
 	var available_rarities: Dictionary = {}
 	for f in FISH_TABLE:
 		var h: String = f.get("habitat", "all")
-		if (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+		if _has_item_for_fish(f) and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
 			available_rarities[f["rarity"]] = true
 
 	var filtered_weights: Dictionary = {}
@@ -274,7 +289,7 @@ func _pick_random_fish() -> Dictionary:
 			var valid := false
 			for f in FISH_TABLE:
 				var h: String = f.get("habitat", "all")
-				if f["rarity"] == rolled and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+				if _has_item_for_fish(f) and f["rarity"] == rolled and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
 					valid = true
 					break
 			if not valid:
@@ -287,11 +302,11 @@ func _pick_random_fish() -> Dictionary:
 	var pool: Array = []
 	for f in FISH_TABLE:
 		var h: String = f.get("habitat", "all")
-		if f["rarity"] == chosen_rarity and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+		if _has_item_for_fish(f) and f["rarity"] == chosen_rarity and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
 			pool.append(f)
 	if pool.is_empty():
 		for f in FISH_TABLE:
-			if f.get("tension", 1) <= rod_tension:
+			if _has_item_for_fish(f) and f.get("tension", 1) <= rod_tension:
 				pool.append(f)
 	if pool.is_empty():
 		return FISH_TABLE[0]
@@ -426,38 +441,14 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 	var display_name: String = fish["name"]
 	if is_albino:
 		display_name = "Albino " + display_name
-	var fish_texture_map = {
-		"Minnow": "res://Assets/Fish_Minnow_Raw.png",
-		"Albino Minnow": "res://Assets/Fish_Minnow_Raw.png",
-		"Perch": "res://Assets/Fish_Perch_Raw.png",
-		"Albino Perch": "res://Assets/Fish_Perch_Raw.png",
-		"Bass": "res://Assets/Fish_Bass_Raw.png",
-		"Albino Bass": "res://Assets/Fish_Bass_Raw.png",
-		"Pike": "res://Assets/Fish_Pike_Raw.png",
-		"Albino Pike": "res://Assets/Fish_Pike_Raw.png",
-		"Catfish": "res://Assets/Fish_Catfish_Raw.png",
-		"Albino Catfish": "res://Assets/Fish_Catfish_Raw.png",
-		"Sturgeon": "res://Assets/Fish_Sturgeon_Raw.png",
-		"Albino Sturgeon": "res://Assets/Fish_Sturgeon_Raw.png",
-		"Tophat Fish": "res://Assets/Fish_Tophat_Raw.png",
-		"Albino Tophat Fish": "res://Assets/Fish_Tophat_Raw.png",
-		"Clownfish": "res://Assets/Fish_Clownfish_Raw.png",
-		"Albino Clownfish": "res://Assets/Fish_Clownfish_Raw.png",
-		"Blue Tang": "res://Assets/Fish_Blue_Tang_Raw.png",
-		"Albino Blue Tang": "res://Assets/Fish_Blue_Tang_Raw.png",
-		"Red Tang": "res://Assets/Fish_Red_Tang_Raw.png",
-		"Albino Red Tang": "res://Assets/Fish_Red_Tang_Raw.png",
-		"Salmon": "res://Assets/Fish_Catfish_Raw.png",
-		"Albino Salmon": "res://Assets/Fish_Catfish_Raw.png",
-		"Lionfish": "res://Assets/Fish_Lionfish_Raw.png",
-		"Albino Lionfish": "res://Assets/Fish_Lionfish_Raw.png",
-		"Tire": "res://Assets/Trash_Tire.png",
-		"Albino Tire": "res://Assets/Trash_Tire.png",
-	}
-	var tex: Texture2D = load(fish_texture_map.get(display_name, "res://Assets/Fish_Tophat_Raw.png"))
+	var texture_path := _get_fish_texture_path(display_name)
+	if texture_path == "":
+		return
+	var tex: Texture2D = load(texture_path)
 	var existing_tex: Texture2D = Inventory.get_texture(display_name)
 	if existing_tex:
 		tex = existing_tex
+	var was_new := not Inventory.discovered_items.has(display_name)
 	Inventory.discover(display_name)
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 	if extras:
@@ -468,7 +459,7 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 			Inventory.slots[i]["count"] = weight_grams
 			Inventory.slots[i]["texture"] = tex
 			Inventory._queue_emit()
-			_show_catch_notification(display_name, weight_kg, mutations)
+			_show_catch_notification(display_name, weight_kg, mutations, was_new)
 			return
 	for i in Inventory.unlocked_inv_slots:
 		if Inventory.inv_slots[i]["item"] == "":
@@ -476,11 +467,11 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 			Inventory.inv_slots[i]["count"] = weight_grams
 			Inventory.inv_slots[i]["texture"] = tex
 			Inventory._queue_emit()
-			_show_catch_notification(display_name, weight_kg, mutations)
+			_show_catch_notification(display_name, weight_kg, mutations, was_new)
 			return
-	_show_catch_notification(display_name, weight_kg, mutations)
+	_show_catch_notification(display_name, weight_kg, mutations, was_new)
 
-func _show_catch_notification(name: String, weight_kg: float, mutations: Array) -> void:
+func _show_catch_notification(name: String, weight_kg: float, mutations: Array, was_new: bool = false) -> void:
 	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if not canvas:
 		return
@@ -525,6 +516,16 @@ func _show_catch_notification(name: String, weight_kg: float, mutations: Array) 
 	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	container.add_child(rarity_label)
 
+	if was_new:
+		var new_label := Label.new()
+		new_label.text = "NEW"
+		new_label.add_theme_font_size_override("font_size", 24)
+		new_label.add_theme_color_override("font_color", Color(1.0, 0.05, 0.05, 1.0))
+		new_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		new_label.add_theme_constant_override("outline_size", 6)
+		new_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		container.add_child(new_label)
+
 	var fish_label := Label.new()
 	fish_label.text = name + size_tag + "  •  " + weight_str
 	fish_label.add_theme_font_size_override("font_size", 22)
@@ -551,6 +552,13 @@ func _get_base_weight_for_name(fish_name: String) -> float:
 		if f["name"] == fish_name or "Albino " + f["name"] == fish_name:
 			return f["base_weight_kg"]
 	return 1.0
+
+func _get_fish_texture_path(fish_name: String) -> String:
+	var base_name := fish_name.replace("Albino ", "")
+	return FISH_TEXTURE_PATHS.get(base_name, "")
+
+func _has_item_for_fish(fish: Dictionary) -> bool:
+	return _get_fish_texture_path(fish.get("name", "")) != ""
 
 func _consume_rod_durability() -> void:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")

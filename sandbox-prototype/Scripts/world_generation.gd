@@ -164,6 +164,19 @@ func _update_chunks_around_player():
 			   abs(cc.y - player_chunk.y) <= chunk_unload_distance
 	)
 
+func queue_chunks_around_world_pos(world_pos: Vector2, radius_chunks: int = 2) -> void:
+	if not tilemap:
+		return
+	var center_chunk := tile_to_chunk(world_to_tile(world_pos))
+	for cx in range(center_chunk.x - radius_chunks, center_chunk.x + radius_chunks + 1):
+		for cy in range(center_chunk.y - radius_chunks, center_chunk.y + radius_chunks + 1):
+			var cc := Vector2i(cx, cy)
+			if not loaded_chunks.has(cc) and not pending_chunks.has(cc) and _paint_chunk != cc:
+				pending_chunks.append(cc)
+	pending_chunks.sort_custom(func(a, b):
+		return a.distance_squared_to(center_chunk) < b.distance_squared_to(center_chunk)
+	)
+
 func _paint_next_tiles():
 	var painted := 0
 

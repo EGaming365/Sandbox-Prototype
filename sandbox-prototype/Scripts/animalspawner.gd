@@ -150,7 +150,9 @@ func _check_despawn() -> void:
 					all_out = false
 					break
 		if all_out:
-			e.queue_free()
+			var aggressive := int(e.get("state")) != 0
+			if not aggressive:
+				e.queue_free()
 
 func _spawn_chicken(pos: Vector2) -> void:
 	var chicken = CHICKEN_SCENE.instantiate()
@@ -309,10 +311,12 @@ func clear_all_entities() -> void:
 	_despawn_timer.stop()
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		if is_instance_valid(chicken):
-			chicken.free()
+			chicken.queue_free()
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if is_instance_valid(enemy):
-			enemy.free()
+			enemy.queue_free()
+	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() and _scene_node.has_method("clear_chickens_and_enemies_rpc"):
+		_scene_node.clear_chickens_and_enemies_rpc.rpc()
 	_out_of_range_timers.clear()
 	await get_tree().create_timer(3.0).timeout
 	_spawn_timer.start()

@@ -4,7 +4,7 @@ extends Node2D
 @export var durability: int = 1
 var item_type: String = "Coal"
 var stack_count: int = 1
-var coal_texture = preload("res://Assets/Stone.png")
+var coal_texture = preload("res://Assets/Coal.png")
 var _picked_up: bool = false
 const DESPAWN_TIME = 300.0
 const PICKUP_RANGE = 40.0

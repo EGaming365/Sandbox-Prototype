@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://vwwwlt7sf7nu"]
 
-[ext_resource type="Texture2D" uid="uid://dgtpp6femdhuc" path="res://Assets/Stone.png" id="1_x6f8n"]
+[ext_resource type="Texture2D" uid="uid://cuuyj1vvheylx" path="res://Assets/Coal.png" id="1_7w8tp"]
 [ext_resource type="Script" uid="uid://dpu17pcq4mww6" path="res://Scripts/coal.gd" id="2_7w8tp"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_tfydv"]
@@ -8,11 +8,11 @@ radius = 11.901794
 
 [node name="Coal" type="Sprite2D" unique_id=1703092314]
 scale = Vector2(2.3855686, 2.3855686)
-texture = ExtResource("1_x6f8n")
+texture = ExtResource("1_7w8tp")
 script = ExtResource("2_7w8tp")
 
 [node name="Area2D" type="Area2D" parent="." unique_id=367239175]
-position = Vector2(0, 2.392028)
+position = Vector2(-0.8383745, 1.2575622)
 scale = Vector2(0.024265053, 0.024265053)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=479216491]

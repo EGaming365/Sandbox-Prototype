@@ -119,7 +119,7 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 			"Red Tang", "Albino Red Tang":
 				item_scene = preload("res://Scenes/red_tang.tscn")
 			_:
-				item_scene = preload("res://Scenes/tophat_fish.tscn")
+				return
 	else:
 		match item_type:
 			"Wood":
@@ -293,6 +293,7 @@ func _process(_delta):
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				local_player = child
 				break
+	_update_floor_item_water_sinking(_delta)
 
 func _sync_world_to_peer(peer_id: int):
 	var world_gen = get_node_or_null("WorldGen")
@@ -928,21 +929,61 @@ func spawn_enemy_on_client_rpc(px: float, py: float, eid: int):
 	if is_instance_valid(enemy):
 		enemy.set_meta("sync_ready", true)
 
+@rpc("authority", "call_local", "reliable")
+func clear_chickens_and_enemies_rpc():
+	for chicken in get_tree().get_nodes_in_group("chickens"):
+		if is_instance_valid(chicken):
+			chicken.queue_free()
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy):
+			enemy.queue_free()
+
 @rpc("any_peer", "call_remote", "reliable")
 func request_respawn(player_id: int):
 	if not is_host:
 		return
 	var spawn_pos = _find_safe_spawn(Vector2(0, 0))
+	_preload_spawn_area(spawn_pos)
 	send_respawn_position.rpc_id(player_id, spawn_pos.x, spawn_pos.y)
 
 @rpc("authority", "call_remote", "reliable")
 func send_respawn_position(px: float, py: float):
 	var spawn_pos = Vector2(px, py)
+	_preload_spawn_area(spawn_pos)
 	for child in get_children():
 		if child is CharacterBody2D:
 			if child.is_multiplayer_authority():
 				child._do_respawn(spawn_pos)
 				break
+
+func _preload_spawn_area(spawn_pos: Vector2) -> void:
+	var world_gen = get_node_or_null("WorldGen")
+	if world_gen and world_gen.has_method("queue_chunks_around_world_pos"):
+		world_gen.queue_chunks_around_world_pos(spawn_pos, 2)
+	var env_gen = get_node_or_null("EnvironmentGen")
+	if env_gen and env_gen.has_method("queue_chunks_around_world_pos"):
+		env_gen.queue_chunks_around_world_pos(spawn_pos, 2)
+
+func _update_floor_item_water_sinking(delta: float) -> void:
+	var world_gen = get_node_or_null("WorldGen")
+	var cave_gen = get_node_or_null("CaveWorldGen")
+	for item_id in floor_items.keys():
+		var item = floor_items[item_id]
+		if not is_instance_valid(item) or not item.visible:
+			continue
+		var in_water := false
+		if cave_gen and cave_gen.get("in_cave"):
+			var tc: Vector2i = cave_gen.world_to_tile(item.global_position)
+			in_water = cave_gen._reachable_tiles.has(tc) and cave_gen._biome_for_tile(tc) == cave_gen.BiomeType.WATER_LAKE
+		elif world_gen and world_gen.has_method("is_water_at"):
+			in_water = world_gen.is_water_at(item.global_position)
+		var c: Color = item.modulate
+		if in_water:
+			item.global_position.y += 18.0 * delta
+			c.a = max(c.a - 0.18 * delta, 0.35)
+		else:
+			c.a = move_toward(c.a, 1.0, delta)
+		item.modulate = c
 
 @rpc("any_peer", "call_remote", "reliable")
 func register_steam_id(steam_id: int):

@@ -332,6 +332,8 @@ func craft(recipe: Dictionary, silent: bool = false):
 
 func _count_item(item_name: String) -> int:
 	var total = 0
+	if Inventory.offhand_slot["item"] == item_name:
+		total += Inventory.offhand_slot["count"]
 	for slot in Inventory.slots:
 		if slot["item"] == item_name:
 			total += slot["count"]
@@ -341,6 +343,12 @@ func _count_item(item_name: String) -> int:
 	return total
 func _remove_item(item_name: String, amount: int):
 	var remaining = amount
+	if Inventory.offhand_slot["item"] == item_name:
+		var take = min(Inventory.offhand_slot["count"], remaining)
+		Inventory.offhand_slot["count"] -= take
+		remaining -= take
+		if Inventory.offhand_slot["count"] <= 0:
+			Inventory.offhand_slot = {"item": "", "count": 0, "texture": null}
 	for i in Inventory.slots.size():
 		if remaining <= 0:
 			break

@@ -103,7 +103,7 @@ func enter_cave(player: CharacterBody2D):
 	_cave_entrance_tile = _find_linked_overworld_entrance_tile(player.global_position)
 	var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
 	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
-		animal_spawner.clear_all_entities()
+		await animal_spawner.clear_all_entities()
 	if _world_gen:
 		_world_gen.set_process(false)
 		if _tilemap:
@@ -136,11 +136,12 @@ func exit_cave(player: CharacterBody2D):
 		return
 	if _enter_cooldown > 0.0:
 		return
+	var return_tile := _cave_entrance_tile
 	in_cave = false
 	_enter_cooldown = ENTER_COOLDOWN_TIME
 	var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
 	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
-		animal_spawner.clear_all_entities()
+		await animal_spawner.clear_all_entities()
 	_deactivate()
 	if _world_gen:
 		_world_gen.set_process(true)
@@ -153,6 +154,8 @@ func exit_cave(player: CharacterBody2D):
 	var scene = get_tree().root.get_node_or_null("Scene")
 	if scene and scene.has_method("_refresh_floor_item_visibility"):
 		scene._refresh_floor_item_visibility()
+	if _world_gen:
+		player.global_position = _world_gen.tile_to_world_center(return_tile) + Vector2(0, 96)
 
 func _activate(seed: int):
 	world_seed = seed

@@ -22,6 +22,10 @@ var base_anim_scale: Vector2
 var base_hair_scale: Vector2
 var base_shirt_scale: Vector2
 var base_pants_scale: Vector2
+var base_anim_position: Vector2
+var base_hair_position: Vector2
+var base_shirt_position: Vector2
+var base_pants_position: Vector2
 var chop_cooldown_timer: float = 0.0
 var chop_cooldown_max: float = 1.5
 var hand_sprite: Sprite2D = null
@@ -46,10 +50,13 @@ var is_blocking: bool = false
 var parry_timer: float = 0.0
 var block_cooldown: float = 0.0
 var _parry_just_landed: bool = false
+var offhand_sprite: Sprite2D = null
 
 var drowning_timer: float = 0.0
 var drowning_dead: bool = false
 const DROWN_TIME: float = 8.0
+const DROWN_SLOW_MAX: float = 0.45
+const DROWN_SINK_PIXELS: float = 18.0
 
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
@@ -60,7 +67,7 @@ func _enter_tree():
 func _ready():
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 	if lighting:
-		lighting.add_light_source(self, 8.0, 1.0)
+		lighting.add_light_source(self, 6.0, 1.0)
 	z_index = 2
 	add_to_group("players")
 	hair_sprite.visible = true
@@ -70,6 +77,10 @@ func _ready():
 	base_hair_scale = hair_sprite.scale
 	base_shirt_scale = shirt_sprite.scale
 	base_pants_scale = pants_sprite.scale
+	base_anim_position = anim.position
+	base_hair_position = hair_sprite.position
+	base_shirt_position = shirt_sprite.position
+	base_pants_position = pants_sprite.position
 	collision_layer = 1
 	collision_mask = 1
 	if not multiplayer.has_multiplayer_peer():
@@ -129,6 +140,14 @@ func _setup_hand():
 	hand_sprite.visible = false
 	hand_sprite.modulate = Color(1, 1, 1, 0)
 	add_child(hand_sprite)
+	offhand_sprite = Sprite2D.new()
+	offhand_sprite.position = Vector2(7, -19)
+	offhand_sprite.z_as_relative = true
+	offhand_sprite.z_index = 0
+	offhand_sprite.scale = Vector2(0.017, 0.017)
+	offhand_sprite.visible = false
+	offhand_sprite.modulate = Color(1, 1, 1, 0)
+	add_child(offhand_sprite)
 	for item_name in Inventory.TEXTURE_MAP:
 		var tex = Inventory.TEXTURE_MAP[item_name]
 		if tex:
@@ -249,9 +268,13 @@ func _physics_process(delta):
 		_play_anim("idle")
 	direction = direction.normalized()
 	velocity = direction * speed
+	if drowning_timer > 0.0:
+		var drown_pct: float = clamp(drowning_timer / DROWN_TIME, 0.0, 1.0)
+		velocity *= lerp(1.0, DROWN_SLOW_MAX, drown_pct)
 	synced_velocity = velocity
 	move_and_slide()
 	_update_hand_sprite()
+	_update_offhand_sprite()
 
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
@@ -271,7 +294,9 @@ func _input(event):
 		if _is_holding_sword() and chop_cooldown_timer <= 0.0 and attack_cooldown <= 0.0:
 			_try_attack()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
-		if event.pressed and _is_holding_sword():
+		if event.pressed and _is_holding_raw_fish():
+			_send_fish_pun()
+		elif event.pressed and _is_holding_sword():
 			if block_cooldown <= 0.0:
 				_start_blocking()
 		elif not event.pressed:
@@ -378,6 +403,28 @@ func _spawn_feather_burst(pos: Vector2) -> void:
 
 func _is_holding_sword() -> bool:
 	return synced_held_item == "Sword" or synced_held_item == "Stone Sword"
+
+func _is_holding_raw_fish() -> bool:
+	var scene_node = get_tree().root.get_node_or_null("Scene")
+	if scene_node and scene_node.has_method("_is_fish_item_name"):
+		return scene_node._is_fish_item_name(synced_held_item)
+	return false
+
+func _send_fish_pun() -> void:
+	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if not chat:
+		return
+	var puns := [
+		"This conversation is getting a little fishy.",
+		"I am hooked on bad jokes.",
+		"Cod help us all.",
+		"That was reel unnecessary.",
+	]
+	var msg: String = puns[randi() % puns.size()]
+	if multiplayer.has_multiplayer_peer():
+		chat._broadcast_message.rpc(msg)
+	else:
+		chat._add_message(msg)
 
 func _get_sword_damage() -> int:
 	if synced_held_item == "Stone Sword":
@@ -569,6 +616,35 @@ func _update_hand_sprite():
 	_last_hand_item = synced_held_item
 	_apply_hand_texture(tex)
 
+var _last_offhand_item: String = ""
+
+func _update_offhand_sprite():
+	if not offhand_sprite:
+		return
+	var offhand_item: String = Inventory.offhand_slot.get("item", "")
+	if offhand_item == "":
+		if _last_offhand_item != "":
+			_last_offhand_item = ""
+			offhand_sprite.texture = null
+			offhand_sprite.visible = false
+			offhand_sprite.modulate = Color(1, 1, 1, 0)
+		return
+	if offhand_item == _last_offhand_item:
+		return
+	var tex = Inventory.get_texture(offhand_item)
+	if tex == null:
+		tex = Inventory.offhand_slot.get("texture", null)
+	if tex == null:
+		return
+	var tex_size = tex.get_size()
+	if tex_size.x <= 0 or tex_size.y <= 0:
+		return
+	_last_offhand_item = offhand_item
+	offhand_sprite.texture = tex
+	offhand_sprite.scale = _hand_scales.get(offhand_item, Vector2(0.017, 0.017))
+	offhand_sprite.visible = true
+	offhand_sprite.modulate = Color(1, 1, 1, 1)
+
 func start_chop_cooldown(duration: float):
 	chop_cooldown_max = duration
 	chop_cooldown_timer = duration
@@ -618,10 +694,10 @@ func _update_drowning(delta: float):
 	else:
 		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
 
-	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
-	_set_drowning_alpha(alpha)
+	var drown_pct: float = clamp(drowning_timer / DROWN_TIME, 0.0, 1.0)
+	_set_drowning_alpha(drown_pct)
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-		sync_drowning_alpha_rpc.rpc(alpha)
+		sync_drowning_alpha_rpc.rpc(drown_pct)
 	if not multiplayer.has_multiplayer_peer():
 		return
 
@@ -632,18 +708,16 @@ func _update_drowning(delta: float):
 	elif drowning_timer <= 0.0:
 		drowning_dead = false
 
-func _set_drowning_alpha(alpha: float):
-	var c = anim.modulate
-	anim.modulate = Color(c.r, c.g, c.b, alpha)
-	c = hair_sprite.modulate
-	hair_sprite.modulate = Color(c.r, c.g, c.b, alpha)
-	c = shirt_sprite.modulate
-	shirt_sprite.modulate = Color(c.r, c.g, c.b, alpha)
-	c = pants_sprite.modulate
-	pants_sprite.modulate = Color(c.r, c.g, c.b, alpha)
+func _set_drowning_alpha(progress: float):
+	var sink: float = DROWN_SINK_PIXELS * clamp(progress, 0.0, 1.0)
+	anim.position = base_anim_position + Vector2(0, sink)
+	hair_sprite.position = base_hair_position + Vector2(0, sink)
+	shirt_sprite.position = base_shirt_position + Vector2(0, sink)
+	pants_sprite.position = base_pants_position + Vector2(0, sink)
 	if hand_sprite:
-		c = hand_sprite.modulate
-		hand_sprite.modulate = Color(c.r, c.g, c.b, alpha)
+		hand_sprite.position.y = -19 + sink
+	if offhand_sprite:
+		offhand_sprite.position.y = -19 + sink
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func sync_drowning_alpha_rpc(alpha: float):
@@ -677,6 +751,10 @@ func _play_death_respawn_sequence(scene_node):
 		hand_sprite.visible = false
 		hand_sprite.modulate = Color(1, 1, 1, 0)
 		_last_hand_item = ""
+	if offhand_sprite:
+		offhand_sprite.visible = false
+		offhand_sprite.modulate = Color(1, 1, 1, 0)
+		_last_offhand_item = ""
 
 	anim.modulate = Color(1, 0.05, 0.05, 1)
 	hair_sprite.modulate = Color(1, 0.05, 0.05, 1)
@@ -704,7 +782,10 @@ func _play_death_respawn_sequence(scene_node):
 		if scene_node:
 			scene_node.request_respawn.rpc_id(1, name.to_int())
 	else:
-		_do_respawn(get_tree().root.get_node("Scene")._find_safe_spawn(Vector2(0, 0)))
+		var spawn_pos = get_tree().root.get_node("Scene")._find_safe_spawn(Vector2(0, 0))
+		if scene_node and scene_node.has_method("_preload_spawn_area"):
+			scene_node._preload_spawn_area(spawn_pos)
+		_do_respawn(spawn_pos)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_respawn_position_rpc():
@@ -735,6 +816,10 @@ func _do_respawn(spawn_pos: Vector2):
 	hair_sprite.scale = base_hair_scale
 	shirt_sprite.scale = base_shirt_scale
 	pants_sprite.scale = base_pants_scale
+	anim.position = base_anim_position
+	hair_sprite.position = base_hair_position
+	shirt_sprite.position = base_shirt_position
+	pants_sprite.position = base_pants_position
 
 	anim.modulate = Color(1, 1, 1, 1)
 	hair_sprite.modulate = Color(1, 1, 1, 1)
@@ -742,7 +827,7 @@ func _do_respawn(spawn_pos: Vector2):
 	pants_sprite.modulate = Color(1, 1, 1, 1)
 
 	if multiplayer.has_multiplayer_peer():
-		sync_drowning_alpha_rpc.rpc(1.0)
+		sync_drowning_alpha_rpc.rpc(0.0)
 
 	$CollisionShape2D.disabled = false
 	is_dead = false

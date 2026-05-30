@@ -146,7 +146,7 @@ func _handle_command(text: String):
 				_add_message("[System] No permission.")
 				return
 			if parts.size() < 2:
-				_add_message("[System] Usage: /weather <clear|rain|thunder|thunderstorm>")
+				_add_message("[System] Usage: /weather <clear|rain|thunder|thunderstorm|wind|foggy|misty>")
 				return
 			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
 			if not weather_node:
@@ -161,8 +161,14 @@ func _handle_command(text: String):
 					weather_node._set_weather(weather_node.WeatherType.THUNDER)
 				"thunderstorm":
 					weather_node._set_weather(weather_node.WeatherType.THUNDERSTORM)
+				"wind":
+					weather_node._set_weather(weather_node.WeatherType.WIND)
+				"foggy", "fog":
+					weather_node._set_weather(weather_node.WeatherType.FOGGY)
+				"misty", "mist":
+					weather_node._set_weather(weather_node.WeatherType.MISTY)
 				_:
-					_add_message("[System] Unknown weather. Use: clear, rain, thunder, thunderstorm")
+					_add_message("[System] Unknown weather. Use: clear, rain, thunder, thunderstorm, wind, foggy, misty")
 					return
 			if multiplayer.has_multiplayer_peer():
 				weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
@@ -322,14 +328,15 @@ func _handle_command(text: String):
 				_add_message("[System] No permission.")
 				return
 			if parts.size() < 2:
-				_add_message("[System] Usage: /event <aurora>")
+				_add_message("[System] Usage: /event <none|aurora|rainbow|divine blessing>")
+				return
+			var event_name = " ".join(parts.slice(1)).strip_edges().to_lower()
+			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
+			if not weather_node:
+				_add_message("[System] WeatherSystem not found.")
 				return
 			match parts[1].to_lower():
 				"aurora":
-					var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
-					if not weather_node:
-						_add_message("[System] WeatherSystem not found.")
-						return
 					weather_node.time_of_day = 0.95
 					weather_node._was_night = true
 					weather_node._start_aurora()
@@ -337,16 +344,23 @@ func _handle_command(text: String):
 						weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
 					_add_message("[System] Aurora Borealis summoned.")
 				"none":
-					var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
-					if not weather_node:
-						_add_message("[System] WeatherSystem not found.")
-						return
 					weather_node._end_aurora()
+					if weather_node.has_method("clear_day_event"):
+						weather_node.clear_day_event()
 					if multiplayer.has_multiplayer_peer():
 						weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
 					_add_message("[System] Event cleared.")
 				_:
-					_add_message("[System] Unknown event. Use: none|aurora")
+					if event_name == "rainbow":
+						if weather_node.has_method("start_day_event"):
+							weather_node.start_day_event("Rainbow")
+						_add_message("[System] Rainbow event summoned.")
+					elif event_name == "divine blessing" or event_name == "blessing":
+						if weather_node.has_method("start_day_event"):
+							weather_node.start_day_event("Divine Blessing")
+						_add_message("[System] Divine Blessing event summoned.")
+					else:
+						_add_message("[System] Unknown event. Use: none, aurora, rainbow, divine blessing")
 		"/season":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
@@ -701,8 +715,14 @@ func _add_message(msg: String):
 	messages_container.add_child(label)
 	scroll_container.visible = true
 	hide_timer = HIDE_DELAY
+	_scroll_to_latest_message.call_deferred()
+
+func _scroll_to_latest_message():
 	await get_tree().process_frame
-	scroll_container.scroll_vertical = scroll_container.get_v_scroll_bar().max_value
+	await get_tree().process_frame
+	var bar := scroll_container.get_v_scroll_bar()
+	if bar:
+		scroll_container.scroll_vertical = int(bar.max_value)
 
 func _on_input_submitted(text: String):
 	var trimmed = text.strip_edges()

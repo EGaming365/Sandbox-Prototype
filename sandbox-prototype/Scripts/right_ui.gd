@@ -13,6 +13,9 @@ var tex_clear = preload("res://Assets/Weather_Clear.png")
 var tex_rain = preload("res://Assets/Weather_Rain.png")
 var tex_thunder = preload("res://Assets/Weather_Thunder.png")
 var tex_thunderstorm = preload("res://Assets/Weather_Thunderstorm.png")
+var tex_wind = preload("res://Assets/Weather_Wind.png")
+var tex_foggy = preload("res://Assets/Weather_Foggy.png")
+var tex_mist = preload("res://Assets/Weather_Mist.png")
 var tex_day = preload("res://Assets/Time_Day.png")
 var tex_night = preload("res://Assets/Time_Night.png")
 var tex_morning = preload("res://Assets/Time_Morning.png")
@@ -103,6 +106,9 @@ func _get_weather_text() -> String:
 		1: return "Rain"
 		2: return "Thunder"
 		3: return "Thunderstorm"
+		4: return "Wind"
+		5: return "Foggy"
+		6: return "Misty"
 	return ""
 
 func _get_time_text() -> String:
@@ -143,6 +149,9 @@ func _process(delta):
 			1: weather_icon.texture = tex_rain
 			2: weather_icon.texture = tex_thunder
 			3: weather_icon.texture = tex_thunderstorm
+			4: weather_icon.texture = tex_wind
+			5: weather_icon.texture = tex_foggy
+			6: weather_icon.texture = tex_mist
 		var t = weather_node.time_of_day
 		if t >= 0.65 and t < 0.82:
 			time_icon.texture = tex_evening
@@ -193,7 +202,6 @@ func _process(delta):
 	if is_instance_valid(thirst_bar):
 		thirst_bar.value = thirst
 
-	# luck block goes here, before the early return
 	var luck_multi: float = 1.0
 	var w = get_tree().root.get_node_or_null("Scene/Weather")
 	if w:
@@ -269,7 +277,6 @@ func _process(delta):
 			aurora_glow_rect.color = Color(blended.r, blended.g, blended.b, pulse)
 		else:
 			aurora_glow_rect.color = aurora_glow_rect.color.lerp(Color(0, 0, 0, 0), delta * 2.0)
-			
 
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")

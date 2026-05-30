@@ -24,6 +24,9 @@ enum State { PASSIVE, CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
 var drowning_timer: float = 0.0
 var drowning_dead: bool = false
 const DROWN_TIME: float = 5.0
+const DROWN_SINK_PIXELS: float = 14.0
+var _base_sprite_position: Vector2
+var _base_speed: float
 
 var state: State = State.PASSIVE
 var attack_cooldown: float = 0.0
@@ -61,9 +64,11 @@ func _is_host() -> bool:
 
 func _ready() -> void:
 	rng.randomize()
+	_base_speed = speed
 	z_index = 2
 	add_to_group("night_enemies")
 	sprite.position.y = -30
+	_base_sprite_position = sprite.position
 	staticbody.position.y = -6
 	sprite.play("walk_down")
 	attack_cooldown = rng.randf_range(0.5, attack_cooldown_max)
@@ -575,10 +580,12 @@ func _update_drowning(delta: float) -> void:
 	var in_water := _is_current_world_water()
 	if in_water:
 		drowning_timer += delta
+		speed = lerp(speed, 80.0, delta * 2.0)
 	else:
 		drowning_timer = max(drowning_timer - delta * 2.0, 0.0)
-	var alpha = lerp(1.0, 0.35, clamp(drowning_timer / DROWN_TIME, 0.0, 1.0))
-	sprite.modulate.a = alpha
+		speed = lerp(speed, _base_speed, delta * 2.0)
+	var drown_pct: float = clamp(drowning_timer / DROWN_TIME, 0.0, 1.0)
+	sprite.position = _base_sprite_position + Vector2(0, DROWN_SINK_PIXELS * drown_pct)
 	if drowning_timer >= DROWN_TIME and not drowning_dead:
 		drowning_dead = true
 		take_damage(9999)
