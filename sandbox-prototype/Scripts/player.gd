@@ -67,7 +67,7 @@ func _enter_tree():
 func _ready():
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 	if lighting:
-		lighting.add_light_source(self, 6.0, 1.0)
+		lighting.add_light_source(self, 0.0, 0.0)
 	z_index = 2
 	add_to_group("players")
 	hair_sprite.visible = true

@@ -155,16 +155,31 @@ func show_day_event_notification(event_name: String):
 	vbox.z_index = 20
 
 	var title = Label.new()
-	title.text = event_name
+	var title_color: Color
+	var detail_text: String
+	match event_name:
+		"Divine Blessing":
+			title.text = "You have received a Divine Blessing!"
+			title_color = Color(1.0, 0.85, 0.18)
+			detail_text = "Fishing Mutation Chances are Increased."
+		"Rainbow":
+			title.text = "A Rainbow has appeared!"
+			title_color = Color(0.914, 0.455, 0.639, 1.0)
+			detail_text = "Luck has increased."
+		_:
+			title.text = event_name
+			title_color = Color(1.0, 1.0, 1.0)
+			detail_text = "A day event has begun."
+
 	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.18) if event_name == "Divine Blessing" else Color(0.35, 0.9, 1.0))
+	title.add_theme_color_override("font_color", title_color)
 	title.add_theme_color_override("font_outline_color", Color.BLACK)
 	title.add_theme_constant_override("outline_size", 5)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
 	var detail = Label.new()
-	detail.text = "A day event has begun."
+	detail.text = detail_text
 	detail.add_theme_font_size_override("font_size", 20)
 	detail.add_theme_color_override("font_color", Color.WHITE)
 	detail.add_theme_color_override("font_outline_color", Color.BLACK)

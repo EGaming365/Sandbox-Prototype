@@ -2,12 +2,12 @@ extends Node2D
 
 @export var tile_size: int = 64
 @export var light_detail_tile_size: int = 32
-@export var cave_base_darkness: float = 0.82
-@export var night_base_darkness: float = 0.82
+@export var cave_base_darkness: float = 0.95
+@export var night_base_darkness: float = 0.95
 @export var day_base_darkness: float = 0.0
 @export var min_darkness_alpha: float = 1.0
-@export var update_interval: float = 0.25
-@export var torch_bright_radius: int = 6
+@export var update_interval: float = 0.05
+@export var torch_bright_radius: int = 14.0
 @export var torch_bright_level: float = 1.0
 
 var _light_map: Dictionary = {}
@@ -22,6 +22,9 @@ var _overlay: Node2D
 var _last_camera_tile: Vector2i = Vector2i(999999, 999999)
 var _last_screen_size: Vector2 = Vector2.ZERO
 var _committed_source_tiles: Dictionary = {}
+var _cave_gen: Node = null
+var _weather: Node = null
+var _vp: Viewport = null
 
 func _ready():
 	set_process(true)
@@ -39,6 +42,9 @@ func _setup_overlay():
 	_overlay.set_script(overlay_script)
 	canvas.add_child(_overlay)
 	_overlay.set("lighting_manager", self)
+	_cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	_weather = get_tree().root.get_node_or_null("Scene/Weather")
+	_vp = get_viewport()
 
 func _overlay_source() -> String:
 	return """extends Node2D
@@ -46,30 +52,123 @@ var lighting_manager: Node
 func _draw():
 \tif not lighting_manager:
 \t\treturn
-\tvar vp := get_viewport()
-\tif not vp:
-\t\treturn
-\tvar screen_size := vp.get_visible_rect().size
-\tvar base_alpha: float = lighting_manager._current_darkness * lighting_manager.min_darkness_alpha
-\tif base_alpha > 0.01:
-\t\tdraw_rect(Rect2(Vector2.ZERO, screen_size), Color(0, 0, 0, base_alpha), true)
 \tfor entry in lighting_manager._draw_rects:
-\t\tdraw_rect(entry["rect"], Color(0, 0, 0, entry["alpha"]), true)
+\t\tdraw_rect(entry[0], Color(0, 0, 0, entry[1]), true)
 """
 
+func _recalculate_and_build():
+	_light_map.clear()
+	_draw_rects.clear()
+
+	var bounds := _get_visible_tile_bounds()
+	if bounds.is_empty():
+		return
+
+	var view_min: Vector2i = bounds[0]
+	var view_max: Vector2i = bounds[1]
+	var ts_f: float = float(light_detail_tile_size)
+	var darkness: float = _current_darkness
+	var min_alpha: float = min_darkness_alpha
+
+	for source_id in _sources:
+		var src = _sources[source_id]
+		var world_pos: Vector2 = src["position"]
+		if src.get("node") != null and is_instance_valid(src["node"]):
+			world_pos = src["node"].global_position + Vector2(0, -16)
+
+		_committed_source_tiles[source_id] = Vector2i(
+			floori(world_pos.x / light_detail_tile_size),
+			floori(world_pos.y / light_detail_tile_size))
+
+		var radius: int = src["radius"]
+		var strength: float = src["strength"]
+		var bright_close: bool = src.get("bright_close", false)
+		var bright_r: float = float(src.get("bright_radius", torch_bright_radius))
+		var bright_lvl: float = src.get("bright_level", torch_bright_level)
+		var radius_f: float = float(radius)
+
+		var exact_x: float = world_pos.x / ts_f
+		var exact_y: float = world_pos.y / ts_f
+		var src_center := Vector2i(floori(exact_x), floori(exact_y))
+
+		var iter_min := Vector2i(
+			max(src_center.x - radius, view_min.x),
+			max(src_center.y - radius, view_min.y))
+		var iter_max := Vector2i(
+			min(src_center.x + radius, view_max.x),
+			min(src_center.y + radius, view_max.y))
+
+		if iter_min.x > iter_max.x or iter_min.y > iter_max.y:
+			continue
+
+		for tx in range(iter_min.x, iter_max.x + 1):
+			var dx: float = exact_x - tx
+			var dx2: float = dx * dx
+			for ty in range(iter_min.y, iter_max.y + 1):
+				var dy: float = exact_y - ty
+				var dist_sq: float = dx2 + dy * dy
+				if dist_sq > radius_f * radius_f:
+					continue
+				var dist: float = sqrt(dist_sq)
+				var level: float
+				if bright_close and dist <= bright_r:
+					level = bright_lvl
+				else:
+					level = strength * (1.0 - dist / radius_f)
+				if level < 0.0:
+					level = 0.0
+				elif level > 1.0:
+					level = 1.0
+				var tc := Vector2i(tx, ty)
+				if level > _light_map.get(tc, 0.0):
+					_light_map[tc] = level
+
+	for source_id in _committed_source_tiles.keys().duplicate():
+		if not _sources.has(source_id):
+			_committed_source_tiles.erase(source_id)
+
+	var top_left_world: Vector2 = bounds[2]
+	var tile_vec := Vector2(ts_f, ts_f)
+	var full_dark_alpha: float = darkness * min_alpha
+
+	var lit_tiles: Dictionary = {}
+	for tc in _light_map:
+		if tc.x < view_min.x or tc.x > view_max.x or tc.y < view_min.y or tc.y > view_max.y:
+			continue
+		lit_tiles[tc] = true
+		var light_level: float = _light_map[tc]
+		var alpha: float
+		if light_level >= darkness:
+			alpha = 0.0
+		else:
+			alpha = (1.0 - light_level / darkness) * darkness * min_alpha
+		if alpha > 1.0:
+			alpha = 1.0
+		_draw_rects.append([
+			Rect2(Vector2(tc.x * ts_f - top_left_world.x, tc.y * ts_f - top_left_world.y), tile_vec),
+			alpha
+		])
+
+	if full_dark_alpha > 0.01:
+		for tx in range(view_min.x, view_max.x + 1):
+			for ty in range(view_min.y, view_max.y + 1):
+				var tc := Vector2i(tx, ty)
+				if lit_tiles.has(tc):
+					continue
+				_draw_rects.append([
+					Rect2(Vector2(tc.x * ts_f - top_left_world.x, tc.y * ts_f - top_left_world.y), tile_vec),
+					full_dark_alpha
+				])
+
 func _update_darkness_base():
-	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
-	if cave_gen and cave_gen.get("in_cave"):
+	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave"):
 		_current_darkness = cave_base_darkness
 		return
-	var weather = get_tree().root.get_node_or_null("Scene/Weather")
-	if weather:
-		var t: float = weather.time_of_day
-		var is_night: bool = t >= 0.92 or t < 0.20
-		var is_dusk_dawn: bool = (t >= 0.82 and t < 0.92) or (t >= 0.20 and t < 0.35)
-		if is_night:
+	if _weather and is_instance_valid(_weather):
+		var t: float = _weather.time_of_day
+		if t >= 0.92 or t < 0.20:
 			_current_darkness = night_base_darkness
-		elif is_dusk_dawn:
+		elif (t >= 0.82 and t < 0.92) or (t >= 0.20 and t < 0.35):
 			var blend: float
 			if t >= 0.82 and t < 0.92:
 				blend = inverse_lerp(0.82, 0.92, t)
@@ -78,7 +177,7 @@ func _update_darkness_base():
 			_current_darkness = lerp(day_base_darkness, night_base_darkness, blend)
 		else:
 			_current_darkness = day_base_darkness
-		if weather.aurora_active:
+		if _weather.aurora_active:
 			_current_darkness = lerp(_current_darkness, 0.0, 0.6)
 	else:
 		_current_darkness = day_base_darkness
@@ -113,8 +212,7 @@ func _process(delta):
 	_dirty = false
 	_last_darkness = _current_darkness
 
-	_recalculate()
-	_rebuild_draw_rects()
+	_recalculate_and_build()
 	if _overlay:
 		_overlay.queue_redraw()
 
@@ -135,13 +233,14 @@ func _sources_moved_tiles_cheap() -> bool:
 	return false
 
 func _camera_view_changed() -> bool:
-	var vp := get_viewport()
-	if not vp:
-		return false
-	var camera := vp.get_camera_2d()
+	if not _vp or not is_instance_valid(_vp):
+		_vp = get_viewport()
+		if not _vp:
+			return false
+	var camera := _vp.get_camera_2d()
 	if not camera:
 		return false
-	var screen_size := vp.get_visible_rect().size
+	var screen_size := _vp.get_visible_rect().size
 	var cam_tile := Vector2i(
 		floori(camera.global_position.x / light_detail_tile_size),
 		floori(camera.global_position.y / light_detail_tile_size))
@@ -152,11 +251,12 @@ func _camera_view_changed() -> bool:
 	return false
 
 func _get_visible_tile_bounds() -> Array:
-	var vp := get_viewport()
-	var camera := vp.get_camera_2d() if vp else null
-	if not camera or not vp:
+	if not _vp:
 		return []
-	var screen_size := vp.get_visible_rect().size
+	var camera := _vp.get_camera_2d()
+	if not camera:
+		return []
+	var screen_size := _vp.get_visible_rect().size
 	var top_left_world := camera.global_position - screen_size / 2.0
 	var pad := 4
 	var min_tc := Vector2i(
@@ -166,94 +266,6 @@ func _get_visible_tile_bounds() -> Array:
 		min_tc.x + int(ceil(screen_size.x / light_detail_tile_size)) + pad * 2,
 		min_tc.y + int(ceil(screen_size.y / light_detail_tile_size)) + pad * 2)
 	return [min_tc, max_tc, top_left_world]
-
-func _recalculate():
-	_light_map.clear()
-
-	var bounds := _get_visible_tile_bounds()
-	if bounds.is_empty():
-		return
-
-	var view_min: Vector2i = bounds[0]
-	var view_max: Vector2i = bounds[1]
-
-	for source_id in _sources:
-		var src = _sources[source_id]
-		var world_pos: Vector2 = src["position"]
-		if src.get("node") != null and is_instance_valid(src["node"]):
-			world_pos = src["node"].global_position + Vector2(0, -16)
-
-		_committed_source_tiles[source_id] = Vector2i(
-			floori(world_pos.x / light_detail_tile_size),
-			floori(world_pos.y / light_detail_tile_size))
-
-		var radius: int = src["radius"]
-		var strength: float = src["strength"]
-		var bright_close: bool = src.get("bright_close", false)
-		var bright_r: int = src.get("bright_radius", torch_bright_radius)
-		var bright_lvl: float = src.get("bright_level", torch_bright_level)
-
-		var exact_tile := world_pos / float(light_detail_tile_size)
-		var src_center := Vector2i(floori(exact_tile.x), floori(exact_tile.y))
-
-		var iter_min := Vector2i(
-			max(src_center.x - radius, view_min.x),
-			max(src_center.y - radius, view_min.y))
-		var iter_max := Vector2i(
-			min(src_center.x + radius, view_max.x),
-			min(src_center.y + radius, view_max.y))
-
-		if iter_min.x > iter_max.x or iter_min.y > iter_max.y:
-			continue
-
-		for tx in range(iter_min.x, iter_max.x + 1):
-			for ty in range(iter_min.y, iter_max.y + 1):
-				var tc := Vector2i(tx, ty)
-				if _light_map.get(tc, 0.0) >= 1.0:
-					continue
-				var dist: float = Vector2(exact_tile.x - tx, exact_tile.y - ty).length()
-				if dist > radius:
-					continue
-				var level: float
-				if bright_close and dist <= bright_r:
-					level = bright_lvl
-				else:
-					level = strength * (1.0 - dist / float(radius))
-				level = clamp(level, 0.0, 1.0)
-				if level > _light_map.get(tc, 0.0):
-					_light_map[tc] = level
-
-	for source_id in _committed_source_tiles.keys().duplicate():
-		if not _sources.has(source_id):
-			_committed_source_tiles.erase(source_id)
-
-func _rebuild_draw_rects():
-	_draw_rects.clear()
-	if _current_darkness <= 0.0:
-		return
-
-	var bounds := _get_visible_tile_bounds()
-	if bounds.is_empty():
-		return
-
-	var view_min: Vector2i = bounds[0]
-	var view_max: Vector2i = bounds[1]
-	var top_left_world: Vector2 = bounds[2]
-	var ts: float = float(light_detail_tile_size)
-
-	for tx in range(view_min.x, view_max.x + 1):
-		for ty in range(view_min.y, view_max.y + 1):
-			var tc := Vector2i(tx, ty)
-			var light_level: float = _light_map.get(tc, 0.0)
-			var alpha: float = clamp(_current_darkness - light_level, 0.0, 1.0) * min_darkness_alpha
-			if alpha <= 0.01:
-				continue
-			_draw_rects.append({
-				"rect": Rect2(
-					Vector2(tc.x * ts - top_left_world.x, tc.y * ts - top_left_world.y),
-					Vector2(ts, ts)),
-				"alpha": alpha
-			})
 
 func add_light_source(node: Node2D, radius: int, strength: float, bright_close: bool = false) -> int:
 	var id := _next_source_id

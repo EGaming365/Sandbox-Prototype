@@ -232,6 +232,9 @@ func _pick_random_fish() -> Dictionary:
 		   weather.current_weather == weather.WeatherType.THUNDER or \
 		   weather.current_weather == weather.WeatherType.THUNDERSTORM:
 			luck_multiplier *= 1.5
+		# Rainbow gives 5x luck bonus
+		if weather.day_event == "Rainbow":
+			luck_multiplier *= 5.0
 
 	var boost_rarities: Array = []
 	var nerf_rarities: Array = []
@@ -608,7 +611,12 @@ func _generate_weight(base_kg: float) -> float:
 
 func _generate_mutations() -> Array:
 	var mutations: Array = []
-	if randf() < 0.03:
+	# Base albino chance is 3%; Divine Blessing multiplies it by 4x (12%)
+	var albino_chance: float = 0.03
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	if weather and weather.day_event == "Divine Blessing":
+		albino_chance *= 4.0
+	if randf() < albino_chance:
 		mutations.append("Albino")
 	return mutations
 

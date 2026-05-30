@@ -202,8 +202,9 @@ func _process(delta):
 	if is_instance_valid(thirst_bar):
 		thirst_bar.value = thirst
 
-	var luck_multi: float = 1.0
 	var w = get_tree().root.get_node_or_null("Scene/Weather")
+
+	var luck_multi: float = 1.0
 	if w:
 		if w.aurora_active:
 			luck_multi *= 9.0
@@ -211,14 +212,27 @@ func _process(delta):
 		   w.current_weather == w.WeatherType.THUNDER or \
 		   w.current_weather == w.WeatherType.THUNDERSTORM:
 			luck_multi *= 1.5
+		if w.day_event == "Rainbow":
+			luck_multi *= 5.0
+
+	var effect_lines: Array = []
 	if luck_multi > 1.0:
 		var luck_str: String
 		if luck_multi == float(int(luck_multi)):
 			luck_str = str(int(luck_multi))
 		else:
 			luck_str = str(snappedf(luck_multi, 0.1))
-		$EffectLabel.text = "Luck: " + luck_str + "x"
+		effect_lines.append("Luck: " + luck_str + "x")
+	if w and w.day_event == "Divine Blessing":
+		effect_lines.append("Mutations: 4x")
+
+	if effect_lines.size() > 0:
+		$EffectLabel.text = "\n".join(effect_lines)
 		$EffectLabel.visible = true
+		if w and w.day_event == "Divine Blessing":
+			$EffectLabel.add_theme_color_override("font_color", Color(1.0, 0.82, 0.1, 1.0))
+		else:
+			$EffectLabel.add_theme_color_override("font_color", Color.GREEN)
 	else:
 		$EffectLabel.visible = false
 
