@@ -123,7 +123,9 @@ func _process(delta):
 		return
 
 	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
-	if cave_world_gen and cave_world_gen.get("in_cave"):
+	var in_cave: bool = cave_world_gen != null and cave_world_gen.get("in_cave") == true
+
+	if in_cave:
 		return
 
 	_update_cave_regions()
@@ -507,6 +509,9 @@ func _update_cave_regions():
 
 	var player_tile: Vector2i = world_gen.world_to_tile(local_player.global_position)
 	var player_region: Vector2i = _tile_to_cave_region(player_tile)
+
+	if not _loaded_cave_regions.has(player_region):
+		_load_cave_region(player_region)
 
 	var chunk_size: int = world_gen.chunk_size_tiles
 	var rpc: int = maxi(1, cave_region_size_tiles / chunk_size)

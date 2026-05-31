@@ -36,12 +36,13 @@ enum WeatherType {
 @export var wind_particle_count: int = 950
 @export var wind_min_speed: float = 650.0
 @export var wind_max_speed: float = 1200.0
-@export var wind_gust_min_seconds: float = 6.0
-@export var wind_gust_max_seconds: float = 12.0
+@export var wind_particle_lifetime: float = 3.0
+@export var wind_sway_degrees: float = 10.0
+@export var wind_direction_drift_speed: float = 0.25
 
 @export var day_length_seconds: float = 1350.0
 @export var weather_min_seconds: float = 450.0
-@export var weather_max_seconds: float = 1350.0
+@export var weather_max_seconds: float = 900.0
 @export var initial_weather: WeatherType = WeatherType.CLEAR
 @export var clear_days_before_event: int = 5
 
@@ -74,6 +75,9 @@ var wind_particles: GPUParticles2D
 var wind_layer: CanvasLayer
 var wind_gust_timer: float = 0.0
 var wind_direction: Vector2 = Vector2.RIGHT
+var _wind_base_angle: float = 0.0
+var _wind_sway_angle: float = 0.0
+var _wind_sway_dir: float = 1.0
 
 var current_season: int = 0
 var total_days_elapsed: int = 0
@@ -150,7 +154,7 @@ func _create_wind_particles():
 	wind_particles = GPUParticles2D.new()
 	wind_particles.name = "WindParticles"
 	wind_particles.amount = wind_particle_count
-	wind_particles.lifetime = 2.0
+	wind_particles.lifetime = wind_particle_lifetime
 	wind_particles.explosiveness = 0.0
 	wind_particles.randomness = 0.45
 	wind_particles.fixed_fps = 0
@@ -185,9 +189,22 @@ func _process(delta):
 	else:
 		_apply_day_night_color()
 	_update_lightning(delta)
-	_update_aurora_overlay(delta)
-	_update_fog_overlay(delta)
-	_update_wind_particles(delta)
+	var in_cave := _is_in_cave()
+	if not in_cave:
+		_update_aurora_overlay(delta)
+		_update_fog_overlay(delta)
+		_update_wind_particles(delta)
+	else:
+		if aurora_overlay:
+			aurora_overlay.color = Color(0, 0, 0, 0)
+		if fog_overlay:
+			fog_overlay.color.a = 0.0
+			if fog_material:
+				fog_material.set_shader_parameter("fog_alpha", 0.0)
+		if wind_particles:
+			wind_particles.emitting = false
+		if lightning_flash:
+			lightning_flash.color = Color(1, 1, 1, 0)
 	_update_day_event(delta)
 
 func _update_aurora_overlay(delta):
@@ -249,24 +266,26 @@ func _update_wind_particles(delta):
 	wind_particles.emitting = windy
 	if not windy:
 		return
+	if wind_gust_timer <= 0.0:
+		wind_gust_timer = 1.0
+		wind_direction = Vector2.RIGHT if rng.randi() % 2 == 0 else Vector2.LEFT
+		_wind_base_angle = wind_direction.angle()
+		_wind_sway_angle = 0.0
+		_wind_sway_dir = 1.0
+	_wind_sway_angle += deg_to_rad(wind_direction_drift_speed) * _wind_sway_dir * delta
+	if abs(_wind_sway_angle) >= deg_to_rad(wind_sway_degrees):
+		_wind_sway_dir *= -1.0
+		_wind_sway_angle = clamp(_wind_sway_angle, -deg_to_rad(wind_sway_degrees), deg_to_rad(wind_sway_degrees))
+	wind_direction = Vector2.from_angle(_wind_base_angle + _wind_sway_angle)
 	var vp_size := get_viewport().get_visible_rect().size
 	var max_dim: float = max(vp_size.x, vp_size.y) * 1.5
 	wind_particles.position = vp_size * 0.5 - wind_direction * (max_dim * 0.65)
 	wind_particles.rotation = wind_direction.angle()
 	wind_particles.amount = wind_particle_count
-	wind_gust_timer -= delta
-	if wind_gust_timer <= 0.0:
-		wind_gust_timer = rng.randf_range(wind_gust_min_seconds, wind_gust_max_seconds)
-		var angle := rng.randf_range(0.0, TAU)
-		wind_direction = Vector2(cos(angle), sin(angle)).normalized()
-		var mat := wind_particles.process_material as ParticleProcessMaterial
-		if mat:
-			mat.direction = Vector3(1, 0, 0)
-			var speed_boost := rng.randf_range(0.85, 1.35)
-			mat.initial_velocity_min = wind_min_speed * speed_boost
-			mat.initial_velocity_max = wind_max_speed * speed_boost
-			mat.emission_box_extents = Vector3(64, max_dim * 0.7, 1)
-		wind_particles.modulate = Color(0.85, 0.9, 0.92, rng.randf_range(0.45, 0.8))
+	var mat := wind_particles.process_material as ParticleProcessMaterial
+	if mat:
+		mat.direction = Vector3(1, 0, 0)
+		mat.emission_box_extents = Vector3(64, max_dim * 0.7, 1)
 
 func _update_day_event(delta):
 	if day_event_timer <= 0.0:
@@ -334,7 +353,7 @@ func _update_day_night(delta):
 	time_of_day += delta / day_length_seconds
 	if time_of_day >= 1.0:
 		time_of_day -= 1.0
-	var is_night: bool = time_of_day >= 0.92 or time_of_day < 0.20
+	var is_night: bool = time_of_day >= 0.97 or time_of_day < 0.05
 	if is_night and not _was_night:
 		_was_night = true
 		if not aurora_active and rng.randf() < 0.15:
@@ -344,6 +363,9 @@ func _update_day_night(delta):
 		if aurora_active:
 			_end_aurora()
 	_apply_day_night_color()
+
+func is_night() -> bool:
+	return time_of_day < 0.05 or time_of_day >= 0.97
 
 func _start_aurora():
 	aurora_active = true
@@ -375,14 +397,10 @@ func _sync_aurora(state: bool):
 func _apply_day_night_color():
 	if not canvas_modulate:
 		return
-	# CanvasModulate handles ONLY colour warmth/hue tint — never brightness/darkening.
-	# Darkness is handled entirely by the lighting manager's black overlay rects,
-	# so torches can fully cancel it. Keeping RGB channels at 1.0 in the white ranges
-	# means lit areas stay true-colour regardless of time of day.
-	var morning_tint := Color(1.0, 0.88, 0.72)   # warm amber sunrise
-	var day_tint     := Color(1.0, 0.98, 0.92)   # very slight warmth
-	var evening_tint := Color(1.0, 0.78, 0.52)   # golden hour
-	var night_tint   := Color(0.62, 0.68, 0.82)  # cool blue moonlight tint
+	var morning_tint := Color(1.0, 0.88, 0.72)
+	var day_tint     := Color(1.0, 0.98, 0.92)
+	var evening_tint := Color(1.0, 0.78, 0.52)
+	var night_tint   := Color(0.62, 0.68, 0.82)
 	var tint: Color
 	if time_of_day < 0.20:
 		tint = night_tint
@@ -398,7 +416,6 @@ func _apply_day_night_color():
 		tint = evening_tint.lerp(night_tint, inverse_lerp(0.82, 0.92, time_of_day))
 	else:
 		tint = night_tint
-	# Weather shifts hue only — no darkening here, lighting manager draws darkness
 	match current_weather:
 		WeatherType.RAIN:
 			tint = tint.lerp(Color(0.78, 0.82, 0.88), 0.18)
@@ -418,9 +435,6 @@ func _update_weather_timer(delta):
 	weather_timer -= delta
 	if weather_timer <= 0.0:
 		_pick_next_weather()
-
-func is_night() -> bool:
-	return time_of_day < 0.20 or time_of_day >= 0.82
 
 func _pick_next_weather():
 	if aurora_active:
@@ -458,6 +472,11 @@ func _pick_next_weather():
 
 func _update_lightning(delta):
 	var is_electric: bool = current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	if _is_in_cave():
+		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
+		if lightning_flash and lightning_flash_enabled:
+			lightning_flash.color = Color(1, 1, 1, lightning_alpha)
+		return
 	if not is_electric:
 		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
 		if lightning_flash and lightning_flash_enabled:
@@ -613,7 +632,6 @@ func _is_position_on_screen(world_pos: Vector2) -> bool:
 
 func _set_weather(new_weather: WeatherType):
 	var was_raining: bool = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
-	print("_set_weather called: ", new_weather, " was_raining=", was_raining, " initialized=", _weather_initialized, " aurora=", aurora_active)
 	current_weather = new_weather
 	var raining: bool = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
 	if rain_particles:
@@ -634,6 +652,9 @@ func _set_weather(new_weather: WeatherType):
 			lightning_timer = rng.randf_range(lightning_min_seconds, lightning_max_seconds)
 		WeatherType.THUNDERSTORM:
 			lightning_timer = rng.randf_range(1, 1)
+		WeatherType.WIND:
+			wind_gust_timer = 0.0
+			lightning_timer = 0.0
 		_:
 			lightning_timer = 0.0
 
@@ -691,3 +712,7 @@ func _show_rain_notification(msg: String):
 	tween.tween_interval(4.0)
 	tween.tween_property(label, "modulate:a", 0.0, 1.0)
 	tween.tween_callback(label.queue_free)
+
+func _is_in_cave() -> bool:
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	return cave_gen != null and cave_gen.get("in_cave") == true

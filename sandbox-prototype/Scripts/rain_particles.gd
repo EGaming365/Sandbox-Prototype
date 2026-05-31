@@ -8,7 +8,6 @@ func _ready():
 	fixed_fps = 0
 	local_coords = true
 	position = Vector2(960, -50)
-
 	var mat = ParticleProcessMaterial.new()
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	mat.emission_box_extents = Vector3(960, 1, 1)
@@ -20,13 +19,23 @@ func _ready():
 	mat.scale_min = 1.5
 	mat.scale_max = 2.5
 	process_material = mat
-
 	var img = Image.create(2, 16, false, Image.FORMAT_RGBA8)
 	img.fill(Color.WHITE)
 	texture = ImageTexture.create_from_image(img)
-
 	modulate = Color(0.8, 0.9, 1.0, 0.5)
 	emitting = false
+
+func _process(_delta):
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	var in_cave: bool = cave_gen != null and cave_gen.get("in_cave") == true
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	if in_cave:
+		emitting = false
+	elif weather:
+		var should_rain: bool = weather.current_weather == weather.WeatherType.RAIN or \
+			weather.current_weather == weather.WeatherType.THUNDER or \
+			weather.current_weather == weather.WeatherType.THUNDERSTORM
+		emitting = should_rain
 
 func set_storm_intensity(heavy: bool):
 	var mat = process_material as ParticleProcessMaterial

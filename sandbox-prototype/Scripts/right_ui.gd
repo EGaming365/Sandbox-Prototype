@@ -204,16 +204,20 @@ func _process(delta):
 
 	var w = get_tree().root.get_node_or_null("Scene/Weather")
 
+	var cave_gen_node = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	var player_in_cave: bool = cave_gen_node != null and cave_gen_node.get("in_cave") == true
+
 	var luck_multi: float = 1.0
 	if w:
 		if w.aurora_active:
 			luck_multi *= 9.0
-		if w.current_weather == w.WeatherType.RAIN or \
-		   w.current_weather == w.WeatherType.THUNDER or \
-		   w.current_weather == w.WeatherType.THUNDERSTORM:
-			luck_multi *= 1.5
-		if w.day_event == "Rainbow":
-			luck_multi *= 5.0
+		if not player_in_cave:
+			if w.current_weather == w.WeatherType.RAIN or \
+			   w.current_weather == w.WeatherType.THUNDER or \
+			   w.current_weather == w.WeatherType.THUNDERSTORM:
+				luck_multi *= 1.5
+			if w.day_event == "Rainbow":
+				luck_multi *= 5.0
 
 	var effect_lines: Array = []
 	if luck_multi > 1.0:

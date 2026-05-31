@@ -26,7 +26,8 @@ const TOOL_MAX_DURABILITY = {
 	"Stone Sword": 40.0,
 	"Stone Pickaxe": 100.0,
 	"Fishing Rod": 50.0,
-	"Stone Fishing Rod": 100.0
+	"Stone Fishing Rod": 100.0,
+	"Copper Fishing Rod": 120.0,
 }
 
 func _ready():
@@ -517,7 +518,7 @@ func _input(event):
 				else:
 					Inventory.slots[slot_index]["count"] -= 1
 					Inventory.inventory_changed.emit()
-			elif data["item"] == "Fishing Rod" or data["item"] == "Stone Fishing Rod":
+			elif data["item"] == "Fishing Rod" or data["item"] == "Stone Fishing Rod" or data["item"] == "Copper Fishing Rod":
 				_try_fish_cast(event.position)
 
 func _try_fish_cast(screen_pos: Vector2) -> void:

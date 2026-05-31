@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://b74vad7dd8k68"]
+
+[ext_resource type="Script" uid="uid://cioirw8nyp2fr" path="res://copper_fishing_rod.gd" id="1_sav1d"]
+[ext_resource type="Texture2D" uid="uid://ct2qhj8681jgj" path="res://Assets/Copper_Fishing_Rod.png" id="2_sav1d"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_88tmn"]
+
+[node name="Copper_Fishing_Rod" type="Node2D" unique_id=1041182104]
+scale = Vector2(2.395, 2.395)
+script = ExtResource("1_sav1d")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=643354702]
+texture = ExtResource("2_sav1d")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=352666169]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=2144586876]
+scale = Vector2(1.1644938, 1.1644938)
+shape = SubResource("CircleShape2D_88tmn")

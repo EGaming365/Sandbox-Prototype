@@ -17,7 +17,8 @@ const TOOL_MAX_DURABILITY = {
 	"Stone Sword": 40.0,
 	"Stone Pickaxe": 100.0,
 	"Fishing Rod": 50.0,
-	"Stone Fishing Rod": 100.0
+	"Stone Fishing Rod": 100.0,
+	"Copper Fishing Rod": 120.0,
 }
 
 var slot_scene_default: StyleBox = preload("res://Resources/hotbar_default.tres")

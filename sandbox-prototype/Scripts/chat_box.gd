@@ -85,6 +85,7 @@ const ITEM_ALIASES: Dictionary = {
 	"albino lionfish": "Albino Lionfish",
 	"albino lion fish": "Albino Lionfish",
 	"albino tire": "Albino Tire",
+	"copper fishing rod": "Copper Fishing Rod",
 }
 
 @onready var scroll_container: ScrollContainer = $ChatContainer/ScrollContainer
@@ -337,7 +338,7 @@ func _handle_command(text: String):
 				return
 			match parts[1].to_lower():
 				"aurora":
-					weather_node.time_of_day = 0.95
+					weather_node.time_of_day = 0.97
 					weather_node._was_night = true
 					weather_node._start_aurora()
 					if multiplayer.has_multiplayer_peer():
@@ -352,12 +353,18 @@ func _handle_command(text: String):
 					_add_message("[System] Event cleared.")
 				_:
 					if event_name == "rainbow":
+						weather_node.time_of_day = 0.5
 						if weather_node.has_method("start_day_event"):
 							weather_node.start_day_event("Rainbow")
+						if multiplayer.has_multiplayer_peer():
+							weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
 						_add_message("[System] Rainbow event summoned.")
 					elif event_name == "divine blessing" or event_name == "blessing":
+						weather_node.time_of_day = 0.5
 						if weather_node.has_method("start_day_event"):
 							weather_node.start_day_event("Divine Blessing")
+						if multiplayer.has_multiplayer_peer():
+							weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
 						_add_message("[System] Divine Blessing event summoned.")
 					else:
 						_add_message("[System] Unknown event. Use: none, aurora, rainbow, divine blessing")
@@ -531,6 +538,7 @@ func _get_item_texture(item_name: String) -> Texture2D:
 		"torch": return Inventory.torch_texture
 		"chicken_raw": return Inventory.chicken_raw_texture
 		"tophat fish": return tophat_fish_texture
+		"copper fishing rod": return Inventory.copper_fishing_rod_texture
 	return null
 
 const FISH_ITEM_NAMES: Array = [
@@ -663,6 +671,8 @@ func _get_non_stackable_start_count(item_name: String) -> int:
 			return 50
 		"Stone Fishing Rod":
 			return 100
+		"Copper Fishing Rod":
+			return 120
 		_:
 			return 1
 

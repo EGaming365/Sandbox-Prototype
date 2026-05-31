@@ -69,7 +69,7 @@ const FISH_TABLE: Array[Dictionary] = [
 	{"name": "Giant Grouper","rarity": "Epic",     "habitat": "ocean", "zone_height": 6.0,   "speed": 2.15, "progress_rate": 0.56, "escape_rate": 2.05, "base_weight_kg": 90.0, "tension": 2},
 	{"name": "Abyss Angler","rarity": "Epic",      "habitat": "cave",  "zone_height": 6.0,   "speed": 2.2,  "progress_rate": 0.55, "escape_rate": 2.1,  "base_weight_kg": 4.0,  "tension": 2},
 	{"name": "Sunscale",    "rarity": "Epic",      "habitat": "lake",  "zone_height": 6.0,   "speed": 2.25, "progress_rate": 0.54, "escape_rate": 2.1,  "base_weight_kg": 1.5,  "tension": 2},
-	{"name": "Royal Tophat Fish","rarity": "Legendary","habitat": "lake","zone_height": 5.0,"speed": 2.5,  "progress_rate": 0.45, "escape_rate": 2.35, "base_weight_kg": 0.9,  "tension": 2},
+	{"name": "Royal Tophat Fish","rarity": "Mythic","habitat": "lake","zone_height": 5.0,"speed": 2.7,  "progress_rate": 0.3, "escape_rate": 2.5, "base_weight_kg": 0.9,  "tension": 2},
 	{"name": "Ancient Coelacanth","rarity": "Legendary","habitat": "cave","zone_height": 5.0,"speed": 2.55, "progress_rate": 0.44, "escape_rate": 2.4,  "base_weight_kg": 35.0, "tension": 2},
 	{"name": "Crowned Marlin","rarity": "Legendary","habitat": "ocean","zone_height": 5.0, "speed": 2.6,  "progress_rate": 0.43, "escape_rate": 2.45, "base_weight_kg": 120.0,"tension": 2},
 	{"name": "Tire",        "rarity": "Trash",     "habitat": "all",   "zone_height": 10.0,  "speed": 1.9,  "progress_rate": 0.75, "escape_rate": 1.7,  "base_weight_kg": 10.0, "tension": 1},
@@ -102,6 +102,19 @@ const ROD_STATS: Dictionary = {
 		"bar_speed":     1.1,
 		"tension":       2,
 		"bite_time":     3.0,
+	},
+	"Copper Fishing Rod": {
+		"cast_range":    180.0,
+		"zone_height":   1.2,
+		"speed":         0.8,
+		"progress_rate": 1.05,
+		"escape_rate":   0.8,
+		"player_bar":    100.0,
+		"luck":          0.9,
+		"max_weight_kg": 300.0,
+		"bar_speed":     1.2,
+		"tension":       2,
+		"bite_time":     2.5,
 	},
 }
 
@@ -224,17 +237,19 @@ func _pick_random_fish() -> Dictionary:
 	var weights := RARITY_WEIGHTS.duplicate()
 
 	var luck_multiplier: float = luck
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	var in_cave: bool = cave_gen != null and cave_gen.get("in_cave") == true
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if weather:
 		if weather.aurora_active:
 			luck_multiplier *= 9.0
-		if weather.current_weather == weather.WeatherType.RAIN or \
-		   weather.current_weather == weather.WeatherType.THUNDER or \
-		   weather.current_weather == weather.WeatherType.THUNDERSTORM:
-			luck_multiplier *= 1.5
-		# Rainbow gives 5x luck bonus
-		if weather.day_event == "Rainbow":
-			luck_multiplier *= 5.0
+		if not in_cave:
+			if weather.current_weather == weather.WeatherType.RAIN or \
+			   weather.current_weather == weather.WeatherType.THUNDER or \
+			   weather.current_weather == weather.WeatherType.THUNDERSTORM:
+				luck_multiplier *= 1.5
+			if weather.day_event == "Rainbow":
+				luck_multiplier *= 5.0
 
 	var boost_rarities: Array = []
 	var nerf_rarities: Array = []
@@ -444,18 +459,23 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 	var display_name: String = fish["name"]
 	if is_albino:
 		display_name = "Albino " + display_name
+
 	var texture_path := _get_fish_texture_path(display_name)
-	if texture_path == "":
-		return
-	var tex: Texture2D = load(texture_path)
-	var existing_tex: Texture2D = Inventory.get_texture(display_name)
-	if existing_tex:
-		tex = existing_tex
 	var was_new := not Inventory.discovered_items.has(display_name)
 	Inventory.discover(display_name)
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 	if extras:
 		extras.discover_fish(display_name, weight_kg)
+
+	if texture_path == "":
+		_show_catch_notification(display_name, weight_kg, mutations, was_new)
+		return
+
+	var tex: Texture2D = load(texture_path)
+	var existing_tex: Texture2D = Inventory.get_texture(display_name)
+	if existing_tex:
+		tex = existing_tex
+
 	for i in Inventory.slots.size():
 		if Inventory.slots[i]["item"] == "":
 			Inventory.slots[i]["item"] = display_name
@@ -560,8 +580,8 @@ func _get_fish_texture_path(fish_name: String) -> String:
 	var base_name := fish_name.replace("Albino ", "")
 	return FISH_TEXTURE_PATHS.get(base_name, "")
 
-func _has_item_for_fish(fish: Dictionary) -> bool:
-	return _get_fish_texture_path(fish.get("name", "")) != ""
+func _has_item_for_fish(_fish: Dictionary) -> bool:
+	return true
 
 func _consume_rod_durability() -> void:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")

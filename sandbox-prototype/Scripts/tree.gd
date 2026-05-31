@@ -11,6 +11,13 @@ var trunk_base_y: float = 0.0
 var _chat: Node = null
 var _inv: Node = null
 var _hotbar: Node = null
+var _sway_time: float = 0.0
+var _sway_material: ShaderMaterial = null
+var _is_swaying: bool = false
+
+@export var sway_strength: float = 4.0
+@export var sway_speed: float = 1.8
+@export var sway_enabled: bool = true
 
 func _ready():
 	add_to_group("trees")
@@ -21,8 +28,10 @@ func _ready():
 	_chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	_inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	_hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	_setup_sway_shader()
 
-func _process(_delta):
+func _process(delta):
+	_update_sway(delta)
 	if not player_in_range:
 		return
 	if is_instance_valid(_chat) and "is_open" in _chat and _chat.is_open:
@@ -113,3 +122,49 @@ func _on_area_2d_body_exited(body):
 	if body is CharacterBody2D:
 		player_in_range = false
 		player_in_range_node = null
+
+func _setup_sway_shader():
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+
+uniform float sway_amount = 0.0;
+uniform float sway_speed = 1.8;
+uniform float time_offset = 0.0;
+uniform float trunk_base_uv = 0.85;
+
+void vertex() {
+	float t = TIME * sway_speed + time_offset;
+	float influence = clamp(1.0 - (UV.y / trunk_base_uv), 0.0, 1.0);
+	influence = pow(influence, 1.6);
+	VERTEX.x += sin(t) * sway_amount * influence;
+	VERTEX.x += sin(t * 2.3 + 0.9) * sway_amount * 0.18 * influence;
+}
+"""
+	_sway_material = ShaderMaterial.new()
+	_sway_material.shader = shader
+	_sway_material.set_shader_parameter("sway_amount", 0.0)
+	_sway_material.set_shader_parameter("sway_speed", sway_speed)
+	_sway_material.set_shader_parameter("time_offset", randf_range(0.0, TAU))
+	_sway_material.set_shader_parameter("trunk_base_uv", 0.85)
+
+	var sprite = null
+	for child in get_children():
+		if child is Sprite2D or child is AnimatedSprite2D:
+			sprite = child
+			break
+
+	if sprite:
+		sprite.material = _sway_material
+
+func _update_sway(delta: float):
+	if not _sway_material or not sway_enabled:
+		return
+	var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
+	var windy := false
+	if weather_node and "current_weather" in weather_node:
+		windy = weather_node.current_weather == 4
+	var target_sway := sway_strength if windy else 0.0
+	var current_sway := _sway_material.get_shader_parameter("sway_amount") as float
+	var new_sway := move_toward(current_sway, target_sway, delta * 3.5)
+	_sway_material.set_shader_parameter("sway_amount", new_sway)

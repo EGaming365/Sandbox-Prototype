@@ -154,6 +154,8 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 				item_scene = preload("res://Scenes/fishing_rod.tscn")
 			"Stone Fishing Rod":
 				item_scene = preload("res://Scenes/stone_fishing_rod.tscn")
+			"Copper Fishing Rod":
+				item_scene = preload("res://Scenes/copper_fishing_rod.tscn")
 			_:
 				item_scene = preload("res://Scenes/wood.tscn")
 	var item = item_scene.instantiate()
@@ -162,7 +164,7 @@ func _do_spawn_floor_item(item_id: int, pos_x: float, pos_y: float, item_type: S
 		item.item_type = item_type
 		item.durability = durability
 		item.set_meta("item_name", item_type)
-	elif item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Fishing Rod", "Stone Fishing Rod"]:
+	elif item_type in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Fishing Rod", "Stone Fishing Rod", "Copper Fishing Rod"]:
 		item.durability = durability
 	item.global_position = Vector2(pos_x, pos_y)
 	floor_items[item_id] = item
@@ -210,6 +212,8 @@ func sync_floor_items_to_peer(peer_id: int):
 			item_type = "Stone Fishing Rod"
 		elif script_path.contains("fishing_rod"):
 			item_type = "Fishing Rod"
+		elif script_path.contains("copper_fishing_rod"):
+			item_type = "Copper Fishing Rod"
 		elif script_path.contains("crafting_bench"):
 			item_type = "Crafting_Bench"
 		elif script_path.contains("stone"):
@@ -262,6 +266,7 @@ const NON_STACKABLE_FLOOR_ITEMS: Array = [
 	"Red Tang", "Albino Red Tang",
 	"Lionfish", "Albino Lionfish",
 	"Tire", "Albino Tire",
+	"Copper Fishing Rod",
 ]
 
 func _is_fish_item_name(item_name: String) -> bool:

@@ -25,6 +25,7 @@ var coal_texture = preload("res://Assets/Stone.png")
 var torch_texture = preload("res://Assets/Torch.png")
 var fishing_rod_texture = preload("res://Assets/Fishing_Rod.png")
 var stone_fishing_rod_texture = preload("res://Assets/Stone_Fishing_Rod.png")
+var copper_fishing_rod_texture = preload("res://Assets/copper_fishing_rod.png")
 var tophat_fish_texture = preload("res://Assets/Fish_Tophat_Raw.png")
 var perch_texture = preload("res://Assets/Fish_Perch_Raw.png")
 var catfish_texture = preload("res://Assets/Fish_Catfish_Raw.png")
@@ -57,6 +58,7 @@ var non_stackable_items = [
 	"Blue Tang", "Albino Blue Tang",
 	"Tire", "Albino Tire",
 	"Red Tang", "Albino Red Tang",
+	"Copper Fishing Rod",
 ]
 var discovered_items: Dictionary = {}
 var offhand_slot: Dictionary = {"item": "", "count": 0, "texture": null}
@@ -110,6 +112,7 @@ func _ready():
 		"Red Tang": red_tang_texture,
 		"Albino Red Tang": red_tang_texture,
 		"Stone Fishing Rod": stone_fishing_rod_texture,
+		"Copper Fishing Rod": copper_fishing_rod_texture,
 	}
 	TEXTURE_MAP = {}
 	for item_name in textures_to_resize:

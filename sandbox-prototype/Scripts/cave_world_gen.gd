@@ -31,7 +31,7 @@ extends Node2D
 
 @export var tunnel_radius: int = 4
 @export var room_radius_min: int = 8
-@export var room_radius_max: int = 20
+@export var room_radius_max: int = 30
 @export var cave_half_extent: int = 180
 @export var room_count_min: int = 8
 @export var room_count_max: int = 16
@@ -126,10 +126,13 @@ func enter_cave(player: CharacterBody2D):
 				fallback._unload_all_chunks()
 	var seed: int = _world_gen.world_seed if _world_gen else 0
 	_activate(seed)
-	player.global_position = _tile_to_world_center(_cave_exit_tile)
 	var scene = get_tree().root.get_node_or_null("Scene")
 	if scene and scene.has_method("_refresh_floor_item_visibility"):
 		scene._refresh_floor_item_visibility()
+	_chunk_update_timer = 0.0
+	_update_chunks_around_player()
+	for i in 6:
+		_paint_next_tiles()
 
 func exit_cave(player: CharacterBody2D):
 	if not in_cave:
@@ -149,13 +152,28 @@ func exit_cave(player: CharacterBody2D):
 			_world_gen._force_reload_all_chunks()
 		elif _world_gen.has_method("_update_chunks_around_player"):
 			_world_gen._update_chunks_around_player()
+		_world_gen.chunk_update_timer = 0.0
+		for i in 6:
+			_world_gen._paint_next_tiles()
 	if _env_spawner:
 		_env_spawner.set_process(true)
+		_env_spawner.update_timer = 0.0
+		if _env_spawner.has_method("_refresh_references"):
+			_env_spawner._refresh_references()
+		if _env_spawner.has_method("queue_chunks_around_world_pos") and _world_gen:
+			var return_world_pos = _world_gen.tile_to_world_center(return_tile)
+			_env_spawner.queue_chunks_around_world_pos(return_world_pos, 4)
+		if _env_spawner.has_method("_update_cave_regions"):
+			_env_spawner._update_cave_regions()
+		if _env_spawner.has_method("_process_load_queue_step"):
+			for i in 8:
+				_env_spawner._process_load_queue_step()
+		if _env_spawner.has_method("_process_object_spawn_queue"):
+			for i in 8:
+				_env_spawner._process_object_spawn_queue()
 	var scene = get_tree().root.get_node_or_null("Scene")
 	if scene and scene.has_method("_refresh_floor_item_visibility"):
 		scene._refresh_floor_item_visibility()
-	if _world_gen:
-		player.global_position = _world_gen.tile_to_world_center(return_tile) + Vector2(0, 96)
 
 func _activate(seed: int):
 	world_seed = seed
