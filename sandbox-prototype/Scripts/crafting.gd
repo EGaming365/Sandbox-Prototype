@@ -59,6 +59,11 @@ var bench_recipes = [
 		"ingredients": { "Stone": 2, "Wood": 1, "String": 3 }
 	},
 	{
+		"result": "Copper Fishing Rod",
+		"result_count": 1,
+		"ingredients": { "Copper": 2, "Wood": 1, "String": 3 }
+	},
+	{
 		"result": "Wardrobe",
 		"result_count": 1,
 		"ingredients": { "Wood Plank": 5, "Stone": 1 }
