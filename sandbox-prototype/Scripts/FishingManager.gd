@@ -7,15 +7,15 @@ var _cast_water_type: String = "all"
 var _active_fish: Dictionary = {}
 
 const RARITY_WEIGHTS: Dictionary = {
-	"Trash": 5.0,  # 4.47
-	"Common": 55.0,  # 49.19
-	"Uncommon": 30.0,  # 26.83
-	"Unusual": 10.0,  # 8.94
-	"Rare": 5.0,  # 4.47
-	"Epic": 3.5,  # 3.13
-	"Legendary": 2.0,  # 1.79
-	"Mythic": 1.0,  # 0.89
-	"Exotic": 0.3,  # 0.27
+	"Trash": 5.0,
+	"Common": 55.0,
+	"Uncommon": 30.0,
+	"Unusual": 10.0,
+	"Rare": 5.0,
+	"Epic": 3.5,
+	"Legendary": 2.0,
+	"Mythic": 1.0,
+	"Exotic": 0.3,
 }
 
 const FISH_TABLE: Array[Dictionary] = [
@@ -75,6 +75,107 @@ const FISH_TABLE: Array[Dictionary] = [
 	{"name": "Tire",        "rarity": "Trash",     "habitat": "all",   "zone_height": 10.0,  "speed": 1.9,  "progress_rate": 0.75, "escape_rate": 1.7,  "base_weight_kg": 10.0, "tension": 1},
 ]
 
+const FISH_CONDITIONS: Array[Dictionary] = [
+	{
+		"name": "Catfish",
+		"requirements": [
+			{"type": "time", "value": "night"}
+		],
+		"preferences": [
+			{"type": "weather", "value": "Rain"},
+			{"type": "season",  "value": "Autumn"}
+		]
+	}
+]
+
+var _conditions_lookup: Dictionary = {}
+
+func _ready() -> void:
+	for entry in FISH_CONDITIONS:
+		var n: String = entry.get("name", "")
+		if n != "":
+			_conditions_lookup[n] = entry
+
+func _get_world_conditions() -> Dictionary:
+	var weather = get_tree().root.get_node_or_null("Scene/Weather")
+	var time_of_day: float = 0.5
+	var current_weather_str: String = "Clear"
+	var day_event_str: String = ""
+	var current_season_int: int = 0
+	var aurora_active: bool = false
+
+	if weather:
+		time_of_day = weather.time_of_day
+		day_event_str = weather.day_event
+		current_season_int = weather.current_season
+		aurora_active = weather.aurora_active
+		var wt = weather.current_weather
+		match wt:
+			weather.WeatherType.RAIN:         current_weather_str = "Rain"
+			weather.WeatherType.THUNDER:      current_weather_str = "Thunder"
+			weather.WeatherType.THUNDERSTORM: current_weather_str = "Thunderstorm"
+			weather.WeatherType.WIND:         current_weather_str = "Wind"
+			weather.WeatherType.FOGGY:        current_weather_str = "Foggy"
+			weather.WeatherType.MISTY:        current_weather_str = "Misty"
+			_:                                current_weather_str = "Clear"
+
+	var time_band: String
+	if time_of_day >= 0.92 or time_of_day < 0.20:
+		time_band = "night"
+	elif time_of_day < 0.50:
+		time_band = "morning"
+	elif time_of_day < 0.65:
+		time_band = "day"
+	else:
+		time_band = "evening"
+
+	var season_names := ["Spring", "Summer", "Autumn", "Winter"]
+	var season_str: String = season_names[clampi(current_season_int, 0, 3)]
+
+	return {
+		"weather":   current_weather_str,
+		"day_event": day_event_str,
+		"time":      time_band,
+		"season":    season_str,
+		"aurora":    aurora_active,
+	}
+
+func _check_condition(cond: Dictionary, world: Dictionary) -> bool:
+	var ctype: String = cond.get("type", "")
+	var cval: String = cond.get("value", "")
+	match ctype:
+		"weather":
+			return world["weather"] == cval
+		"day_event":
+			if cval == "Aurora Borealis":
+				return world["aurora"]
+			return world["day_event"] == cval
+		"time":
+			return world["time"] == cval
+		"season":
+			return world["season"] == cval
+	return false
+
+func _fish_passes_requirements(fish_name: String, world: Dictionary) -> bool:
+	if not _conditions_lookup.has(fish_name):
+		return true
+	var entry: Dictionary = _conditions_lookup[fish_name]
+	for cond in entry.get("requirements", []):
+		if not _check_condition(cond, world):
+			return false
+	return true
+
+func _fish_preference_multiplier(fish_name: String, world: Dictionary) -> float:
+	if not _conditions_lookup.has(fish_name):
+		return 1.0
+	var entry: Dictionary = _conditions_lookup[fish_name]
+	var multiplier: float = 1.0
+	for cond in entry.get("preferences", []):
+		if _check_condition(cond, world):
+			multiplier *= 1.5
+		else:
+			multiplier *= 0.5
+	return multiplier
 
 const ROD_STATS: Dictionary = {
 	"Fishing Rod": {
@@ -274,10 +375,15 @@ func _pick_random_fish() -> Dictionary:
 		if weights.has(rarity):
 			weights[rarity] /= luck_multiplier
 
+	var world := _get_world_conditions()
+
 	var available_rarities: Dictionary = {}
 	for f in FISH_TABLE:
 		var h: String = f.get("habitat", "all")
-		if _has_item_for_fish(f) and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+		if _has_item_for_fish(f) \
+				and (h == "all" or h == _cast_water_type) \
+				and f.get("tension", 1) <= rod_tension \
+				and _fish_passes_requirements(f["name"], world):
 			available_rarities[f["rarity"]] = true
 
 	var filtered_weights: Dictionary = {}
@@ -307,7 +413,11 @@ func _pick_random_fish() -> Dictionary:
 			var valid := false
 			for f in FISH_TABLE:
 				var h: String = f.get("habitat", "all")
-				if _has_item_for_fish(f) and f["rarity"] == rolled and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
+				if _has_item_for_fish(f) \
+						and f["rarity"] == rolled \
+						and (h == "all" or h == _cast_water_type) \
+						and f.get("tension", 1) <= rod_tension \
+						and _fish_passes_requirements(f["name"], world):
 					valid = true
 					break
 			if not valid:
@@ -318,21 +428,43 @@ func _pick_random_fish() -> Dictionary:
 		chosen_rarity = "Common"
 
 	var pool: Array = []
+	var pool_weights: Array = []
 	for f in FISH_TABLE:
 		var h: String = f.get("habitat", "all")
-		if _has_item_for_fish(f) and f["rarity"] == chosen_rarity and (h == "all" or h == _cast_water_type) and f.get("tension", 1) <= rod_tension:
-			pool.append(f)
+		if _has_item_for_fish(f) \
+				and f["rarity"] == chosen_rarity \
+				and (h == "all" or h == _cast_water_type) \
+				and f.get("tension", 1) <= rod_tension \
+				and _fish_passes_requirements(f["name"], world):
+			var pref_mult: float = _fish_preference_multiplier(f["name"], world)
+			if pref_mult > 0.0:
+				pool.append(f)
+				pool_weights.append(pref_mult)
+
 	if pool.is_empty():
 		for f in FISH_TABLE:
 			if _has_item_for_fish(f) and f.get("tension", 1) <= rod_tension:
 				pool.append(f)
+				pool_weights.append(1.0)
 	if pool.is_empty():
 		return FISH_TABLE[0]
+
+	var total_pool_weight: float = 0.0
+	for w in pool_weights:
+		total_pool_weight += w
+	var pool_roll: float = randf() * total_pool_weight
+	var cumulative_pool: float = 0.0
+	var picked_fish: Dictionary = pool[0]
+	for i in pool.size():
+		cumulative_pool += pool_weights[i]
+		if pool_roll <= cumulative_pool:
+			picked_fish = pool[i]
+			break
 
 	var fish: Dictionary
 	var attempts: int = 0
 	while true:
-		fish = pool[randi() % pool.size()].duplicate()
+		fish = picked_fish.duplicate()
 		fish["weight_kg"] = _generate_weight(fish["base_weight_kg"])
 		fish["mutations"] = _generate_mutations()
 		if fish["weight_kg"] <= max_weight_kg or attempts >= 10:
@@ -456,9 +588,12 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 	var weight_grams: int = int(round(weight_kg * 1000.0))
 	var mutations: Array = fish.get("mutations", [])
 	var is_albino: bool = "Albino" in mutations
+	var is_shiny: bool = "Shiny" in mutations
 	var display_name: String = fish["name"]
 	if is_albino:
 		display_name = "Albino " + display_name
+	if is_shiny:
+		display_name = "Shiny " + display_name
 
 	var texture_path := _get_fish_texture_path(display_name)
 	var was_new := not Inventory.discovered_items.has(display_name)
@@ -510,7 +645,7 @@ func _show_catch_notification(name: String, weight_kg: float, mutations: Array, 
 
 	var rarity_color := Color.WHITE
 	for f in FISH_TABLE:
-		if f["name"] == name or "Albino " + f["name"] == name:
+		if f["name"] == name or "Albino " + f["name"] == name or "Shiny " + f["name"] == name:
 			var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 			if extras:
 				rarity_color = extras._rarity_color(f.get("rarity", "Common"))
@@ -528,7 +663,7 @@ func _show_catch_notification(name: String, weight_kg: float, mutations: Array, 
 	var rarity_label := Label.new()
 	var rarity_name := "Common"
 	for f in FISH_TABLE:
-		if f["name"] == name or "Albino " + f["name"] == name:
+		if f["name"] == name or "Albino " + f["name"] == name or "Shiny " + f["name"] == name:
 			rarity_name = f.get("rarity", "Common")
 			break
 	rarity_label.text = "You Caught a " + rarity_name + "!"
@@ -572,12 +707,12 @@ func _show_catch_notification(name: String, weight_kg: float, mutations: Array, 
 
 func _get_base_weight_for_name(fish_name: String) -> float:
 	for f in FISH_TABLE:
-		if f["name"] == fish_name or "Albino " + f["name"] == fish_name:
+		if f["name"] == fish_name or "Albino " + f["name"] == fish_name or "Shiny " + f["name"] == fish_name:
 			return f["base_weight_kg"]
 	return 1.0
 
 func _get_fish_texture_path(fish_name: String) -> String:
-	var base_name := fish_name.replace("Albino ", "")
+	var base_name := fish_name.replace("Albino ", "").replace("Shiny ", "")
 	return FISH_TEXTURE_PATHS.get(base_name, "")
 
 func _has_item_for_fish(_fish: Dictionary) -> bool:
@@ -631,13 +766,33 @@ func _generate_weight(base_kg: float) -> float:
 
 func _generate_mutations() -> Array:
 	var mutations: Array = []
-	# Base albino chance is 3%; Divine Blessing multiplies it by 4x (12%)
-	var albino_chance: float = 0.03
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
-	if weather and weather.day_event == "Divine Blessing":
+	var divine_blessing: bool = weather != null and weather.day_event == "Divine Blessing"
+
+	var albino_chance: float = 0.03
+	if divine_blessing:
 		albino_chance *= 4.0
 	if randf() < albino_chance:
 		mutations.append("Albino")
+
+	var silver_chance: float = 0.08
+	if divine_blessing:
+		silver_chance = 0.20
+	if randf() < silver_chance:
+		mutations.append("Silver")
+
+	var darkened_chance: float = 0.06
+	if divine_blessing:
+		darkened_chance = 0.15
+	if randf() < darkened_chance:
+		mutations.append("Darkened")
+
+	var shiny_chance: float = 0.005
+	if divine_blessing:
+		shiny_chance = 0.02
+	if randf() < shiny_chance:
+		mutations.append("Shiny")
+
 	return mutations
 
 func _get_size_tag(weight_kg: float, base_kg: float) -> String:

@@ -46,6 +46,15 @@ func setup(fish_data: Dictionary):
 	if "Albino" in mutations:
 		display_name = "Albino " + display_name
 		fish_zone.modulate = Color(0.78, 0.78, 0.78)
+	if "Shiny" in mutations:
+		display_name = "Shiny " + display_name
+		fish_zone.modulate = Color(1.6, 1.35, 0.2)   # golden bar
+		player_bar.modulate = Color(1.4, 1.2, 0.15)  # golden player bar too
+	elif "Silver" in mutations:
+		fish_zone.modulate = Color(0.72, 0.85, 1.0)  # cool silver-blue
+		player_bar.modulate = Color(0.8, 0.9, 1.0)
+	elif "Darkened" in mutations:
+		fish_zone.modulate = Color(0.25, 0.25, 0.35) # very dark, slightly purple
 
 	var weight: float = fish_data.get("weight_kg", 0.0)
 	var base_kg: float = fish_data.get("base_weight_kg", 1.0)

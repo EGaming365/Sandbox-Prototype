@@ -320,7 +320,7 @@ func _populate_fish_panel(panel: Control, info: Control):
 	grid.add_theme_constant_override("v_separation", separation)
 	vbox.add_child(grid)
 
-	var rarity_order = {"Trash": 0, "Common": 1, "Uncommon": 2, "Unusual": 3, "Rare": 4, "Epic": 5, "Legendary": 6}
+	var rarity_order = {"Trash": 0, "Common": 1, "Uncommon": 2, "Unusual": 3, "Rare": 4, "Epic": 5, "Legendary": 6, "Mythic": 7, "Exotic": 8}
 	var sorted_fish = FishingManager.FISH_TABLE.duplicate()
 	sorted_fish.sort_custom(func(a, b):
 		var ra = rarity_order.get(a.get("rarity", "Common"), 0)
