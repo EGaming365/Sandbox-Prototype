@@ -74,16 +74,7 @@ func _on_spawn_tick() -> void:
 		return
 	var spawned_this_tick := 0
 	if in_cave:
-		var enemy_count := _count_night_enemies_in_radius()
-		while enemy_count < max_cave_night_enemies_in_radius and spawned_this_tick < max_spawns_per_tick:
-			var pos := _random_cave_spawn_pos(cave_world_gen, "night_enemies")
-			if pos == Vector2.ZERO:
-				break
-			if _is_too_bright_for_enemy_spawn(pos):
-				break
-			_spawn_night_enemy(pos)
-			enemy_count += 1
-			spawned_this_tick += 1
+		return
 	else:
 		var chicken_count := _count_chickens_in_radius()
 		while chicken_count < max_chickens_in_radius and spawned_this_tick < max_spawns_per_tick:
@@ -93,17 +84,6 @@ func _on_spawn_tick() -> void:
 			_spawn_chicken(pos)
 			chicken_count += 1
 			spawned_this_tick += 1
-		if _is_night():
-			var enemy_count := _count_night_enemies_in_radius()
-			while enemy_count < max_night_enemies_in_radius and spawned_this_tick < max_spawns_per_tick:
-				var pos := _random_spawn_pos_near(_get_player_center(), "night_enemies")
-				if pos == Vector2.ZERO:
-					break
-				if _is_too_bright_for_enemy_spawn(pos):
-					break
-				_spawn_night_enemy(pos)
-				enemy_count += 1
-				spawned_this_tick += 1
 
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
@@ -140,7 +120,7 @@ func _check_despawn() -> void:
 		var e := enemy as Node2D
 		if not is_instance_valid(e):
 			continue
-		if not in_cave and not _is_night():
+		if not in_cave:
 			e.queue_free()
 			continue
 		var all_out := true
@@ -187,6 +167,26 @@ func _spawn_night_enemy(pos: Vector2) -> void:
 	await get_tree().process_frame
 	if is_instance_valid(enemy):
 		enemy.set_meta("sync_ready", true)
+
+func spawn_combat_night_enemy(pos: Vector2, combat_room_id: int) -> Node:
+	if not _scene_node:
+		_scene_node = get_tree().root.get_node_or_null("Scene")
+	if not _scene_node:
+		return null
+	var enemy = NIGHT_ENEMY_SCENE.instantiate()
+	enemy.enemy_id = _next_night_enemy_id
+	enemy.name = "Enemy_" + str(_next_night_enemy_id)
+	_next_night_enemy_id += 1
+	enemy.global_position = pos
+	enemy.set_meta("sync_ready", false)
+	enemy.set_meta("combat_room_id", combat_room_id)
+	_scene_node.add_child(enemy)
+	enemy.set_multiplayer_authority(1)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
+		_scene_node.spawn_enemy_on_client_rpc.rpc(enemy.global_position.x, enemy.global_position.y, enemy.enemy_id)
+	if is_instance_valid(enemy):
+		enemy.set_meta("sync_ready", true)
+	return enemy
 
 func _count_night_enemies_in_radius() -> int:
 	var center := _get_player_center()

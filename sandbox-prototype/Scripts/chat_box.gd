@@ -417,7 +417,7 @@ func _handle_command(text: String):
 					if not local_player:
 						_add_message("[System] Player not found.")
 						return
-					var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+					var animal_spawner = get_tree().root.get_node_or_null("AnimalSpawner")
 					if animal_spawner and animal_spawner.has_method("clear_all_entities"):
 						animal_spawner.clear_all_entities()
 					cave_gen.enter_cave(local_player)
@@ -435,7 +435,7 @@ func _handle_command(text: String):
 					if not local_player:
 						_add_message("[System] Player not found.")
 						return
-					var animal_spawner = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+					var animal_spawner = get_tree().root.get_node_or_null("AnimalSpawner")
 					if animal_spawner and animal_spawner.has_method("clear_all_entities"):
 						animal_spawner.clear_all_entities()
 					cave_gen.exit_cave(local_player)

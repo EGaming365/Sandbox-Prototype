@@ -684,7 +684,7 @@ func _update_drowning(delta: float):
 	var in_water := false
 	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	if cave_gen and cave_gen.get("in_cave"):
-		in_water = cave_gen._biome_for_tile(cave_gen.world_to_tile(global_position)) == cave_gen.BiomeType.WATER_LAKE
+		in_water = cave_gen._water_tiles.has(cave_gen.world_to_tile(global_position))
 	else:
 		var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 		in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)

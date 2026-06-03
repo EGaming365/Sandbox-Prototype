@@ -239,7 +239,7 @@ func _follow_path(delta: float) -> void:
 	sprite.play("walk_down")
 
 func _build_path_to(target_pos: Vector2) -> Array:
-	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave") and _cave_gen._reachable_tiles.size() > 0:
+	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave") and _cave_gen._carved_tiles.size() > 0:
 		if _path_segment_clear(global_position, target_pos):
 			return _steer_path(target_pos)
 		return _astar_cave(target_pos, _cave_gen)
@@ -254,7 +254,7 @@ func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
 	var start_tc: Vector2i = cave_gen.world_to_tile(global_position)
 	var goal_tc: Vector2i = cave_gen.world_to_tile(target_pos)
 
-	if not cave_gen._reachable_tiles.has(goal_tc):
+	if not cave_gen._carved_tiles.has(goal_tc):
 		return []
 
 	var dirs := [
@@ -302,9 +302,9 @@ func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
 			var neighbor: Vector2i = current + dir * path_step_size
 			if closed.has(neighbor):
 				continue
-			if not cave_gen._reachable_tiles.has(neighbor):
+			if not cave_gen._carved_tiles.has(neighbor):
 				continue
-			if cave_gen._biome_for_tile(neighbor) == cave_gen.BiomeType.WATER_LAKE:
+			if cave_gen._water_tiles.has(neighbor):
 				continue
 			var step_cost: float = 1.0 if (dir.x == 0 or dir.y == 0) else 1.414
 			var tentative_g: float = cur_g + step_cost * path_step_size
@@ -656,9 +656,7 @@ func _update_drowning(delta: float) -> void:
 func _is_current_world_water() -> bool:
 	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave"):
 		var tc: Vector2i = _cave_gen.world_to_tile(global_position)
-		if not _cave_gen._reachable_tiles.has(tc):
-			return false
-		return _cave_gen._biome_for_tile(tc) == _cave_gen.BiomeType.WATER_LAKE
+		return _cave_gen._water_tiles.has(tc)
 	return _world_gen != null and is_instance_valid(_world_gen) and _world_gen.has_method("is_water_at") and _world_gen.is_water_at(global_position)
 
 @rpc("authority", "call_remote", "unreliable_ordered")
