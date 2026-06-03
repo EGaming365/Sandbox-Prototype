@@ -979,7 +979,7 @@ func _update_floor_item_water_sinking(delta: float) -> void:
 		var in_water := false
 		if cave_gen and cave_gen.get("in_cave"):
 			var tc: Vector2i = cave_gen.world_to_tile(item.global_position)
-			in_water = cave_gen._reachable_tiles.has(tc) and cave_gen._biome_for_tile(tc) == cave_gen.BiomeType.WATER_LAKE
+			in_water = cave_gen._water_tiles.has(tc)
 		elif world_gen and world_gen.has_method("is_water_at"):
 			in_water = world_gen.is_water_at(item.global_position)
 		var c: Color = item.modulate

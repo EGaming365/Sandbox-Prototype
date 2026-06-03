@@ -114,10 +114,10 @@ anchor_left = 0.33
 anchor_top = 0.892
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -20.0
-offset_top = 14.639954
-offset_right = 20.0
-offset_bottom = 54.639893
+offset_left = -612.60004
+offset_top = 32.639954
+offset_right = -572.60004
+offset_bottom = 72.63989
 grow_horizontal = 2
 grow_vertical = 0
 size_flags_vertical = 8
@@ -185,9 +185,9 @@ script = ExtResource("13_nimp4")
 [node name="Chat_Box" parent="CanvasLayer" unique_id=1658616292 instance=ExtResource("14_oisvf")]
 anchors_preset = 2
 offset_left = 15.0
-offset_top = -200.0
+offset_top = -963.0
 offset_right = 415.0
-offset_bottom = -20.0
+offset_bottom = -783.0
 mouse_filter = 2
 
 [node name="Wardrobe_UI" parent="CanvasLayer" unique_id=103554997 instance=ExtResource("16_81khf")]

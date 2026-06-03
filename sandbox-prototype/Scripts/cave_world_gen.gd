@@ -44,6 +44,12 @@ extends Node2D
 @export var cave_rocks_per_room: float = 2.0
 @export var cave_rock_min_distance: float = 128.0
 @export var cave_rock_spawn_attempts: int = 20
+@export var combat_enemy_base_count: int = 2
+@export var novice_fight_bonus_enemies: int = 0
+@export var basic_fight_bonus_enemies: int = 2
+@export var boss_room_bonus_enemies: int = 4
+@export var combat_enemy_count_per_12_tiles: int = 1
+@export var combat_spawn_min_separation: float = 96.0
 
 signal room_locked(room_id: int, room_type: RoomType)
 signal room_cleared(room_id: int, room_type: RoomType)
@@ -65,6 +71,7 @@ class RoomData:
 	var enemy_count: int = 0
 	var door_tiles: Array[Vector2i] = []
 	var wall_tiles_on_lock: Array[Vector2i] = []
+	var spawned_enemy_ids: Array[int] = []
 
 var in_cave: bool = false
 var world_seed: int = 0
@@ -132,9 +139,9 @@ func enter_cave(player: CharacterBody2D) -> void:
 	in_cave = true
 	_enter_cooldown = ENTER_COOLDOWN_TIME
 	_cave_entrance_tile = _find_linked_overworld_entrance_tile(player.global_position)
-	var animal_spawner: Node = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+	var animal_spawner: Node = get_tree().root.get_node_or_null("AnimalSpawner")
 	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
-		await animal_spawner.clear_all_entities()
+		animal_spawner.clear_all_entities()
 	if _world_gen:
 		_world_gen.set_process(false)
 		if _tilemap:
@@ -167,7 +174,7 @@ func exit_cave(player: CharacterBody2D) -> void:
 	_enter_cooldown = ENTER_COOLDOWN_TIME
 	var animal_spawner: Node = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
 	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
-		await animal_spawner.clear_all_entities()
+		animal_spawner.clear_all_entities()
 	_deactivate()
 	if _world_gen:
 		_world_gen.set_process(true)
@@ -214,8 +221,7 @@ func notify_player_entered_tile(tc: Vector2i) -> RoomData:
 			return room
 	elif room.room_type == RoomType.BOSS:
 		if not room.is_locked and not room.is_cleared:
-			room.is_locked = true
-			_place_lock_walls(room)
+			_lock_room(room)
 			emit_signal("boss_room_entered", room.id)
 			return room
 	return null
@@ -266,62 +272,57 @@ func get_room_floor_positions(room_id: int) -> Array[Vector2]:
 				positions.append(_tile_to_world_center(tc))
 	return positions
 
-func _activate(seed: int) -> void:
-	world_seed = seed
-	_find_tile_sources()
-	_clear_state()
-	_generate_dungeon()
-	_spawn_cave_exit()
-	_active = true
-	_update_chunks_around_player()
+func _carve_corridor_tiles(a: RoomData, b: RoomData) -> void:
+	var ac: Vector2i = a.tile_origin + Vector2i(a.tile_size / 2, a.tile_size / 2)
+	var bc: Vector2i = b.tile_origin + Vector2i(b.tile_size / 2, b.tile_size / 2)
+	var half: int = corridor_width / 2
+	var grid_diff: Vector2i = b.grid_pos - a.grid_pos
+	var is_horizontal: bool = grid_diff.x != 0
 
-func _clear_state() -> void:
-	_rooms.clear()
-	_room_grid.clear()
-	_carved_tiles.clear()
-	_wall_tiles.clear()
-	_water_tiles.clear()
-	_door_tile_data.clear()
-	_tile_to_room.clear()
-	_locked_wall_tiles.clear()
-	_cave_rock_positions.clear()
-	_cave_active_rocks.clear()
-	_all_cave_rock_world_positions.clear()
-	loaded_chunks.clear()
-	pending_chunks.clear()
-	_paint_chunk = Vector2i(999999, 999999)
-	_paint_index = 0
-	_paint_tiles.clear()
-	_chunk_update_timer = 0.0
-	_spawn_room_id = -1
-	_boss_room_id = -1
-	_despawn_cave_exit()
-
-func _deactivate() -> void:
-	_active = false
-	_despawn_cave_exit()
-	for cc: Vector2i in loaded_chunks.keys():
-		_erase_chunk_tiles(cc)
-		_despawn_cave_rocks_for_chunk(cc)
-	_clear_state()
-
-func _get_size_multiplier(rt: RoomType) -> float:
-	match rt:
-		RoomType.SPAWN:         return size_multiplier_spawn
-		RoomType.NOVICE_FIGHT:  return size_multiplier_novice_fight
-		RoomType.BASIC_FIGHT:   return size_multiplier_basic_fight
-		RoomType.LAKE:          return size_multiplier_lake
-		RoomType.BOSS:          return size_multiplier_boss
-	return 1.0
-
-func _room_size_for_type(rt: RoomType, rng: RandomNumberGenerator) -> int:
-	var base: int = rng.randi_range(room_tile_size_min, room_tile_size_max)
-	var mult: float = _get_size_multiplier(rt)
-	var result: int = int(float(base) * mult)
-	result = max(result, room_tile_size_min)
-	if result % 2 != 0:
-		result += 1
-	return result
+	if is_horizontal:
+		var x_start: int = min(ac.x, bc.x)
+		var x_end: int = max(ac.x, bc.x)
+		var y_mid: int = ac.y
+		for x: int in range(x_start, x_end + 1):
+			for dy: int in range(-half, half + 1):
+				var tc: Vector2i = Vector2i(x, y_mid + dy)
+				_carved_tiles[tc] = true
+				_wall_tiles.erase(tc)
+				if not _tile_to_room.has(tc):
+					_tile_to_room[tc] = a.id
+		for x: int in range(x_start, x_end + 1):
+			for side: int in [-1, 1]:
+				var tc: Vector2i = Vector2i(x, y_mid + side * (half + 1))
+				if not _carved_tiles.has(tc):
+					_wall_tiles[tc] = true
+		var door_a_x: int = a.tile_origin.x + a.tile_size if ac.x < bc.x else a.tile_origin.x - 1
+		var door_b_x: int = b.tile_origin.x - 1 if ac.x < bc.x else b.tile_origin.x + b.tile_size
+		_place_door_pair(a, b,
+			Vector2i(door_a_x, y_mid),
+			Vector2i(door_b_x, y_mid),
+			is_horizontal)
+	else:
+		var y_start: int = min(ac.y, bc.y)
+		var y_end: int = max(ac.y, bc.y)
+		var x_mid: int = ac.x
+		for y: int in range(y_start, y_end + 1):
+			for dx: int in range(-half, half + 1):
+				var tc: Vector2i = Vector2i(x_mid + dx, y)
+				_carved_tiles[tc] = true
+				_wall_tiles.erase(tc)
+				if not _tile_to_room.has(tc):
+					_tile_to_room[tc] = a.id
+		for y: int in range(y_start, y_end + 1):
+			for side: int in [-1, 1]:
+				var tc: Vector2i = Vector2i(x_mid + side * (half + 1), y)
+				if not _carved_tiles.has(tc):
+					_wall_tiles[tc] = true
+		var door_a_y: int = a.tile_origin.y + a.tile_size if ac.y < bc.y else a.tile_origin.y - 1
+		var door_b_y: int = b.tile_origin.y - 1 if ac.y < bc.y else b.tile_origin.y + b.tile_size
+		_place_door_pair(a, b,
+			Vector2i(x_mid, door_a_y),
+			Vector2i(x_mid, door_b_y),
+			is_horizontal)
 
 func _generate_dungeon() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -443,6 +444,10 @@ func _generate_dungeon() -> void:
 			else:
 				type_assignments[i] = RoomType.NOVICE_FIGHT
 
+	for nb: int in adjacency[spawn_idx]:
+		if type_assignments[nb] == RoomType.NOVICE_FIGHT or type_assignments[nb] == RoomType.BASIC_FIGHT:
+			type_assignments[nb] = RoomType.LAKE
+
 	var room_sizes: Array[int] = []
 	room_sizes.resize(placed_grid_positions.size())
 	for i: int in placed_grid_positions.size():
@@ -486,6 +491,63 @@ func _generate_dungeon() -> void:
 		for nb: int in adjacency[i]:
 			if nb > i:
 				_carve_corridor_tiles(_rooms[i], _rooms[nb])
+
+func _activate(seed: int) -> void:
+	world_seed = seed
+	_find_tile_sources()
+	_clear_state()
+	_generate_dungeon()
+	_spawn_cave_exit()
+	_active = true
+	_update_chunks_around_player()
+
+func _clear_state() -> void:
+	_rooms.clear()
+	_room_grid.clear()
+	_carved_tiles.clear()
+	_wall_tiles.clear()
+	_water_tiles.clear()
+	_door_tile_data.clear()
+	_tile_to_room.clear()
+	_locked_wall_tiles.clear()
+	_cave_rock_positions.clear()
+	_cave_active_rocks.clear()
+	_all_cave_rock_world_positions.clear()
+	loaded_chunks.clear()
+	pending_chunks.clear()
+	_paint_chunk = Vector2i(999999, 999999)
+	_paint_index = 0
+	_paint_tiles.clear()
+	_chunk_update_timer = 0.0
+	_spawn_room_id = -1
+	_boss_room_id = -1
+	_despawn_cave_exit()
+
+func _deactivate() -> void:
+	_active = false
+	_despawn_cave_exit()
+	for cc: Vector2i in loaded_chunks.keys():
+		_erase_chunk_tiles(cc)
+		_despawn_cave_rocks_for_chunk(cc)
+	_clear_state()
+
+func _get_size_multiplier(rt: RoomType) -> float:
+	match rt:
+		RoomType.SPAWN:         return size_multiplier_spawn
+		RoomType.NOVICE_FIGHT:  return size_multiplier_novice_fight
+		RoomType.BASIC_FIGHT:   return size_multiplier_basic_fight
+		RoomType.LAKE:          return size_multiplier_lake
+		RoomType.BOSS:          return size_multiplier_boss
+	return 1.0
+
+func _room_size_for_type(rt: RoomType, rng: RandomNumberGenerator) -> int:
+	var base: int = rng.randi_range(room_tile_size_min, room_tile_size_max)
+	var mult: float = _get_size_multiplier(rt)
+	var result: int = int(float(base) * mult)
+	result = max(result, room_tile_size_min)
+	if result % 2 != 0:
+		result += 1
+	return result
 
 func _bfs_depths(start: int, adj: Dictionary, _n: int) -> Dictionary:
 	var depth: Dictionary = {}
@@ -533,55 +595,18 @@ func _carve_lake_interior(room: RoomData) -> void:
 				var tc: Vector2i = room.tile_origin + Vector2i(dx, dy)
 				_water_tiles[tc] = true
 
-func _carve_corridor_tiles(a: RoomData, b: RoomData) -> void:
-	var ac: Vector2i = a.tile_origin + Vector2i(a.tile_size / 2, a.tile_size / 2)
-	var bc: Vector2i = b.tile_origin + Vector2i(b.tile_size / 2, b.tile_size / 2)
+func _get_corridor_entrance_wall_tiles(door_tc: Vector2i, is_horizontal: bool) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
 	var half: int = corridor_width / 2
-	var grid_diff: Vector2i = b.grid_pos - a.grid_pos
-	var is_horizontal: bool = grid_diff.x != 0
-
 	if is_horizontal:
-		var x_start: int = min(ac.x, bc.x)
-		var x_end: int = max(ac.x, bc.x)
-		var y_mid: int = ac.y
-		for x: int in range(x_start, x_end + 1):
-			for dy: int in range(-half, half + 1):
-				var tc: Vector2i = Vector2i(x, y_mid + dy)
-				_carved_tiles[tc] = true
-				_wall_tiles.erase(tc)
-				if not _tile_to_room.has(tc):
-					_tile_to_room[tc] = a.id
-		for x: int in range(x_start, x_end + 1):
-			for side: int in [-1, 1]:
-				var tc: Vector2i = Vector2i(x, y_mid + side * (half + 1))
-				if not _carved_tiles.has(tc):
-					_wall_tiles[tc] = true
-		_place_door_pair(a, b,
-			Vector2i(x_start + 1, y_mid),
-			Vector2i(x_end - 1, y_mid),
-			is_horizontal)
+		for offset in range(-half, half + 1):
+			result.append(Vector2i(door_tc.x, door_tc.y + offset))
 	else:
-		var y_start: int = min(ac.y, bc.y)
-		var y_end: int = max(ac.y, bc.y)
-		var x_mid: int = ac.x
-		for y: int in range(y_start, y_end + 1):
-			for dx: int in range(-half, half + 1):
-				var tc: Vector2i = Vector2i(x_mid + dx, y)
-				_carved_tiles[tc] = true
-				_wall_tiles.erase(tc)
-				if not _tile_to_room.has(tc):
-					_tile_to_room[tc] = a.id
-		for y: int in range(y_start, y_end + 1):
-			for side: int in [-1, 1]:
-				var tc: Vector2i = Vector2i(x_mid + side * (half + 1), y)
-				if not _carved_tiles.has(tc):
-					_wall_tiles[tc] = true
-		_place_door_pair(a, b,
-			Vector2i(x_mid, y_start + 1),
-			Vector2i(x_mid, y_end - 1),
-			is_horizontal)
+		for offset in range(-half, half + 1):
+			result.append(Vector2i(door_tc.x + offset, door_tc.y))
+	return result
 
-func _place_door_pair(a: RoomData, b: RoomData, tc_a: Vector2i, tc_b: Vector2i, _horizontal: bool) -> void:
+func _place_door_pair(a: RoomData, b: RoomData, tc_a: Vector2i, tc_b: Vector2i, is_horizontal: bool) -> void:
 	for pair: Array in [[tc_a, a.id], [tc_b, b.id]]:
 		var tc: Vector2i = pair[0]
 		var rid: int = pair[1]
@@ -591,18 +616,10 @@ func _place_door_pair(a: RoomData, b: RoomData, tc_a: Vector2i, tc_b: Vector2i, 
 		or room.room_type == RoomType.BOSS:
 			_door_tile_data[tc] = {"room_id": rid, "is_closed": false}
 			room.door_tiles.append(tc)
-			var wall_set: Array[Vector2i] = _get_corridor_entrance_wall_tiles(tc)
+			var wall_set: Array[Vector2i] = _get_corridor_entrance_wall_tiles(tc, is_horizontal)
 			for wt: Vector2i in wall_set:
 				if not room.wall_tiles_on_lock.has(wt):
 					room.wall_tiles_on_lock.append(wt)
-
-func _get_corridor_entrance_wall_tiles(door_tc: Vector2i) -> Array[Vector2i]:
-	var result: Array[Vector2i] = []
-	var half: int = corridor_width / 2
-	for offset: int in range(-half, half + 1):
-		result.append(Vector2i(door_tc.x + offset, door_tc.y))
-		result.append(Vector2i(door_tc.x, door_tc.y + offset))
-	return result
 
 func _place_lock_walls(room: RoomData) -> void:
 	for tc: Vector2i in room.wall_tiles_on_lock:
@@ -620,6 +637,8 @@ func _remove_lock_walls(room: RoomData) -> void:
 
 func _lock_room(room: RoomData) -> void:
 	room.is_locked = true
+	room.enemy_count = _enemy_count_for_room(room)
+	room.spawned_enemy_ids.clear()
 	for tc: Vector2i in room.door_tiles:
 		if _door_tile_data.has(tc):
 			_door_tile_data[tc]["is_closed"] = true
@@ -629,10 +648,14 @@ func _lock_room(room: RoomData) -> void:
 	var spawn_positions: Array = get_room_floor_positions(room.id)
 	emit_signal("room_locked", room.id, room.room_type)
 	emit_signal("request_enemy_spawn", room.id, room.room_type, spawn_positions)
-
+	_spawn_room_enemies(room, spawn_positions)
+	if room.enemy_count <= 0:
+		_unlock_room(room)
 func _unlock_room(room: RoomData) -> void:
 	room.is_locked = false
 	room.is_cleared = true
+	room.enemy_count = 0
+	room.spawned_enemy_ids.clear()
 	for tc: Vector2i in room.door_tiles:
 		if _door_tile_data.has(tc):
 			_door_tile_data[tc]["is_closed"] = false
@@ -646,6 +669,9 @@ func _process(delta: float) -> void:
 		_enter_cooldown -= delta
 	if not _active:
 		return
+	if _is_host():
+		_update_combat_room_entry()
+		_check_locked_rooms_clear()
 	_paint_next_tiles()
 	_chunk_update_timer -= delta
 	if _chunk_update_timer > 0.0:
@@ -954,3 +980,119 @@ func _find_tile_sources() -> void:
 		water_source_id = cave_source_id
 	if cave_source_id == -1:
 		push_error("CaveWorldGen: Could not find cave tile source '%s'" % cave_source_name)
+
+func _is_host() -> bool:
+	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
+
+func _update_combat_room_entry() -> void:
+	if not in_cave:
+		return
+	var player: CharacterBody2D = _get_local_player()
+	if not player:
+		return
+	var tc: Vector2i = world_to_tile(player.global_position)
+	notify_player_entered_tile(tc)
+
+func _check_locked_rooms_clear() -> void:
+	for room: RoomData in _rooms:
+		if not room.is_locked or room.is_cleared:
+			continue
+		if room.spawned_enemy_ids.is_empty():
+			continue
+		var remaining: int = 0
+		for enemy_id: int in room.spawned_enemy_ids:
+			var enemy: Node = _find_night_enemy(enemy_id)
+			if enemy and is_instance_valid(enemy):
+				var state_value: Variant = enemy.get("state")
+				if int(state_value) != 5:
+					remaining += 1
+		room.enemy_count = remaining
+		if remaining <= 0:
+			_unlock_room(room)
+
+func _enemy_count_for_room(room: RoomData) -> int:
+	var count: int = combat_enemy_base_count + int(room.tile_size / 12) * combat_enemy_count_per_12_tiles
+	match room.room_type:
+		RoomType.NOVICE_FIGHT:
+			count += novice_fight_bonus_enemies
+		RoomType.BASIC_FIGHT:
+			count += basic_fight_bonus_enemies
+		RoomType.BOSS:
+			count += boss_room_bonus_enemies
+		_:
+			count = 0
+	return max(0, count)
+
+func _spawn_room_enemies(room: RoomData, spawn_positions: Array) -> void:
+	if not _is_host():
+		return
+	var animal_spawner: Node = get_tree().root.get_node_or_null("AnimalSpawner")
+	if not animal_spawner or not animal_spawner.has_method("spawn_combat_night_enemy"):
+		room.enemy_count = 0
+		return
+	var selected_positions: Array[Vector2] = _pick_enemy_spawn_positions(room, spawn_positions, room.enemy_count)
+	room.enemy_count = selected_positions.size()
+	for spawn_pos: Vector2 in selected_positions:
+		var enemy: Node = animal_spawner.spawn_combat_night_enemy(spawn_pos, room.id)
+		if enemy and is_instance_valid(enemy):
+			room.spawned_enemy_ids.append(int(enemy.get("enemy_id")))
+
+func _pick_enemy_spawn_positions(room: RoomData, spawn_positions: Array, count: int) -> Array[Vector2]:
+	var selected: Array[Vector2] = []
+	if count <= 0 or spawn_positions.is_empty():
+		return selected
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = abs(world_seed ^ (room.id * 9176) ^ 0x51515)
+	var pool: Array[Vector2] = []
+	for pos: Variant in spawn_positions:
+		if pos is Vector2:
+			pool.append(pos)
+	for i: int in range(pool.size() - 1, 0, -1):
+		var j: int = rng.randi() % (i + 1)
+		var tmp: Vector2 = pool[i]
+		pool[i] = pool[j]
+		pool[j] = tmp
+	for pos: Vector2 in pool:
+		if selected.size() >= count:
+			break
+		if not _is_spawn_position_clear(pos):
+			continue
+		var too_close: bool = false
+		for existing: Vector2 in selected:
+			if existing.distance_to(pos) < combat_spawn_min_separation:
+				too_close = true
+				break
+		if too_close:
+			continue
+		selected.append(pos)
+	return selected
+
+func _is_spawn_position_clear(pos: Vector2) -> bool:
+	var tc: Vector2i = world_to_tile(pos)
+	if not _carved_tiles.has(tc):
+		return false
+	if _wall_tiles.has(tc):
+		return false
+	if _locked_wall_tiles.has(tc):
+		return false
+	if _water_tiles.has(tc):
+		return false
+	if _door_tile_data.has(tc):
+		return false
+	var scene_node: Node = get_tree().root.get_node_or_null("Scene")
+	if not scene_node:
+		return true
+	var space: PhysicsDirectSpaceState2D = scene_node.get_world_2d().direct_space_state
+	var query: PhysicsShapeQueryParameters2D = PhysicsShapeQueryParameters2D.new()
+	var shape: CircleShape2D = CircleShape2D.new()
+	shape.radius = 14.0
+	query.shape = shape
+	query.transform = Transform2D(0, pos)
+	query.collision_mask = 1
+	return space.intersect_shape(query).is_empty()
+
+func _find_night_enemy(enemy_id: int) -> Node:
+	for enemy: Node in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy) and int(enemy.get("enemy_id")) == enemy_id:
+			return enemy
+	return null

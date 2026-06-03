@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dxetyjvp7qsxe"]
 
 [ext_resource type="Texture2D" uid="uid://bv670yjqvlrqn" path="res://Assets/Torch.png" id="1_h1t0l"]
-[ext_resource type="Script" uid="uid://ch3em4gglsnow" path="res://torch.gd" id="1_wced7"]
+[ext_resource type="Script" uid="uid://ch3em4gglsnow" path="res://Scripts/torch.gd" id="1_wced7"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_beu3c"]
 radius = 11.9

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b74vad7dd8k68"]
 
-[ext_resource type="Script" uid="uid://cioirw8nyp2fr" path="res://copper_fishing_rod.gd" id="1_sav1d"]
+[ext_resource type="Script" uid="uid://cioirw8nyp2fr" path="res://Scripts/copper_fishing_rod.gd" id="1_sav1d"]
 [ext_resource type="Texture2D" uid="uid://ct2qhj8681jgj" path="res://Assets/Copper_Fishing_Rod.png" id="2_sav1d"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_88tmn"]

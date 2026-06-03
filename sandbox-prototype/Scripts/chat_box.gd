@@ -813,7 +813,7 @@ func _find_safe_cave_pos(cave_gen: Node, near: Vector2) -> Vector2:
 				var angle := (float(i) / float(attempts)) * TAU
 				pos = near + Vector2(cos(angle), sin(angle)) * radius
 			var tc: Vector2i = cave_gen.world_to_tile(pos)
-			if cave_gen._biome_for_tile(tc) == cave_gen.BiomeType.CAVE_FLOOR:
+			if cave_gen._carved_tiles.has(tc) and not cave_gen._water_tiles.has(tc) and not cave_gen._wall_tiles.has(tc):
 				if tilemap:
 					pos = tilemap.to_global(tilemap.map_to_local(tc))
 				return pos
