@@ -689,6 +689,10 @@ func _get_local_player():
 func _ready():
 	input_row.visible = false
 	scroll_container.visible = false
+	await get_tree().process_frame
+	_open_chat("")
+	await get_tree().process_frame
+	_close_chat()
 
 func _open_chat(prefill: String):
 	is_open = true

@@ -14,7 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://dyt3sf1v3eg7p" path="res://Scenes/inventory_ui.tscn" id="11_rcvm1"]
 [ext_resource type="Script" uid="uid://lxoxflac3ghp" path="res://Scripts/block_placer.gd" id="12_usre1"]
 [ext_resource type="Script" uid="uid://bt5j7q2nekadg" path="res://Scripts/hearts.gd" id="13_nimp4"]
-[ext_resource type="PackedScene" uid="uid://dakryvklm668i" path="res://Scenes/chat_box.tscn" id="14_oisvf"]
+[ext_resource type="PackedScene" path="res://Scenes/chat_box.tscn" id="14_oisvf"]
 [ext_resource type="Texture2D" uid="uid://8fv1kmv0dm72" path="res://Assets/Tilemap_Land.png" id="15_oisvf"]
 [ext_resource type="PackedScene" uid="uid://buu6winar7jsn" path="res://Scenes/wardrobe_ui.tscn" id="16_81khf"]
 [ext_resource type="Script" uid="uid://btrncygs1p3db" path="res://Scripts/building_preview.gd" id="16_nimp4"]
@@ -169,7 +169,6 @@ mouse_filter = 2
 
 [node name="Inventory_UI" parent="CanvasLayer" unique_id=804006947 instance=ExtResource("11_rcvm1")]
 z_index = 8
-mouse_filter = 2
 
 [node name="BlockPlacer" type="Node" parent="CanvasLayer" unique_id=1091680554]
 script = ExtResource("12_usre1")
@@ -185,9 +184,9 @@ script = ExtResource("13_nimp4")
 [node name="Chat_Box" parent="CanvasLayer" unique_id=1658616292 instance=ExtResource("14_oisvf")]
 anchors_preset = 2
 offset_left = 15.0
-offset_top = -963.0
+offset_top = -901.0
 offset_right = 415.0
-offset_bottom = -783.0
+offset_bottom = -721.0
 mouse_filter = 2
 
 [node name="Wardrobe_UI" parent="CanvasLayer" unique_id=103554997 instance=ExtResource("16_81khf")]

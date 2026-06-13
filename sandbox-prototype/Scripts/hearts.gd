@@ -10,7 +10,7 @@ func _ready():
 
 func _build_hearts():
 	var hbox = HBoxContainer.new()
-	hbox.position = Vector2(610, 930)
+	hbox.position = Vector2(20, 940)
 	hbox.add_theme_constant_override("separation", 2)
 	add_child(hbox)
 	for i in max_health:
