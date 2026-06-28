@@ -188,6 +188,24 @@ func spawn_combat_night_enemy(pos: Vector2, combat_room_id: int) -> Node:
 		enemy.set_meta("sync_ready", true)
 	return enemy
 
+func spawn_combat_boss(pos: Vector2, combat_room_id: int) -> Node:
+	if not _scene_node:
+		_scene_node = get_tree().root.get_node_or_null("Scene")
+	if not _scene_node:
+		return null
+	var boss_scene: PackedScene = load("res://Scenes/boss_spider.tscn")
+	if not boss_scene:
+		return null
+	var boss: Node = boss_scene.instantiate()
+	boss.set("enemy_id", _next_night_enemy_id)
+	boss.name = "Boss_" + str(_next_night_enemy_id)
+	_next_night_enemy_id += 1
+	boss.global_position = pos
+	boss.set_meta("combat_room_id", combat_room_id)
+	_scene_node.add_child(boss)
+	boss.set_multiplayer_authority(1)
+	return boss
+
 func _count_night_enemies_in_radius() -> int:
 	var center := _get_player_center()
 	var count := 0
@@ -272,9 +290,11 @@ func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_e
 		var dist := randf_range(cave_spawn_radius_min, cave_spawn_radius_max)
 		var pos := player.global_position + Vector2(cos(angle), sin(angle)) * dist
 		var tc: Vector2i = cave_world_gen.world_to_tile(pos)
-		if not cave_world_gen._reachable_tiles.has(tc):
+		if not cave_world_gen._carved_tiles.has(tc):
 			continue
-		if cave_world_gen._biome_for_tile(tc) != cave_world_gen.BiomeType.CAVE_FLOOR:
+		if cave_world_gen._wall_tiles.has(tc):
+			continue
+		if cave_world_gen._water_tiles.has(tc):
 			continue
 		if tilemap:
 			pos = tilemap.to_global(tilemap.map_to_local(tc))

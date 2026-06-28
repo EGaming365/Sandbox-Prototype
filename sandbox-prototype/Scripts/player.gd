@@ -1,6 +1,6 @@
 extends CharacterBody2D
 
-@export var speed = 450
+@export var speed = 350
 @export var synced_velocity : Vector2 = Vector2.ZERO
 @export var synced_held_item: String = ""
 @export var synced_health: int = 10
@@ -306,23 +306,45 @@ func _try_attack():
 	var scene_node = get_tree().root.get_node("Scene")
 	var mouse_world_pos = get_global_mouse_position()
 
-	var best_enemy: Node = null
-	var best_dist: float = ATTACK_RANGE + 1.0
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if not is_instance_valid(enemy):
 			continue
 		var enemy_centre: Vector2 = (enemy as Node2D).global_position + Vector2(0, -30)
-		var dist_to_player: float = global_position.distance_to(enemy_centre)
-		if dist_to_player < best_dist:
-			best_dist = dist_to_player
-			best_enemy = enemy
-	if best_enemy != null:
+		if global_position.distance_to(enemy_centre) < ATTACK_RANGE:
+			_apply_attack_cooldown()
+			if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+				scene_node.request_damage_night_enemy.rpc_id(1, enemy.get("enemy_id"), _get_sword_damage())
+			else:
+				if enemy.has_method("take_damage"):
+					enemy.take_damage(_get_sword_damage())
+			_consume_sword_durability()
+			return
+
+	for boss in get_tree().get_nodes_in_group("bosses"):
+		if not is_instance_valid(boss):
+			continue
+		var boss_centre: Vector2 = (boss as Node2D).global_position
+		if global_position.distance_to(boss_centre) < ATTACK_RANGE:
+			_apply_attack_cooldown()
+			if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+				if scene_node.has_method("request_damage_boss"):
+					scene_node.request_damage_boss.rpc_id(1, boss.get("enemy_id"), _get_sword_damage())
+			else:
+				if boss.has_method("take_damage"):
+					boss.take_damage(_get_sword_damage())
+			_consume_sword_durability()
+			return
+
+	for egg in get_tree().get_nodes_in_group("boss_eggs"):
+		if not is_instance_valid(egg):
+			continue
+		if global_position.distance_to((egg as Node2D).global_position) > ATTACK_RANGE:
+			continue
+		if mouse_world_pos.distance_to((egg as Node2D).global_position) > 60.0:
+			continue
 		_apply_attack_cooldown()
-		if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
-			scene_node.request_damage_night_enemy.rpc_id(1, best_enemy.get("enemy_id"), _get_sword_damage())
-		else:
-			if best_enemy.has_method("take_damage"):
-				best_enemy.take_damage(_get_sword_damage())
+		if egg.has_method("take_damage"):
+			egg.take_damage(_get_sword_damage())
 		_consume_sword_durability()
 		return
 

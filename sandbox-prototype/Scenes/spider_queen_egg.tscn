@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://mnfg8hqstts3"]
+
+[ext_resource type="Script" uid="uid://cidpmp6pqs0gf" path="res://Scripts/SpiderQueenEgg.gd" id="1_w0s3v"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_w0s3v"]
+
+[node name="SpiderQueenEgg" type="Node2D" unique_id=436601321]
+script = ExtResource("1_w0s3v")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=1774241461]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1360717405]
+shape = SubResource("CircleShape2D_w0s3v")

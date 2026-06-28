@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ccnfuv242o21l"]
+
+[ext_resource type="Script" uid="uid://c6dhh1qvmgciq" path="res://Scripts/SpiderQueen.gd" id="1_bbabw"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_chl45"]
+size = Vector2(40, 40)
+
+[node name="SpiderQueen" type="CharacterBody2D" unique_id=1266308032]
+script = ExtResource("1_bbabw")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1734973809]
+shape = SubResource("RectangleShape2D_chl45")

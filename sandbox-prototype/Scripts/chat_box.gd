@@ -449,6 +449,15 @@ func _handle_command(text: String):
 					_add_message("[System] Teleported to overworld.")
 				_:
 					_add_message("[System] Unknown world. Use: overworld, cave")
+		"/boss":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			if parts.size() < 2:
+				_add_message("[System] Usage: /boss <spider_queen>")
+				return
+			BossManager.handle_command(text)
+			_add_message("[System] Spawning boss: " + parts[1].to_lower())
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 

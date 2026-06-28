@@ -651,6 +651,7 @@ func _lock_room(room: RoomData) -> void:
 	_spawn_room_enemies(room, spawn_positions)
 	if room.enemy_count <= 0:
 		_unlock_room(room)
+
 func _unlock_room(room: RoomData) -> void:
 	room.is_locked = false
 	room.is_cleared = true
@@ -1027,7 +1028,25 @@ func _spawn_room_enemies(room: RoomData, spawn_positions: Array) -> void:
 	if not _is_host():
 		return
 	var animal_spawner: Node = get_tree().root.get_node_or_null("AnimalSpawner")
-	if not animal_spawner or not animal_spawner.has_method("spawn_combat_night_enemy"):
+	if not animal_spawner:
+		room.enemy_count = 0
+		return
+	if room.room_type == RoomType.BOSS:
+		var center: Vector2 = Vector2.ZERO
+		if not spawn_positions.is_empty():
+			var sum: Vector2 = Vector2.ZERO
+			for p: Variant in spawn_positions:
+				if p is Vector2:
+					sum += p
+			center = sum / spawn_positions.size()
+		var boss: Node = animal_spawner.spawn_combat_boss(center, room.id)
+		if boss and is_instance_valid(boss):
+			room.spawned_enemy_ids.append(int(boss.get("enemy_id")))
+			room.enemy_count = 1
+		else:
+			room.enemy_count = 0
+		return
+	if not animal_spawner.has_method("spawn_combat_night_enemy"):
 		room.enemy_count = 0
 		return
 	var selected_positions: Array[Vector2] = _pick_enemy_spawn_positions(room, spawn_positions, room.enemy_count)
@@ -1095,4 +1114,7 @@ func _find_night_enemy(enemy_id: int) -> Node:
 	for enemy: Node in get_tree().get_nodes_in_group("night_enemies"):
 		if is_instance_valid(enemy) and int(enemy.get("enemy_id")) == enemy_id:
 			return enemy
+	for boss: Node in get_tree().get_nodes_in_group("bosses"):
+		if is_instance_valid(boss) and int(boss.get("enemy_id")) == enemy_id:
+			return boss
 	return null

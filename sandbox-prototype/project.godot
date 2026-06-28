@@ -26,6 +26,7 @@ FishingManager="*uid://b8trf3tx7dses"
 Abilities="*uid://dwl7yv116tdeb"
 FightingStyle="*uid://b41kwmnk33uxj"
 Magic="*uid://dpbfbi1i64w3e"
+BossManager="*uid://dofmtuaabrvhw"
 
 [display]
 
