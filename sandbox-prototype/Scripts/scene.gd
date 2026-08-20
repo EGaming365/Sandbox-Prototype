@@ -769,6 +769,20 @@ func request_damage_night_enemy(enemy_id: int, amount: int):
 	if enemy and enemy.has_method("take_damage"):
 		enemy.take_damage(amount)
 
+func _find_boss(boss_id: int) -> Node:
+	for boss in get_tree().get_nodes_in_group("bosses"):
+		if is_instance_valid(boss) and int(boss.get("enemy_id")) == boss_id:
+			return boss
+	return null
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_damage_boss(boss_id: int, amount: int):
+	if not is_host:
+		return
+	var boss = _find_boss(boss_id)
+	if boss and boss.has_method("take_damage"):
+		boss.take_damage(amount)
+
 @rpc("authority", "call_remote", "reliable")
 func deal_damage_to_player(amount: int):
 	for child in get_children():
@@ -899,6 +913,9 @@ func sync_chickens_and_enemies_to_peer(peer_id: int):
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if is_instance_valid(enemy):
 			spawn_enemy_on_client_rpc.rpc_id(peer_id, enemy.global_position.x, enemy.global_position.y, enemy.enemy_id)
+	for boss in get_tree().get_nodes_in_group("bosses"):
+		if is_instance_valid(boss):
+			spawn_boss_on_client_rpc.rpc_id(peer_id, boss.global_position.x, boss.global_position.y, boss.get("enemy_id"))
 
 @rpc("authority", "call_remote", "reliable")
 func spawn_chicken_on_client_rpc(px: float, py: float, cid: int):
@@ -933,6 +950,23 @@ func spawn_enemy_on_client_rpc(px: float, py: float, eid: int):
 	await get_tree().create_timer(2.0).timeout
 	if is_instance_valid(enemy):
 		enemy.set_meta("sync_ready", true)
+
+@rpc("authority", "call_remote", "reliable")
+func spawn_boss_on_client_rpc(px: float, py: float, bid: int):
+	var node_name = "Boss_" + str(bid)
+	if has_node(node_name):
+		return
+	var boss_scene = preload("res://Scenes/spider_queen.tscn")
+	var boss = boss_scene.instantiate()
+	boss.set("enemy_id", bid)
+	boss.name = node_name
+	boss.global_position = Vector2(px, py)
+	boss.set_multiplayer_authority(1)
+	add_child(boss)
+	boss.set_meta("sync_ready", false)
+	await get_tree().create_timer(2.0).timeout
+	if is_instance_valid(boss):
+		boss.set_meta("sync_ready", true)
 
 @rpc("authority", "call_local", "reliable")
 func clear_chickens_and_enemies_rpc():
@@ -1029,6 +1063,16 @@ func sync_enemy_state_rpc(eid: int, px: float, py: float, s: int, h: int) -> voi
 		enemy.sprite.play("walk_down")
 	else:
 		enemy.sprite.play("idle")
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_boss_state_rpc(bid: int, px: float, py: float, h: int) -> void:
+	var boss = get_node_or_null("Boss_" + str(bid))
+	if not boss or not is_instance_valid(boss):
+		return
+	if not boss.get_meta("sync_ready", false):
+		return
+	boss.global_position = Vector2(px, py)
+	boss.health = h
 
 @rpc("authority", "call_local", "reliable")
 func chicken_flash_hit_rpc(cid: int) -> void:

@@ -1004,8 +1004,11 @@ func _check_locked_rooms_clear() -> void:
 		for enemy_id: int in room.spawned_enemy_ids:
 			var enemy: Node = _find_night_enemy(enemy_id)
 			if enemy and is_instance_valid(enemy):
-				var state_value: Variant = enemy.get("state")
-				if int(state_value) != 5:
+				if "state" in enemy:
+					var state_value: Variant = enemy.get("state")
+					if int(state_value) != 5:
+						remaining += 1
+				else:
 					remaining += 1
 		room.enemy_count = remaining
 		if remaining <= 0:

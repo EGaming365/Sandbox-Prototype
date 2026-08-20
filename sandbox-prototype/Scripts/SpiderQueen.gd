@@ -56,6 +56,9 @@ var _rapid_fire_timer: float = 0.0
 
 signal boss_died
 
+func _is_host() -> bool:
+	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
+
 func _ready() -> void:
 	if not ENABLED:
 		queue_free()
@@ -77,6 +80,8 @@ func _physics_process(delta: float) -> void:
 		return
 	_contact_cooldown = max(_contact_cooldown - delta, 0.0)
 	_check_contact_damage()
+	if not _is_host():
+		return
 	_attack_timer -= delta
 	match _state:
 		State.IDLE:
@@ -91,6 +96,11 @@ func _physics_process(delta: float) -> void:
 			_tick_jump(delta)
 		State.RAPID_FIRE:
 			_tick_rapid_fire(delta)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
+		if is_inside_tree() and get_meta("sync_ready", false):
+			var scene_node := get_tree().root.get_node_or_null("Scene")
+			if scene_node:
+				scene_node.sync_boss_state_rpc.rpc(enemy_id, global_position.x, global_position.y, health)
 
 func _check_contact_damage() -> void:
 	if _contact_cooldown > 0.0:

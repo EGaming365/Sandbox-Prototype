@@ -193,17 +193,22 @@ func spawn_combat_boss(pos: Vector2, combat_room_id: int) -> Node:
 		_scene_node = get_tree().root.get_node_or_null("Scene")
 	if not _scene_node:
 		return null
-	var boss_scene: PackedScene = load("res://Scenes/boss_spider.tscn")
+	var boss_scene: PackedScene = load("res://Scenes/spider_queen.tscn")
 	if not boss_scene:
 		return null
 	var boss: Node = boss_scene.instantiate()
 	boss.set("enemy_id", _next_night_enemy_id)
 	boss.name = "Boss_" + str(_next_night_enemy_id)
-	_next_night_enemy_id += 1
 	boss.global_position = pos
+	boss.set_meta("sync_ready", false)
 	boss.set_meta("combat_room_id", combat_room_id)
 	_scene_node.add_child(boss)
 	boss.set_multiplayer_authority(1)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
+		_scene_node.spawn_boss_on_client_rpc.rpc(boss.global_position.x, boss.global_position.y, _next_night_enemy_id)
+	if is_instance_valid(boss):
+		boss.set_meta("sync_ready", true)
+	_next_night_enemy_id += 1
 	return boss
 
 func _count_night_enemies_in_radius() -> int:

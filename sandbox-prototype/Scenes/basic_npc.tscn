@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ccgyiuv0cuscy"]
+
+[ext_resource type="Script" uid="uid://bbcudj4txmhbn" path="res://Scripts/eric_the_guide.gd" id="1_hobxw"]
+
+[node name="eric_the_guide" type="Node2D" unique_id=564460370]
+script = ExtResource("1_hobxw")

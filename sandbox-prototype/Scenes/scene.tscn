@@ -14,7 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://dyt3sf1v3eg7p" path="res://Scenes/inventory_ui.tscn" id="11_rcvm1"]
 [ext_resource type="Script" uid="uid://lxoxflac3ghp" path="res://Scripts/block_placer.gd" id="12_usre1"]
 [ext_resource type="Script" uid="uid://bt5j7q2nekadg" path="res://Scripts/hearts.gd" id="13_nimp4"]
-[ext_resource type="PackedScene" path="res://Scenes/chat_box.tscn" id="14_oisvf"]
+[ext_resource type="PackedScene" uid="uid://dakryvklm668i" path="res://Scenes/chat_box.tscn" id="14_oisvf"]
 [ext_resource type="Texture2D" uid="uid://8fv1kmv0dm72" path="res://Assets/Tilemap_Land.png" id="15_oisvf"]
 [ext_resource type="PackedScene" uid="uid://buu6winar7jsn" path="res://Scenes/wardrobe_ui.tscn" id="16_81khf"]
 [ext_resource type="Script" uid="uid://btrncygs1p3db" path="res://Scripts/building_preview.gd" id="16_nimp4"]

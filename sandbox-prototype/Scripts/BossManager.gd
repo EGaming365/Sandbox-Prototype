@@ -3,7 +3,7 @@ extends Node
 const ENABLED := true
 
 var _registry: Dictionary = {
-	"spider_queen": "res://Scenes/Spider_Queen.tscn",
+	"spider_queen": "res://Scenes/spider_queen.tscn",
 }
 
 func handle_command(raw: String) -> void:
