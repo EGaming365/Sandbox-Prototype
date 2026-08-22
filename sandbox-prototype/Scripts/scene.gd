@@ -29,6 +29,7 @@ var last_placed_texture: Texture2D = null
 
 var current_world_layer: String = "overworld"
 var floor_item_layers: Dictionary = {}
+var steam_connected: bool = false
 
 func _get_current_world_layer() -> String:
 	var cave_gen = get_node_or_null("CaveWorldGen")
@@ -283,12 +284,34 @@ func _is_fish_item_name(item_name: String) -> bool:
 func _ready():
 	y_sort_enabled = true
 	get_tree().set_auto_accept_quit(false)
-	print("Steam initialised: ", Steam.steamInitEx(480))
-	Steam.initRelayNetworkAccess()
+	var init_result = Steam.steamInitEx(480)
+	print("Steam initialised: ", init_result)
+	steam_connected = typeof(init_result) == TYPE_DICTIONARY and int(init_result.get("status", 1)) == 0
+	if steam_connected:
+		Steam.initRelayNetworkAccess()
 	Steam.lobby_created.connect(_on_lobby_created)
 	Steam.lobby_joined.connect(_on_lobby_joined)
 	print("My Steam ID: ", Steam.getSteamID())
 	_spawn_player(1)
+	_show_steam_status_warning()
+
+func _show_steam_status_warning() -> void:
+	if steam_connected:
+		return
+	var canvas: CanvasLayer = get_node_or_null("CanvasLayer")
+	if not canvas:
+		return
+	var label := Label.new()
+	label.name = "SteamStatusWarning"
+	label.text = "Not logged into Steam, online play disabled"
+	label.position = Vector2(14, 14)
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3, 1.0))
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	label.add_theme_constant_override("outline_size", 4)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.z_index = 4096
+	canvas.add_child(label)
 
 func _process(_delta):
 	Steam.run_callbacks()

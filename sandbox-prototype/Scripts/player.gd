@@ -44,6 +44,16 @@ const PARRY_COUNTER_DAMAGE: int = 9999
 
 const BLOCK_COOLDOWN_MAX: float = 0.6
 
+const ROLL_SPEED: float = 900.0
+const ROLL_DURATION: float = 0.22
+const ROLL_COOLDOWN: float = 0.8
+
+var is_rolling: bool = false
+var is_invulnerable: bool = false
+var roll_timer: float = 0.0
+var roll_cooldown: float = 0.0
+var roll_direction: Vector2 = Vector2.ZERO
+
 const FEET_OFFSET: float = 1.0
 var camera: Camera2D = null
 var is_blocking: bool = false
@@ -190,6 +200,11 @@ func _physics_process(delta):
 		move_and_slide()
 		return
 	_update_drowning(delta)
+	if roll_cooldown > 0.0:
+		roll_cooldown = max(roll_cooldown - delta, 0.0)
+	if is_rolling and (is_multiplayer_authority() or not multiplayer.has_multiplayer_peer()):
+		_process_roll(delta)
+		return
 	if _is_inventory_open():
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -241,6 +256,11 @@ func _physics_process(delta):
 		if is_blocking and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 			_stop_blocking()
 
+		if Input.is_action_just_pressed("roll") and roll_cooldown <= 0.0 and not is_blocking:
+			_start_roll()
+			_process_roll(delta)
+			return
+
 		var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 		if hotbar:
 			var slot = Inventory.slots[hotbar.current_slot - 1]
@@ -285,6 +305,8 @@ func _physics_process(delta):
 
 func _input(event):
 	if is_dead:
+		return
+	if is_rolling:
 		return
 	if _is_inventory_open():
 		return
@@ -501,6 +523,70 @@ func _stop_blocking() -> void:
 		hand_sprite.rotation_degrees = 0.0
 	_set_parry_highlight(false)
 
+func _start_roll() -> void:
+	var dir := Vector2.ZERO
+	if Input.is_action_pressed("move_left"):
+		dir.x -= 1
+	if Input.is_action_pressed("move_right"):
+		dir.x += 1
+	if Input.is_action_pressed("move_up"):
+		dir.y -= 1
+	if Input.is_action_pressed("move_down"):
+		dir.y += 1
+	if dir.length() < 0.01:
+		dir = velocity if velocity.length() > 0.01 else Vector2(0, 1)
+	roll_direction = dir.normalized()
+	is_rolling = true
+	is_invulnerable = true
+	roll_timer = ROLL_DURATION
+	roll_cooldown = ROLL_COOLDOWN
+	_add_roll_collision_exceptions()
+	if is_blocking:
+		_stop_blocking()
+	_play_anim("walk_down")
+
+func _add_roll_collision_exceptions() -> void:
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if not is_instance_valid(enemy):
+			continue
+		var body: Node = enemy.get_node_or_null("StaticBody2D")
+		if body and body is PhysicsBody2D:
+			add_collision_exception_with(body)
+	for boss in get_tree().get_nodes_in_group("bosses"):
+		if is_instance_valid(boss) and boss is PhysicsBody2D:
+			add_collision_exception_with(boss)
+
+func _remove_roll_collision_exceptions() -> void:
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if not is_instance_valid(enemy):
+			continue
+		var body: Node = enemy.get_node_or_null("StaticBody2D")
+		if body and body is PhysicsBody2D:
+			remove_collision_exception_with(body)
+	for boss in get_tree().get_nodes_in_group("bosses"):
+		if is_instance_valid(boss) and boss is PhysicsBody2D:
+			remove_collision_exception_with(boss)
+
+func _process_roll(delta: float) -> void:
+	roll_timer -= delta
+	velocity = roll_direction * ROLL_SPEED
+	synced_velocity = velocity
+	move_and_slide()
+	_update_hand_sprite()
+	_update_offhand_sprite()
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
+	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+		_update_torch_light()
+	if roll_timer <= 0.0:
+		_end_roll()
+
+func _end_roll() -> void:
+	is_rolling = false
+	is_invulnerable = false
+	roll_timer = 0.0
+	_remove_roll_collision_exceptions()
+
 func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
 	if is_dead:
 		return
@@ -524,6 +610,8 @@ func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
 	take_damage(amount)
 
 func take_damage(amount: int):
+	if is_invulnerable:
+		return
 	if not is_multiplayer_authority() and multiplayer.has_multiplayer_peer():
 		return
 	if is_dead:

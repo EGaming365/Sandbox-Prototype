@@ -458,6 +458,35 @@ func _handle_command(text: String):
 				return
 			BossManager.handle_command(text)
 			_add_message("[System] Spawning boss: " + parts[1].to_lower())
+		"/tpboss":
+			if my_steam_id != ADMIN_STEAM_ID:
+				_add_message("[System] No permission.")
+				return
+			var local_player = _get_local_player()
+			if not local_player:
+				_add_message("[System] Player not found.")
+				return
+			var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+			if not cave_gen:
+				_add_message("[System] CaveWorldGen not found.")
+				return
+			if not cave_gen.get("in_cave"):
+				var animal_spawner = get_tree().root.get_node_or_null("AnimalSpawner")
+				if animal_spawner and animal_spawner.has_method("clear_all_entities"):
+					animal_spawner.clear_all_entities()
+				cave_gen.enter_cave(local_player)
+				await get_tree().process_frame
+				await get_tree().process_frame
+			if not cave_gen.has_method("get_boss_room"):
+				_add_message("[System] Boss room lookup not available.")
+				return
+			var boss_room = cave_gen.get_boss_room()
+			if not boss_room:
+				_add_message("[System] No boss room found in this cave.")
+				return
+			var dest: Vector2 = cave_gen.get_room_center_world(boss_room.id)
+			local_player.global_position = dest
+			_add_message("[System] Teleported to the boss room.")
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 

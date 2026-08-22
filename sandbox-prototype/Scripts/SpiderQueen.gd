@@ -3,6 +3,7 @@ extends CharacterBody2D
 const ENABLED := true
 
 const BOSS_NAME := "spider_queen"
+const BOSS_DISPLAY_NAME := "Spider Queen"
 const MAX_HEALTH := 30
 const MOVE_SPEED := 60.0
 const CONTACT_DAMAGE := 2
@@ -29,12 +30,16 @@ const RAPID_FIRE_JITTER_DEG := 30.0
 const EGG_SCENE := preload("res://Scenes/spider_queen_egg.tscn")
 const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 
+const BAR_WIDTH: float = 640.0
+const BAR_HEIGHT: float = 32.0
+
 @export var enemy_id: int = -1
 @export var boss_visual_scale: float = 3.0
 @export var bullet_visual_scale: float = 3.0
 @export var draw_size: float = 40.0
 
 var health: int = MAX_HEALTH
+var max_health: int = MAX_HEALTH
 var _player: Node2D
 var _contact_cooldown: float = 0.0
 var _bullet_texture: Texture2D = preload("res://Assets/Projectile_Basic.png")
@@ -54,6 +59,10 @@ var _scatter_timer: float = 0.0
 var _rapid_fire_remaining: int = 0
 var _rapid_fire_timer: float = 0.0
 
+var _bar_container: Control = null
+var _bar_fill: ProgressBar = null
+var _bar_label: Label = null
+
 signal boss_died
 
 func _is_host() -> bool:
@@ -64,9 +73,72 @@ func _ready() -> void:
 		queue_free()
 		return
 	health = MAX_HEALTH
+	max_health = MAX_HEALTH
 	scale = Vector2(boss_visual_scale, boss_visual_scale)
 	add_to_group("bosses")
 	_player = get_tree().get_first_node_in_group("players")
+	_setup_health_bar()
+
+func _setup_health_bar() -> void:
+	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")
+	if not canvas:
+		return
+	var container: Control = canvas.get_node_or_null("BossHealthBar")
+	if not container:
+		container = Control.new()
+		container.name = "BossHealthBar"
+		container.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		canvas.add_child(container)
+
+		var layout := VBoxContainer.new()
+		layout.name = "Layout"
+		layout.anchor_left = 0.5
+		layout.anchor_right = 0.5
+		layout.offset_left = -BAR_WIDTH / 2.0
+		layout.offset_right = BAR_WIDTH / 2.0
+		layout.offset_top = 24.0
+		layout.alignment = BoxContainer.ALIGNMENT_CENTER
+		layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(layout)
+
+		var label := Label.new()
+		label.name = "NameLabel"
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 30)
+		label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+		label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+		label.add_theme_constant_override("outline_size", 5)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layout.add_child(label)
+
+		var fill := ProgressBar.new()
+		fill.name = "Bar"
+		fill.custom_minimum_size = Vector2(BAR_WIDTH, BAR_HEIGHT)
+		fill.min_value = 0.0
+		fill.max_value = 1.0
+		fill.value = 1.0
+		fill.show_percentage = false
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var bg_style := StyleBoxFlat.new()
+		bg_style.bg_color = Color(0.05, 0.05, 0.05, 0.85)
+		bg_style.set_border_width_all(3)
+		bg_style.border_color = Color(0, 0, 0, 1)
+		fill.add_theme_stylebox_override("background", bg_style)
+		var fill_style := StyleBoxFlat.new()
+		fill_style.bg_color = Color(0.75, 0.05, 0.1, 1.0)
+		fill.add_theme_stylebox_override("fill", fill_style)
+		layout.add_child(fill)
+
+	var layout_node: Control = container.get_node_or_null("Layout")
+	_bar_container = container
+	_bar_label = layout_node.get_node_or_null("NameLabel") if layout_node else null
+	_bar_fill = layout_node.get_node_or_null("Bar") if layout_node else null
+	if _bar_label:
+		_bar_label.text = BOSS_DISPLAY_NAME
+	if _bar_fill:
+		_bar_fill.value = 1.0
+	_bar_container.visible = true
 
 func _draw() -> void:
 	var half := draw_size * 0.5
@@ -80,6 +152,10 @@ func _physics_process(delta: float) -> void:
 		return
 	_contact_cooldown = max(_contact_cooldown - delta, 0.0)
 	_check_contact_damage()
+	_update_health_bar()
+	if health <= 0:
+		_die()
+		return
 	if not _is_host():
 		return
 	_attack_timer -= delta
@@ -242,10 +318,22 @@ func _fire_bullet(angle: float, spd: float, dmg: int = 1) -> void:
 	get_parent().add_child(b)
 	b.global_position = global_position
 
+func _update_health_bar() -> void:
+	if not _bar_fill or not is_instance_valid(_bar_fill):
+		return
+	if max_health <= 0:
+		return
+	_bar_fill.value = clampf(float(health) / float(max_health), 0.0, 1.0)
+
 func take_damage(amount: int) -> void:
 	if not ENABLED:
 		return
 	health -= amount
 	if health <= 0:
-		emit_signal("boss_died")
-		queue_free()
+		_die()
+
+func _die() -> void:
+	if _bar_container and is_instance_valid(_bar_container):
+		_bar_container.visible = false
+	emit_signal("boss_died")
+	queue_free()

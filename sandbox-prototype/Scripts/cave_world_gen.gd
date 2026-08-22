@@ -170,12 +170,15 @@ func exit_cave(player: CharacterBody2D) -> void:
 	if not in_cave or _enter_cooldown > 0.0:
 		return
 	var return_tile: Vector2i = _cave_entrance_tile
+	var return_world_pos: Vector2 = _tile_to_world_center(return_tile)
 	in_cave = false
 	_enter_cooldown = ENTER_COOLDOWN_TIME
-	var animal_spawner: Node = get_tree().root.get_node_or_null("Scene/AnimalSpawner")
+	var animal_spawner: Node = get_tree().root.get_node_or_null("AnimalSpawner")
 	if animal_spawner and animal_spawner.has_method("clear_all_entities"):
 		animal_spawner.clear_all_entities()
 	_deactivate()
+	if is_instance_valid(player):
+		player.global_position = return_world_pos
 	if _world_gen:
 		_world_gen.set_process(true)
 		if _world_gen.has_method("_force_reload_all_chunks"):
@@ -191,7 +194,6 @@ func exit_cave(player: CharacterBody2D) -> void:
 		if _env_spawner.has_method("_refresh_references"):
 			_env_spawner._refresh_references()
 		if _env_spawner.has_method("queue_chunks_around_world_pos") and _world_gen:
-			var return_world_pos: Vector2 = _world_gen.tile_to_world_center(return_tile)
 			_env_spawner.queue_chunks_around_world_pos(return_world_pos, 4)
 		if _env_spawner.has_method("_update_cave_regions"):
 			_env_spawner._update_cave_regions()
@@ -462,8 +464,8 @@ func _generate_dungeon() -> void:
 	var spawn_grid: Vector2i = placed_grid_positions[spawn_idx]
 	var spawn_size: int = room_sizes[spawn_idx]
 	var tile_offset: Vector2i = _cave_entrance_tile - Vector2i(
-		spawn_grid.x * block + spawn_size / 2,
-		spawn_grid.y * block + spawn_size / 2)
+		spawn_grid.x * block + max_size / 2,
+		spawn_grid.y * block + max_size / 2)
 
 	for i: int in placed_grid_positions.size():
 		var gp: Vector2i = placed_grid_positions[i]
