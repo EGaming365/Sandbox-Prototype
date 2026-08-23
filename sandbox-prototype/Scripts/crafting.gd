@@ -152,7 +152,7 @@ func is_near_bench() -> bool:
 	return false
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if multiplayer.has_multiplayer_peer():
 				if child.is_multiplayer_authority():
 					return child

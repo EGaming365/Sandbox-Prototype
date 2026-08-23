@@ -637,6 +637,8 @@ func die():
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 		if cave_gen and cave_gen.get("in_cave"):
+			if cave_gen.has_method("request_player_died"):
+				cave_gen.request_player_died(global_position)
 			cave_gen.exit_cave(self)
 	var scene_node = get_tree().root.get_node("Scene")
 	var drops: Array = []

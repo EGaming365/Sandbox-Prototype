@@ -63,7 +63,7 @@ func get_snapped_mouse_pos() -> Vector2:
 
 func get_local_player() -> Node:
 	for child in get_tree().root.get_node("Scene").get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if multiplayer.has_multiplayer_peer():
 				if child.is_multiplayer_authority():
 					return child

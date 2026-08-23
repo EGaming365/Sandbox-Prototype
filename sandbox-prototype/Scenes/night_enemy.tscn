@@ -1,51 +1,23 @@
 [gd_scene format=3 uid="uid://b70x50vbfkvak"]
 
 [ext_resource type="Script" uid="uid://bm0i6qr32t8v" path="res://Scripts/night_enemy.gd" id="1_72esr"]
-[ext_resource type="Texture2D" uid="uid://ppxdkn8r0ymw" path="res://Assets/Chicken-Walk_down.png" id="2_pdra7"]
+[ext_resource type="Texture2D" uid="uid://dvp1konhd72ob" path="res://Assets/Spider.png" id="2_72esr"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_jy3mo"]
-atlas = ExtResource("2_pdra7")
-region = Rect2(0, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_7h841"]
-atlas = ExtResource("2_pdra7")
-region = Rect2(32, 0, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_jayuq"]
-atlas = ExtResource("2_pdra7")
-region = Rect2(0, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_x7ecu"]
-atlas = ExtResource("2_pdra7")
-region = Rect2(32, 32, 32, 32)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_qaoqc"]
-atlas = ExtResource("2_pdra7")
+[sub_resource type="AtlasTexture" id="AtlasTexture_pdra7"]
+atlas = ExtResource("2_72esr")
 region = Rect2(0, 0, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_c736p"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_jy3mo")
+"texture": SubResource("AtlasTexture_pdra7")
 }],
 "loop": true,
 "name": &"idle",
 "speed": 5.0
 }, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_7h841")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_jayuq")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_x7ecu")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_qaoqc")
-}],
+"frames": [],
 "loop": true,
 "name": &"walk_down",
 "speed": 5.0
@@ -64,7 +36,8 @@ script = ExtResource("1_72esr")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=442200863]
 texture_filter = 1
 texture_repeat = 1
-position = Vector2(-16.01264, -22.575197)
+position = Vector2(-6.037552, -3.412531)
+scale = Vector2(0.42267743, 0.42267743)
 sprite_frames = SubResource("SpriteFrames_c736p")
 animation = &"idle"
 centered = false

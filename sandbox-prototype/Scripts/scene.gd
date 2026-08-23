@@ -317,7 +317,7 @@ func _process(_delta):
 	Steam.run_callbacks()
 	local_player = null
 	for child in get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				local_player = child
 				break
@@ -763,20 +763,35 @@ func request_deal_damage(target_id: int, amount: int):
 		return
 	if has_node(str(target_id)):
 		var target = get_node(str(target_id))
-		if target is CharacterBody2D:
+		if target is CharacterBody2D and target.is_in_group("players"):
 			deal_damage_to_player.rpc_id(target_id, amount)
 
-@rpc("authority", "call_local", "reliable")
+func apply_damage_to_player(target: Node, amount: int, enemy: Node = null) -> void:
+	if not target or not is_instance_valid(target):
+		return
+	if not target.is_in_group("players"):
+		return
+	if not multiplayer.has_multiplayer_peer() or target.is_multiplayer_authority():
+		if target.has_method("defend_enemy_attack"):
+			target.defend_enemy_attack(amount, enemy)
+		elif target.has_method("take_damage"):
+			target.take_damage(amount)
+		return
+	var enemy_id: int = int(enemy.get("enemy_id")) if enemy and "enemy_id" in enemy else -1
+	enemy_attack_player.rpc_id(target.name.to_int(), amount, enemy_id)
+
+@rpc("authority", "call_remote", "reliable")
 func enemy_attack_player(amount: int, enemy_id: int):
-	for child in get_children():
-		if child is CharacterBody2D:
-			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
-				var enemy = _find_night_enemy(enemy_id)
-				if child.has_method("defend_enemy_attack"):
-					child.defend_enemy_attack(amount, enemy)
-				else:
-					child.take_damage(amount)
-				break
+	var target := get_node_or_null(str(multiplayer.get_unique_id()))
+	if not target or not is_instance_valid(target):
+		return
+	if not target.is_in_group("players") or not target.is_multiplayer_authority():
+		return
+	var enemy := _find_night_enemy(enemy_id)
+	if target.has_method("defend_enemy_attack"):
+		target.defend_enemy_attack(amount, enemy)
+	elif target.has_method("take_damage"):
+		target.take_damage(amount)
 
 func _find_night_enemy(enemy_id: int) -> Node:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
@@ -808,11 +823,9 @@ func request_damage_boss(boss_id: int, amount: int):
 
 @rpc("authority", "call_remote", "reliable")
 func deal_damage_to_player(amount: int):
-	for child in get_children():
-		if child is CharacterBody2D:
-			if child.is_multiplayer_authority():
-				child.take_damage(amount)
-				break
+	var target := get_node_or_null(str(multiplayer.get_unique_id()))
+	if target and is_instance_valid(target) and target.is_in_group("players") and target.is_multiplayer_authority():
+		target.take_damage(amount)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_chop_env_tree(env_id: String, held_item: String):
@@ -899,13 +912,63 @@ func host_spawn_chicken(pos: Vector2) -> void:
 	if AnimalSpawner:
 		AnimalSpawner._spawn_chicken(_find_safe_spawn(pos))
 
+@rpc("authority", "call_local", "reliable")
+func despawn_room_entities_rpc(combat_room_id: int):
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy) and int(enemy.get_meta("combat_room_id", -999)) == combat_room_id:
+			enemy.queue_free()
+	for boss in get_tree().get_nodes_in_group("bosses"):
+		if is_instance_valid(boss) and int(boss.get_meta("combat_room_id", -999)) == combat_room_id:
+			boss.queue_free()
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_room_death_reset(px: float, py: float):
+	if not is_host:
+		return
+	var cave_gen = get_node_or_null("CaveWorldGen")
+	if cave_gen and cave_gen.has_method("notify_player_died"):
+		cave_gen.notify_player_died(Vector2(px, py))
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_spawn_boss(key: String):
+	if not is_host:
+		return
+	BossManager.spawn_by_key(key)
+
+@rpc("authority", "call_local", "reliable")
+func set_boss_wait_ui(waiting: bool, missing_count: int):
+	var canvas: CanvasLayer = get_node_or_null("CanvasLayer")
+	if not canvas:
+		return
+	var label: Label = canvas.get_node_or_null("BossWaitLabel")
+	if waiting:
+		if not label:
+			label = Label.new()
+			label.name = "BossWaitLabel"
+			label.add_theme_font_size_override("font_size", 28)
+			label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+			label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+			label.add_theme_constant_override("outline_size", 5)
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+			label.offset_top = 90.0
+			label.offset_bottom = 140.0
+			label.z_index = 4096
+			canvas.add_child(label)
+		var word: String = "player" if missing_count == 1 else "players"
+		label.text = "Waiting for %d more %s to enter..." % [missing_count, word]
+		label.visible = true
+	elif label:
+		label.visible = false
+
 @rpc("any_peer", "call_remote", "reliable")
 func request_kill_player(target_id: int):
 	if not is_host:
 		return
 	if has_node(str(target_id)):
 		var target = get_node(str(target_id))
-		if target is CharacterBody2D:
+		if target is CharacterBody2D and target.is_in_group("players"):
 			deal_damage_to_player.rpc_id(target_id, target.max_health)
 
 func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
@@ -1012,11 +1075,9 @@ func request_respawn(player_id: int):
 func send_respawn_position(px: float, py: float):
 	var spawn_pos = Vector2(px, py)
 	_preload_spawn_area(spawn_pos)
-	for child in get_children():
-		if child is CharacterBody2D:
-			if child.is_multiplayer_authority():
-				child._do_respawn(spawn_pos)
-				break
+	var target := get_node_or_null(str(multiplayer.get_unique_id()))
+	if target and is_instance_valid(target) and target.is_in_group("players") and target.is_multiplayer_authority():
+		target._do_respawn(spawn_pos)
 
 func _preload_spawn_area(spawn_pos: Vector2) -> void:
 	var world_gen = get_node_or_null("WorldGen")

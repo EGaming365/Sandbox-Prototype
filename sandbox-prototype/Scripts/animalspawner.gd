@@ -331,6 +331,16 @@ func _is_position_on_screen(pos: Vector2, margin: float = 160.0) -> bool:
 	var rect := Rect2(top_left, size + Vector2(margin * 2.0, margin * 2.0))
 	return rect.has_point(pos)
 
+func clear_room_entities(combat_room_id: int) -> void:
+	for enemy in get_tree().get_nodes_in_group("night_enemies"):
+		if is_instance_valid(enemy) and int(enemy.get_meta("combat_room_id", -999)) == combat_room_id:
+			enemy.queue_free()
+	for boss in get_tree().get_nodes_in_group("bosses"):
+		if is_instance_valid(boss) and int(boss.get_meta("combat_room_id", -999)) == combat_room_id:
+			boss.queue_free()
+	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() and _scene_node.has_method("despawn_room_entities_rpc"):
+		_scene_node.despawn_room_entities_rpc.rpc(combat_room_id)
+
 func clear_all_entities() -> void:
 	_spawn_timer.stop()
 	_despawn_timer.stop()

@@ -184,7 +184,7 @@ func _handle_command(text: String):
 			var scene_node = get_tree().root.get_node("Scene")
 			var subject_matches = []
 			for child in scene_node.get_children():
-				if child is CharacterBody2D:
+				if child is CharacterBody2D and child.is_in_group("players"):
 					var peer_id = child.get_multiplayer_authority()
 					var sname = _get_steam_name_for_peer(peer_id)
 					if sname.to_lower().begins_with(parts[1].to_lower()):
@@ -212,7 +212,7 @@ func _handle_command(text: String):
 				var target_name = " ".join(parts.slice(2))
 				var target_matches = []
 				for child in scene_node.get_children():
-					if child is CharacterBody2D:
+					if child is CharacterBody2D and child.is_in_group("players"):
 						var peer_id = child.get_multiplayer_authority()
 						var sname = _get_steam_name_for_peer(peer_id)
 						if sname.to_lower().begins_with(target_name.to_lower()):
@@ -301,7 +301,7 @@ func _handle_command(text: String):
 			var target_name = " ".join(parts.slice(1))
 			var matches = []
 			for child in scene_node.get_children():
-				if child is CharacterBody2D:
+				if child is CharacterBody2D and child.is_in_group("players"):
 					var peer_id = child.get_multiplayer_authority()
 					var sname = _get_steam_name_for_peer(peer_id)
 					if sname.to_lower().begins_with(target_name.to_lower()):
@@ -503,7 +503,7 @@ func _give_item_to_player(target_name: String, item_name: String, amount: int, w
 		return
 	var matches = []
 	for child in scene_node.get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			var peer_id = child.get_multiplayer_authority()
 			var sname = _get_steam_name_for_peer(peer_id)
 			if sname.to_lower().contains(target_name.to_lower()):
@@ -716,7 +716,7 @@ func _get_non_stackable_start_count(item_name: String) -> int:
 
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if multiplayer.has_multiplayer_peer():
 				if child.is_multiplayer_authority():
 					return child

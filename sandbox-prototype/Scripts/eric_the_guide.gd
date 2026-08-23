@@ -129,7 +129,7 @@ func _get_local_player() -> CharacterBody2D:
 	if player and is_instance_valid(player):
 		return player
 	for child in scene.get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				return child
 	return null

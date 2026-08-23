@@ -397,15 +397,12 @@ func _on_dash_hit(target: CharacterBody2D) -> void:
 	state = State.COOLDOWN
 	attack_cooldown = attack_cooldown_max
 	dash_timer = 0.0
-	if multiplayer.has_multiplayer_peer():
-		var target_id := target.name.to_int()
-		if _scene_node:
-			_scene_node.enemy_attack_player.rpc_id(target_id, attack_damage, enemy_id)
+	if _scene_node and _scene_node.has_method("apply_damage_to_player"):
+		_scene_node.apply_damage_to_player(target, attack_damage, self)
+	elif target.has_method("defend_enemy_attack"):
+		target.defend_enemy_attack(attack_damage, self)
 	else:
-		if target.has_method("defend_enemy_attack"):
-			target.defend_enemy_attack(attack_damage, self)
-		else:
-			target.take_damage(attack_damage)
+		target.take_damage(attack_damage)
 	if multiplayer.has_multiplayer_peer():
 		_sync_flash_hit_rpc.rpc()
 	else:

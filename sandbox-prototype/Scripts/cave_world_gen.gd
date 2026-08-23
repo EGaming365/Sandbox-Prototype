@@ -97,6 +97,12 @@ var _door_tile_data: Dictionary = {}
 var _tile_to_room: Dictionary = {}
 var _locked_wall_tiles: Dictionary = {}
 
+const ROOM_ACTIVATION_DELAY: float = 1.0
+const BOSS_DEATH_COOLDOWN: float = 8.0
+var _room_pending_timer: Dictionary = {}
+var _room_waiting: Dictionary = {}
+var _room_cooldown: Dictionary = {}
+
 var _cave_entrance_tile: Vector2i = Vector2i(0, 0)
 var _cave_exit_tile: Vector2i = Vector2i(0, 0)
 var _cave_exit: Node2D = null
@@ -171,6 +177,7 @@ func exit_cave(player: CharacterBody2D) -> void:
 		return
 	var return_tile: Vector2i = _cave_entrance_tile
 	var return_world_pos: Vector2 = _tile_to_world_center(return_tile)
+	return_world_pos.y += _get_tile_pixel_size().y * 0.5
 	in_cave = false
 	_enter_cooldown = ENTER_COOLDOWN_TIME
 	var animal_spawner: Node = get_tree().root.get_node_or_null("AnimalSpawner")
@@ -213,20 +220,84 @@ func get_room_at_world_pos(world_pos: Vector2) -> RoomData:
 		return _rooms[_tile_to_room[tc]]
 	return null
 
-func notify_player_entered_tile(tc: Vector2i) -> RoomData:
-	if not _tile_to_room.has(tc):
-		return null
-	var room: RoomData = _rooms[_tile_to_room[tc]]
-	if room.room_type == RoomType.NOVICE_FIGHT or room.room_type == RoomType.BASIC_FIGHT:
-		if not room.is_locked and not room.is_cleared:
+func _update_room_presence(delta: float) -> void:
+	if not in_cave:
+		return
+	var present_by_room: Dictionary = {}
+	for p in get_tree().get_nodes_in_group("players"):
+		if not is_instance_valid(p):
+			continue
+		var tc: Vector2i = world_to_tile((p as Node2D).global_position)
+		if not _tile_to_room.has(tc):
+			continue
+		var rid: int = _tile_to_room[tc]
+		if not present_by_room.has(rid):
+			present_by_room[rid] = []
+		present_by_room[rid].append(p)
+	for room: RoomData in _rooms:
+		if room.is_locked or room.is_cleared:
+			_room_pending_timer.erase(room.id)
+			continue
+		if room.room_type != RoomType.NOVICE_FIGHT and room.room_type != RoomType.BASIC_FIGHT and room.room_type != RoomType.BOSS:
+			continue
+		if _room_cooldown.has(room.id):
+			_room_cooldown[room.id] -= delta
+			if _room_cooldown[room.id] > 0.0:
+				continue
+			_room_cooldown.erase(room.id)
+		var occupants: Array = present_by_room.get(room.id, [])
+		if occupants.is_empty():
+			if _room_pending_timer.has(room.id):
+				_room_pending_timer.erase(room.id)
+			if room.room_type == RoomType.BOSS and _room_waiting.get(room.id, false):
+				_clear_boss_wait_message(room.id)
+			continue
+		if room.room_type == RoomType.BOSS:
+			var required: int = _connected_player_count()
+			if occupants.size() < required:
+				_room_pending_timer.erase(room.id)
+				_send_boss_wait_message(room.id, occupants, required - occupants.size())
+				continue
+			elif _room_waiting.get(room.id, false):
+				_clear_boss_wait_message(room.id)
+		if not _room_pending_timer.has(room.id):
+			_room_pending_timer[room.id] = ROOM_ACTIVATION_DELAY
+		_room_pending_timer[room.id] -= delta
+		if _room_pending_timer[room.id] <= 0.0:
+			_room_pending_timer.erase(room.id)
 			_lock_room(room)
-			return room
-	elif room.room_type == RoomType.BOSS:
-		if not room.is_locked and not room.is_cleared:
-			_lock_room(room)
-			emit_signal("boss_room_entered", room.id)
-			return room
-	return null
+			if room.room_type == RoomType.BOSS:
+				emit_signal("boss_room_entered", room.id)
+				if _room_waiting.get(room.id, false):
+					_clear_boss_wait_message(room.id)
+
+func _send_boss_wait_message(room_id: int, occupants: Array, missing: int) -> void:
+	var scene_node: Node = get_tree().root.get_node_or_null("Scene")
+	if not scene_node or not scene_node.has_method("set_boss_wait_ui"):
+		return
+	_room_waiting[room_id] = true
+	for p in occupants:
+		if not is_instance_valid(p):
+			continue
+		var pid: int = String(p.name).to_int()
+		if not multiplayer.has_multiplayer_peer() or pid == multiplayer.get_unique_id():
+			scene_node.set_boss_wait_ui(true, missing)
+		else:
+			scene_node.set_boss_wait_ui.rpc_id(pid, true, missing)
+
+func _clear_boss_wait_message(room_id: int) -> void:
+	_room_waiting[room_id] = false
+	var scene_node: Node = get_tree().root.get_node_or_null("Scene")
+	if not scene_node or not scene_node.has_method("set_boss_wait_ui"):
+		return
+	for p in get_tree().get_nodes_in_group("players"):
+		if not is_instance_valid(p):
+			continue
+		var pid: int = String(p.name).to_int()
+		if not multiplayer.has_multiplayer_peer() or pid == multiplayer.get_unique_id():
+			scene_node.set_boss_wait_ui(false, 0)
+		else:
+			scene_node.set_boss_wait_ui.rpc_id(pid, false, 0)
 
 func notify_enemy_died(world_pos: Vector2) -> void:
 	var room: RoomData = get_room_at_world_pos(world_pos)
@@ -446,9 +517,9 @@ func _generate_dungeon() -> void:
 			else:
 				type_assignments[i] = RoomType.NOVICE_FIGHT
 
-	for nb: int in adjacency[spawn_idx]:
-		if type_assignments[nb] == RoomType.NOVICE_FIGHT or type_assignments[nb] == RoomType.BASIC_FIGHT:
-			type_assignments[nb] = RoomType.LAKE
+	type_assignments[spawn_idx] = RoomType.SPAWN
+	if boss_idx != spawn_idx:
+		type_assignments[boss_idx] = RoomType.BOSS
 
 	var room_sizes: Array[int] = []
 	room_sizes.resize(placed_grid_positions.size())
@@ -570,7 +641,7 @@ func _carve_room_tiles(room: RoomData) -> void:
 			_carved_tiles[tc] = true
 			_wall_tiles.erase(tc)
 			_tile_to_room[tc] = room.id
-	if room.room_type == RoomType.LAKE:
+	if room.room_type == RoomType.LAKE and room.id != _spawn_room_id:
 		_carve_lake_interior(room)
 	for dx: int in range(-1, room.tile_size + 1):
 		for dy: int in range(-1, room.tile_size + 1):
@@ -667,13 +738,55 @@ func _unlock_room(room: RoomData) -> void:
 	_remove_lock_walls(room)
 	emit_signal("room_cleared", room.id, room.room_type)
 
+func _reset_room(room: RoomData, cooldown: float = 0.0) -> void:
+	room.is_locked = false
+	room.is_cleared = false
+	room.enemy_count = 0
+	room.spawned_enemy_ids.clear()
+	for tc: Vector2i in room.door_tiles:
+		if _door_tile_data.has(tc):
+			_door_tile_data[tc]["is_closed"] = false
+		if _tilemap:
+			_tilemap.set_cell(0, tc, cave_source_id, cave_door_open_atlas)
+	_remove_lock_walls(room)
+	_room_pending_timer.erase(room.id)
+	if cooldown > 0.0:
+		_room_cooldown[room.id] = cooldown
+	else:
+		_room_cooldown.erase(room.id)
+	emit_signal("room_cleared", room.id, room.room_type)
+
+func request_player_died(world_pos: Vector2) -> void:
+	if _is_host():
+		notify_player_died(world_pos)
+		return
+	var scene_node: Node = get_tree().root.get_node_or_null("Scene")
+	if scene_node and scene_node.has_method("request_room_death_reset"):
+		scene_node.request_room_death_reset.rpc_id(1, world_pos.x, world_pos.y)
+
+func notify_player_died(world_pos: Vector2) -> void:
+	if not _is_host():
+		return
+	var room: RoomData = get_room_at_world_pos(world_pos)
+	if not room or not room.is_locked:
+		return
+	var animal_spawner: Node = get_tree().root.get_node_or_null("AnimalSpawner")
+	if animal_spawner and animal_spawner.has_method("clear_room_entities"):
+		animal_spawner.clear_room_entities(room.id)
+	if room.room_type == RoomType.BOSS:
+		if _room_waiting.get(room.id, false):
+			_clear_boss_wait_message(room.id)
+		_reset_room(room, BOSS_DEATH_COOLDOWN)
+	else:
+		_reset_room(room)
+
 func _process(delta: float) -> void:
 	if _enter_cooldown > 0.0:
 		_enter_cooldown -= delta
 	if not _active:
 		return
 	if _is_host():
-		_update_combat_room_entry()
+		_update_room_presence(delta)
 		_check_locked_rooms_clear()
 	_paint_next_tiles()
 	_chunk_update_timer -= delta
@@ -690,10 +803,15 @@ func _get_local_player() -> CharacterBody2D:
 	if lp and is_instance_valid(lp):
 		return lp
 	for child: Node in scene.get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				return child
 	return null
+
+func _connected_player_count() -> int:
+	if not multiplayer.has_multiplayer_peer():
+		return 1
+	return multiplayer.get_peers().size() + 1
 
 func _update_chunks_around_player() -> void:
 	if not _tilemap:
@@ -933,10 +1051,27 @@ func world_to_tile(world_pos: Vector2) -> Vector2i:
 		return _tilemap.local_to_map(_tilemap.to_local(world_pos))
 	return Vector2i(floori(world_pos.x / 64), floori(world_pos.y / 64))
 
+func is_tile_solid(world_pos: Vector2) -> bool:
+	if not _active:
+		return false
+	var tc: Vector2i = world_to_tile(world_pos)
+	if not _carved_tiles.has(tc):
+		return true
+	if _wall_tiles.has(tc):
+		return true
+	if _locked_wall_tiles.has(tc):
+		return true
+	return false
+
 func _tile_to_world_center(tile: Vector2i) -> Vector2:
 	if _tilemap:
 		return _tilemap.to_global(_tilemap.map_to_local(tile))
 	return Vector2(tile) * 64.0 + Vector2(32.0, 32.0)
+
+func _get_tile_pixel_size() -> Vector2:
+	if _tilemap and _tilemap.tile_set:
+		return Vector2(_tilemap.tile_set.tile_size)
+	return Vector2(64.0, 64.0)
 
 func tile_to_chunk(tc: Vector2i) -> Vector2i:
 	return Vector2i(
@@ -986,15 +1121,6 @@ func _find_tile_sources() -> void:
 
 func _is_host() -> bool:
 	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
-
-func _update_combat_room_entry() -> void:
-	if not in_cave:
-		return
-	var player: CharacterBody2D = _get_local_player()
-	if not player:
-		return
-	var tc: Vector2i = world_to_tile(player.global_position)
-	notify_player_entered_tile(tc)
 
 func _check_locked_rooms_clear() -> void:
 	for room: RoomData in _rooms:

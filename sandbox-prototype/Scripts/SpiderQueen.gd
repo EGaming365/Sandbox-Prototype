@@ -68,6 +68,18 @@ signal boss_died
 func _is_host() -> bool:
 	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
 
+func _find_nearest_player() -> Node2D:
+	var nearest: Node2D = null
+	var nearest_dist := INF
+	for p in get_tree().get_nodes_in_group("players"):
+		if not is_instance_valid(p):
+			continue
+		var d := global_position.distance_to((p as Node2D).global_position)
+		if d < nearest_dist:
+			nearest_dist = d
+			nearest = p
+	return nearest
+
 func _ready() -> void:
 	if not ENABLED:
 		queue_free()
@@ -76,7 +88,7 @@ func _ready() -> void:
 	max_health = MAX_HEALTH
 	scale = Vector2(boss_visual_scale, boss_visual_scale)
 	add_to_group("bosses")
-	_player = get_tree().get_first_node_in_group("players")
+	_player = _find_nearest_player()
 	_setup_health_bar()
 
 func _setup_health_bar() -> void:
@@ -147,17 +159,17 @@ func _draw() -> void:
 func _physics_process(delta: float) -> void:
 	if not ENABLED:
 		return
-	if not is_instance_valid(_player):
-		_player = get_tree().get_first_node_in_group("players")
-		return
-	_contact_cooldown = max(_contact_cooldown - delta, 0.0)
-	_check_contact_damage()
 	_update_health_bar()
 	if health <= 0:
 		_die()
 		return
 	if not _is_host():
 		return
+	_player = _find_nearest_player()
+	if not is_instance_valid(_player):
+		return
+	_contact_cooldown = max(_contact_cooldown - delta, 0.0)
+	_check_contact_damage()
 	_attack_timer -= delta
 	match _state:
 		State.IDLE:
@@ -179,20 +191,22 @@ func _physics_process(delta: float) -> void:
 				scene_node.sync_boss_state_rpc.rpc(enemy_id, global_position.x, global_position.y, health)
 
 func _check_contact_damage() -> void:
-	if _contact_cooldown > 0.0:
-		return
-	if global_position.distance_to(_player.global_position) > CONTACT_RADIUS:
-		return
-	_contact_cooldown = CONTACT_COOLDOWN
 	var scene_node := get_tree().root.get_node_or_null("Scene")
-	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
-		if scene_node:
-			scene_node.request_deal_damage.rpc_id(1, _player.name.to_int(), CONTACT_DAMAGE)
-	else:
-		if _player.has_method("defend_enemy_attack"):
-			_player.defend_enemy_attack(CONTACT_DAMAGE, null)
-		elif _player.has_method("take_damage"):
-			_player.take_damage(CONTACT_DAMAGE)
+	for p in get_tree().get_nodes_in_group("players"):
+		if not is_instance_valid(p):
+			continue
+		if global_position.distance_to((p as Node2D).global_position) > CONTACT_RADIUS:
+			continue
+		if _contact_cooldown > 0.0:
+			return
+		_contact_cooldown = CONTACT_COOLDOWN
+		if scene_node and scene_node.has_method("apply_damage_to_player"):
+			scene_node.apply_damage_to_player(p, CONTACT_DAMAGE, self)
+		elif p.has_method("defend_enemy_attack"):
+			p.defend_enemy_attack(CONTACT_DAMAGE, self)
+		elif p.has_method("take_damage"):
+			p.take_damage(CONTACT_DAMAGE)
+		return
 
 func _move_toward_player(delta: float) -> void:
 	var to_player := _player.global_position - global_position

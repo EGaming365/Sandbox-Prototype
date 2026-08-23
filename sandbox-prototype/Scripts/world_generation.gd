@@ -118,7 +118,7 @@ func _get_local_player():
 	if lp and is_instance_valid(lp):
 		return lp
 	for child in scene_node.get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				return child
 	return null

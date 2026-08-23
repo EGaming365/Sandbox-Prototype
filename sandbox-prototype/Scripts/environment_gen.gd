@@ -741,7 +741,7 @@ func _refresh_references() -> bool:
 
 	local_player = null
 	for child in scene_node.get_children():
-		if child is CharacterBody2D:
+		if child is CharacterBody2D and child.is_in_group("players"):
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				local_player = child
 				break
