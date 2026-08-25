@@ -448,13 +448,23 @@ func _generate_dungeon() -> void:
 		adjacency[i] = []
 
 	for i: int in range(1, placed_grid_positions.size()):
-		var best_j: int = 0
+		var best_j: int = -1
 		var best_dist: float = INF
 		for j: int in range(0, i):
+			var gd: Vector2i = placed_grid_positions[i] - placed_grid_positions[j]
+			var is_cardinal_adjacent: bool = (abs(gd.x) == 1 and gd.y == 0) or (gd.x == 0 and abs(gd.y) == 1)
+			if not is_cardinal_adjacent:
+				continue
 			var d: float = placed_grid_positions[i].distance_squared_to(placed_grid_positions[j])
 			if d < best_dist:
 				best_dist = d
 				best_j = j
+		if best_j == -1:
+			for j: int in range(0, i):
+				var d: float = placed_grid_positions[i].distance_squared_to(placed_grid_positions[j])
+				if d < best_dist:
+					best_dist = d
+					best_j = j
 		adjacency[i].append(best_j)
 		adjacency[best_j].append(i)
 
@@ -560,6 +570,7 @@ func _generate_dungeon() -> void:
 
 	for room: RoomData in _rooms:
 		_carve_room_tiles(room)
+	_strip_lake_from_spawn_room()
 	for i: int in placed_grid_positions.size():
 		for nb: int in adjacency[i]:
 			if nb > i:
@@ -650,6 +661,16 @@ func _carve_room_tiles(room: RoomData) -> void:
 			var tc: Vector2i = room.tile_origin + Vector2i(dx, dy)
 			if not _carved_tiles.has(tc):
 				_wall_tiles[tc] = true
+
+func _strip_lake_from_spawn_room() -> void:
+	if _spawn_room_id < 0 or _spawn_room_id >= _rooms.size():
+		return
+	var spawn_room: RoomData = _rooms[_spawn_room_id]
+	for dx: int in range(-2, spawn_room.tile_size + 2):
+		for dy: int in range(-2, spawn_room.tile_size + 2):
+			var tc: Vector2i = spawn_room.tile_origin + Vector2i(dx, dy)
+			if _water_tiles.has(tc):
+				_water_tiles.erase(tc)
 
 func _carve_lake_interior(room: RoomData) -> void:
 	var m: int = lake_inner_margin

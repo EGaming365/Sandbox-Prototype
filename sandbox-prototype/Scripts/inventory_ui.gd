@@ -6,6 +6,8 @@ var dragging_from_inv = false
 var drag_node: Control = null
 var hovered_slot: int = -1
 var current_tab: String = "inventory"
+var split_drag: bool = false
+var split_hold: Dictionary = {"item": "", "count": 0, "texture": null}
 
 const UNLOCKED_SLOTS = 20
 const TOTAL_SLOTS = 80
@@ -237,7 +239,168 @@ func _add_durability_bar(slot: Panel, current: float, max_dur: float):
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar_bg.add_child(bar)
 
+func _start_split_drag(index: int, item_name: String, tex: Texture2D):
+	dragging_from = index
+	dragging_from_inv = true
+	split_drag = true
+	split_hold = {"item": item_name, "count": 0, "texture": tex}
+	var container = Control.new()
+	container.size = Vector2(40, 40)
+	container.z_index = 9
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex_rect = TextureRect.new()
+	tex_rect.texture = tex
+	tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(tex_rect)
+	add_child(container)
+	drag_node = container
+
+func _start_full_drag(index: int, tex: Texture2D):
+	dragging_from = index
+	dragging_from_inv = true
+	split_drag = false
+	var container = Control.new()
+	container.size = Vector2(40, 40)
+	container.z_index = 9
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex_rect = TextureRect.new()
+	tex_rect.texture = tex
+	tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(tex_rect)
+	add_child(container)
+	drag_node = container
+
+func _merge_or_place(arr: Array, index: int, item_name: String, tex: Texture2D, count: int) -> bool:
+	var slot = arr[index]
+	if slot["item"] == "":
+		slot["item"] = item_name
+		slot["count"] = count
+		slot["texture"] = tex
+		Inventory.discover(item_name)
+		Inventory.inventory_changed.emit()
+		return true
+	if slot["item"] == item_name and slot["count"] < 99:
+		var space = 99 - slot["count"]
+		var add = min(space, count)
+		slot["count"] += add
+		var leftover = count - add
+		Inventory.inventory_changed.emit()
+		if leftover > 0:
+			_return_split_to_source(leftover)
+		return true
+	return false
+
+func _merge_split_into_offhand(item_name: String, tex: Texture2D, count: int) -> bool:
+	if not Inventory.can_item_go_offhand(item_name):
+		return false
+	if Inventory.offhand_slot["item"] == "":
+		Inventory.offhand_slot = {"item": item_name, "count": count, "texture": tex}
+		Inventory.discover(item_name)
+		Inventory.inventory_changed.emit()
+		return true
+	if Inventory.offhand_slot["item"] == item_name and Inventory.offhand_slot["count"] < 99:
+		var space = 99 - Inventory.offhand_slot["count"]
+		var add = min(space, count)
+		Inventory.offhand_slot["count"] += add
+		var leftover = count - add
+		Inventory.inventory_changed.emit()
+		if leftover > 0:
+			_return_split_to_source(leftover)
+		return true
+	return false
+
+func _return_split_to_source(leftover: int = -1) -> void:
+	var amount = split_hold["count"] if leftover == -1 else leftover
+	if amount <= 0:
+		return
+	var slot = Inventory.inv_slots[dragging_from]
+	if slot["item"] == "":
+		slot["item"] = split_hold["item"]
+		slot["count"] = amount
+		slot["texture"] = split_hold["texture"]
+	elif slot["item"] == split_hold["item"]:
+		slot["count"] = min(99, slot["count"] + amount)
+	else:
+		Inventory.batch_add_item(split_hold["item"], split_hold["texture"], amount)
+	Inventory.inventory_changed.emit()
+
+func _resolve_split_drop() -> void:
+	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+	var dropped_on_inv = get_hovered_slot()
+	var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
+	var dropped_on_offhand = hotbar != null and hotbar.has_method("_is_mouse_over_offhand") and hotbar._is_mouse_over_offhand()
+	var item_name = split_hold["item"]
+	var count = split_hold["count"]
+	var tex = split_hold["texture"]
+	if dropped_on_inv != -1:
+		if not _merge_or_place(Inventory.inv_slots, dropped_on_inv, item_name, tex, count):
+			_return_split_to_source()
+	elif dropped_on_offhand:
+		if not _merge_split_into_offhand(item_name, tex, count):
+			if hotbar and hotbar.has_method("_flash_offhand_red"):
+				hotbar._flash_offhand_red()
+	elif dropped_on_hotbar != -1:
+		if not _merge_or_place(Inventory.slots, dropped_on_hotbar, item_name, tex, count):
+			_return_split_to_source()
+	else:
+		var inv_panel = $PanelContainer
+		var mouse = get_global_mouse_position()
+		if not inv_panel.get_global_rect().has_point(mouse):
+			var hotbar2 = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+			var player = hotbar2.get_local_player() if hotbar2 else null
+			if player:
+				var scene_node = get_tree().root.get_node("Scene")
+				var positions_x: Array = []
+				var positions_y: Array = []
+				for i in count:
+					var angle = randf_range(0, TAU)
+					var radius = randf_range(80, 120)
+					var drop_pos = player.global_position + Vector2(cos(angle), sin(angle)) * radius
+					positions_x.append(drop_pos.x)
+					positions_y.append(drop_pos.y)
+				if multiplayer.has_multiplayer_peer():
+					if multiplayer.is_server():
+						for i in positions_x.size():
+							scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_name, 1)
+					else:
+						scene_node.request_spawn_floor_items_batch.rpc_id(1, positions_x, positions_y, item_name, 1)
+				else:
+					for i in positions_x.size():
+						scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_name, 1)
+			else:
+				_return_split_to_source()
+		else:
+			_return_split_to_source()
+	split_drag = false
+	split_hold = {"item": "", "count": 0, "texture": null}
+
 func _gui_input_for_slot(event, index):
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and not drag_node:
+		var data = Inventory.inv_slots[index]
+		if data["item"] != "":
+			var item_name = data["item"]
+			var tex = data["texture"]
+			if Inventory.non_stackable_items.has(item_name):
+				_start_full_drag(index, tex)
+			else:
+				var total = data["count"]
+				var take = int(ceil(total / 2.0))
+				if take > 0:
+					var remain = total - take
+					if remain <= 0:
+						Inventory.inv_slots[index] = {"item": "", "count": 0, "texture": null}
+					else:
+						Inventory.inv_slots[index]["count"] = remain
+					Inventory.inventory_changed.emit()
+					_start_split_drag(index, item_name, tex)
+					split_hold["count"] = take
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and Inventory.inv_slots[index]["item"] != "":
 			if Input.is_key_pressed(KEY_SHIFT):
@@ -396,35 +559,40 @@ func _process(_delta):
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+		var held_item_name = split_hold["item"] if split_drag else Inventory.inv_slots[dragging_from]["item"]
 		if hotbar and hotbar.has_method("_is_mouse_over_offhand") and hotbar.has_method("set_offhand_drag_valid"):
 			var over_offhand = hotbar._is_mouse_over_offhand()
-			hotbar.set_offhand_drag_valid(not over_offhand or Inventory.can_item_go_offhand(Inventory.inv_slots[dragging_from]["item"]))
-		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			var dropped_on_inv = get_hovered_slot()
-			var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
-			var dropped_on_offhand = hotbar != null and hotbar.has_method("_is_mouse_over_offhand") and hotbar._is_mouse_over_offhand()
-			if dropped_on_inv != -1 and dropped_on_inv != dragging_from:
-				Inventory.move_item(dragging_from, dropped_on_inv, true, true)
-			elif dropped_on_offhand:
-				if not Inventory.move_slot_to_offhand(dragging_from, true) and hotbar and hotbar.has_method("_flash_offhand_red"):
-					hotbar._flash_offhand_red()
-			elif dropped_on_hotbar != -1:
-				Inventory.move_item(dragging_from, dropped_on_hotbar, true, false)
-			elif dropped_on_inv == -1 and dropped_on_hotbar == -1:
-				var inv_panel = $PanelContainer
-				var mouse = get_global_mouse_position()
-				if not inv_panel.get_global_rect().has_point(mouse):
-					var hotbar2 = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
-					var player = hotbar2.get_local_player() if hotbar2 else null
-					if player:
-						var item_type = Inventory.inv_slots[dragging_from]["item"]
-						var count = Inventory.inv_slots[dragging_from]["count"]
-						var is_tool = Inventory.non_stackable_items.has(item_type)
-						if is_tool:
-							_spawn_drop(player, item_type, count)
-						else:
-							_spawn_drop_stack(player, item_type, count)
-						Inventory.remove_item(dragging_from, true)
+			hotbar.set_offhand_drag_valid(not over_offhand or Inventory.can_item_go_offhand(held_item_name))
+		var release_button = MOUSE_BUTTON_RIGHT if split_drag else MOUSE_BUTTON_LEFT
+		if not Input.is_mouse_button_pressed(release_button):
+			if split_drag:
+				_resolve_split_drop()
+			else:
+				var dropped_on_inv = get_hovered_slot()
+				var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
+				var dropped_on_offhand = hotbar != null and hotbar.has_method("_is_mouse_over_offhand") and hotbar._is_mouse_over_offhand()
+				if dropped_on_inv != -1 and dropped_on_inv != dragging_from:
+					Inventory.move_item(dragging_from, dropped_on_inv, true, true)
+				elif dropped_on_offhand:
+					if not Inventory.move_slot_to_offhand(dragging_from, true) and hotbar and hotbar.has_method("_flash_offhand_red"):
+						hotbar._flash_offhand_red()
+				elif dropped_on_hotbar != -1:
+					Inventory.move_item(dragging_from, dropped_on_hotbar, true, false)
+				elif dropped_on_inv == -1 and dropped_on_hotbar == -1:
+					var inv_panel = $PanelContainer
+					var mouse = get_global_mouse_position()
+					if not inv_panel.get_global_rect().has_point(mouse):
+						var hotbar2 = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+						var player = hotbar2.get_local_player() if hotbar2 else null
+						if player:
+							var item_type = Inventory.inv_slots[dragging_from]["item"]
+							var count = Inventory.inv_slots[dragging_from]["count"]
+							var is_tool = Inventory.non_stackable_items.has(item_type)
+							if is_tool:
+								_spawn_drop(player, item_type, count)
+							else:
+								_spawn_drop_stack(player, item_type, count)
+							Inventory.remove_item(dragging_from, true)
 			drag_node.queue_free()
 			drag_node = null
 			dragging_from = -1
