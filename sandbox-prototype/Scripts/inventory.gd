@@ -339,9 +339,26 @@ func swap_hotbar_with_offhand(index: int) -> bool:
 func move_item(from_index: int, to_index: int, from_inv: bool = false, to_inv: bool = false):
 	var from_arr = inv_slots if from_inv else slots
 	var to_arr = inv_slots if to_inv else slots
-	var temp = from_arr[from_index].duplicate()
-	from_arr[from_index] = to_arr[to_index].duplicate()
-	to_arr[to_index] = temp
+	var from_slot = from_arr[from_index]
+	var to_slot = to_arr[to_index]
+
+	var same_item = from_slot["item"] != "" and from_slot["item"] == to_slot["item"]
+	var stackable = same_item and not non_stackable_items.has(from_slot["item"])
+
+	if stackable and to_slot["count"] < 99:
+		var space = 99 - to_slot["count"]
+		var move_count = min(from_slot["count"], space)
+		var new_to_count = to_slot["count"] + move_count
+		var new_from_count = from_slot["count"] - move_count
+		to_arr[to_index] = {"item": to_slot["item"], "count": new_to_count, "texture": to_slot["texture"]}
+		if new_from_count <= 0:
+			from_arr[from_index] = {"item": "", "count": 0, "texture": null}
+		else:
+			from_arr[from_index] = {"item": from_slot["item"], "count": new_from_count, "texture": from_slot["texture"]}
+	else:
+		var temp = from_arr[from_index].duplicate()
+		from_arr[from_index] = to_arr[to_index].duplicate()
+		to_arr[to_index] = temp
 	inventory_changed.emit()
 
 func remove_item_by_name(item_name: String, amount: int):

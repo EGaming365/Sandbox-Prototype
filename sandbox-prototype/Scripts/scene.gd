@@ -294,6 +294,15 @@ func _ready():
 	print("My Steam ID: ", Steam.getSteamID())
 	_spawn_player(1)
 	_show_steam_status_warning()
+	set_online_ui_visible(false)
+
+func set_online_ui_visible(v: bool) -> void:
+	if host_button:
+		host_button.visible = v
+	if join_button:
+		join_button.visible = v
+	if id_prompt:
+		id_prompt.visible = v
 
 func _show_steam_status_warning() -> void:
 	if steam_connected:

@@ -22,13 +22,23 @@ var _just_opened: bool = false
 
 func toggle():
 	if visible:
-		hide()
-		_close_info_panel()
+		close_ui()
 	else:
 		show()
 		_just_opened = true
 		_switch_section(current_section)
 		_switch_collection_sub(current_collection_sub)
+		_set_online_ui(true)
+
+func close_ui():
+	hide()
+	_close_info_panel()
+	_set_online_ui(false)
+
+func _set_online_ui(v: bool) -> void:
+	var scene_root = get_tree().root.get_node_or_null("Scene")
+	if scene_root and scene_root.has_method("set_online_ui_visible"):
+		scene_root.set_online_ui_visible(v)
 
 func _process(_delta):
 	if _just_opened:
@@ -37,7 +47,7 @@ func _process(_delta):
 	if not visible:
 		return
 	if Input.is_action_just_pressed("exit"):
-		hide()
+		close_ui()
 		get_viewport().set_input_as_handled()
 		return
 	if Input.is_action_just_pressed("click"):
@@ -48,7 +58,7 @@ func _process(_delta):
 		var nav_rect = $PanelContainer/VBoxContainer/HBoxContainer.get_global_rect()
 		var safe_rect = panel_rect.merge(nav_rect)
 		if not safe_rect.has_point(mouse):
-			hide()
+			close_ui()
 			get_viewport().set_input_as_handled()
 
 func _input(event):
@@ -59,7 +69,7 @@ func _input(event):
 		var panel_rect = $PanelContainer.get_global_rect()
 		var nav_rect = $PanelContainer/VBoxContainer/HBoxContainer.get_global_rect()
 		if not panel_rect.merge(nav_rect).has_point(mouse):
-			hide()
+			close_ui()
 			get_viewport().set_input_as_handled()
 
 func set_aurora(state: bool):

@@ -1,14 +1,7 @@
 extends Control
 
-func _input(event):
-	if Input.is_action_just_pressed("exit"):
-		var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
-		var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-		if inv and inv.visible:
-			return
-		if extras and not extras.visible:
-			extras.toggle()
-			get_viewport().set_input_as_handled()
+func _ready():
+	process_priority = -100
 
 func _process(_delta):
 	if Input.is_action_just_pressed("click"):
@@ -21,7 +14,7 @@ func _process(_delta):
 				inv.toggle()
 			if extras:
 				if extras.visible:
-					extras.hide()
+					extras.close_ui()
 				else:
 					extras.toggle()
 			return
@@ -32,9 +25,19 @@ func _process(_delta):
 		if $HBoxContainer/Button2.get_global_rect().has_point(mouse):
 			get_viewport().set_input_as_handled()
 			if extras and extras.visible:
-				extras.hide()
+				extras.close_ui()
 			if inv:
 				if inv.visible and inv.current_tab == "inventory":
 					inv.toggle()
 				else:
 					inv.toggle_to("inventory")
+
+func _input(event):
+	if Input.is_action_just_pressed("exit"):
+		var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+		var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+		if inv and inv.visible:
+			return
+		if extras and not extras.visible:
+			extras.toggle()
+			get_viewport().set_input_as_handled()
