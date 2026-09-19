@@ -2,6 +2,8 @@ extends LineEdit
 
 var toggle_ui = false
 var can_toggle_ui = true
+
+
 func _process(_delta: float) -> void:
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")

@@ -9,6 +9,7 @@ const CHECK_INTERVAL = 0.1
 var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
+
 func _ready():
 	visible = false
 	z_index = 2
@@ -17,6 +18,7 @@ func _ready():
 	check_timer = randf_range(0.0, CHECK_INTERVAL)
 	await get_tree().process_frame
 	visible = true
+
 
 func _process(delta):
 	if _picked_up:
@@ -49,6 +51,7 @@ func _process(delta):
 		else:
 			scene_node.remove_floor_item(item_id)
 
+
 func _do_despawn():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
@@ -58,6 +61,7 @@ func _do_despawn():
 			scene_node.sync_remove_floor_item.rpc(item_id)
 	else:
 		scene_node.remove_floor_item(item_id)
+
 
 func _is_inventory_full(item_name: String) -> bool:
 	if Inventory.non_stackable_items.has(item_name):

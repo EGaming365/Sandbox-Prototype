@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://bcw00q1443tqi"]
+
+[ext_resource type="Script" uid="uid://57whnlar4b04" path="res://Scenes/snapper.gd" id="1_teyth"]
+[ext_resource type="Texture2D" uid="uid://dax55ib7mbrlt" path="res://Assets/Fish_Snapper_Raw.png" id="2_kswus"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Snapper" type="Node2D" unique_id=2093844244]
+scale = Vector2(0.10294106, 0.10294106)
+script = ExtResource("1_teyth")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+texture = ExtResource("2_kswus")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+scale = Vector2(-14.717256, -14.717256)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

@@ -21,6 +21,7 @@ var _picked_up: bool = false
 var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 
+
 func _ready():
 	visible = false
 	z_index = 2
@@ -30,6 +31,7 @@ func _ready():
 	await get_tree().process_frame
 	_apply_visuals()
 	visible = true
+
 
 func _apply_visuals():
 	var weight_kg: float = durability / 1000.0
@@ -55,6 +57,7 @@ func _apply_visuals():
 		sprite.texture = load(tex_path)
 		if item_type.begins_with("Albino "):
 			sprite.modulate = Color(0.82, 0.82, 0.82)
+
 
 func _process(delta):
 	if _picked_up:
@@ -108,6 +111,7 @@ func _process(delta):
 		else:
 			scene_node.remove_floor_item(item_id)
 
+
 func _do_despawn():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
@@ -118,8 +122,10 @@ func _do_despawn():
 	else:
 		scene_node.remove_floor_item(item_id)
 
+
 func _get_item_name() -> String:
 	return get_meta("item_name", item_type)
+
 
 func _is_inventory_full(item_name: String) -> bool:
 	for slot in Inventory.slots:

@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://ce6521paw1xl5"]
+
+[ext_resource type="Script" uid="uid://ds8d66by7ooc" path="res://Scenes/guppy.gd" id="1_nn5hy"]
+[ext_resource type="Texture2D" uid="uid://yi4xh7s7b6sy" path="res://Assets/Fish_Guppy_Raw.png" id="2_ycc8v"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Guppy" type="Node2D" unique_id=2093844244]
+scale = Vector2(0.098474905, 0.098474905)
+script = ExtResource("1_nn5hy")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+texture = ExtResource("2_ycc8v")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+scale = Vector2(16.439505, 16.439505)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

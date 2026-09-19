@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://c6yu1kungelo7"]
+
+[ext_resource type="Script" uid="uid://bm4q6fwyt10b3" path="res://Scenes/crystal_creeper.gd" id="1_k8he5"]
+[ext_resource type="Texture2D" uid="uid://beedxdi2wmduo" path="res://Assets/Fish_Crystal_Creeper_Raw.png" id="2_8p24s"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Crystal_Creeper" type="Node2D" unique_id=2093844244]
+scale = Vector2(0.08843464, 0.08843464)
+script = ExtResource("1_k8he5")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+texture = ExtResource("2_8p24s")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+scale = Vector2(14.824776, 14.824776)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

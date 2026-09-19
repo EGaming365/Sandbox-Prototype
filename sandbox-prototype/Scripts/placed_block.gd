@@ -10,6 +10,7 @@ var _light_id: int = -1
 
 var plank_tex = preload("res://Assets/Wood_Planks.png")
 
+
 func _get_texture_for_item(i_name: String) -> Texture2D:
 	match i_name:
 		"Wood Plank":
@@ -19,12 +20,14 @@ func _get_texture_for_item(i_name: String) -> Texture2D:
 		_:
 			return null
 
+
 func setup(i_name: String, texture: Texture2D, b_id: int, rot: float = 0.0):
 	item_name = i_name
 	item_texture = texture if texture != null else _get_texture_for_item(i_name)
 	block_id = b_id
 	max_hits = BuildingManager.get_max_hits(item_name)
 	current_rotation = 0.0
+
 
 func _ready():
 	add_to_group("placed_blocks")
@@ -84,11 +87,14 @@ func _ready():
 	if item_name != "":
 		max_hits = BuildingManager.get_max_hits(item_name)
 
+
 func _process(_delta):
 	pass
 
+
 func get_global_rect() -> Rect2:
 	return Rect2(global_position - Vector2(32, 32), Vector2(64, 64))
+
 
 func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -118,6 +124,7 @@ func _input(event):
 		else:
 			scene_node.process_block_hit(block_id)
 
+
 func _break_block():
 	var scene_node = get_tree().root.get_node("Scene")
 	_remove_torch_light()
@@ -131,6 +138,7 @@ func _break_block():
 		Inventory.add_item(item_name, item_texture)
 		scene_node.remove_placed_block(block_id)
 
+
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -141,8 +149,10 @@ func _get_local_player():
 				return child
 	return null
 
+
 func _exit_tree():
 	_remove_torch_light()
+
 
 func _remove_torch_light():
 	if _light_id == -1:

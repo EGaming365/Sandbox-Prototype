@@ -9,13 +9,16 @@ var current_texture: Texture2D = null
 var placed_blocks: Dictionary = {}
 var next_block_id: int = 0
 
+
 func _ready():
 	preview = get_tree().root.get_node_or_null("Scene/BuildingPreview")
+
 
 func _is_ui_open() -> bool:
 	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	return (inv != null and inv.visible) or (chat != null and chat.get("is_open"))
+
 
 func _process(_delta):
 	if _is_ui_open():
@@ -44,6 +47,7 @@ func _process(_delta):
 			if preview:
 				preview.deactivate()
 
+
 func _unhandled_input(event):
 	if _is_ui_open():
 		return
@@ -56,6 +60,7 @@ func _unhandled_input(event):
 		var offset = preview.get_place_offset()
 		var rot = preview.get_current_rotation()
 		_place_block(current_item, current_texture, snapped + offset, rot)
+
 
 func _place_block(item_name: String, texture: Texture2D, pos: Vector2, rot: float = 0.0):
 	var scene_node = get_tree().root.get_node("Scene")

@@ -9,8 +9,10 @@ var placeable_items = {
 	"Torch": { "texture": null, "max_hits": 1 },
 }
 
+
 func is_placeable(item_name: String) -> bool:
 	return placeable_items.has(item_name)
+
 
 func get_max_hits(item_name: String) -> int:
 	if placeable_items.has(item_name):

@@ -19,24 +19,79 @@ const RARITY_WEIGHTS: Dictionary = {
 }
 
 const FISH_TABLE: Array[Dictionary] = [
-	{"name": "Minnow",      "rarity": "Common",    "habitat": "lake",  "zone_height": 10.0,  "speed": 0.55, "progress_rate": 1.0,  "escape_rate": 0.7,  "base_weight_kg": 0.08, "tension": 1},
-	{"name": "Perch",       "rarity": "Common",    "habitat": "lake",  "zone_height": 10.0,  "speed": 0.75, "progress_rate": 0.95, "escape_rate": 0.85, "base_weight_kg": 0.3,  "tension": 1},
-	{"name": "Bass",        "rarity": "Uncommon",  "habitat": "all",   "zone_height": 10.0,  "speed": 1.0,  "progress_rate": 0.90, "escape_rate": 1.05, "base_weight_kg": 1.2,  "tension": 1},
-	{"name": "Pike",        "rarity": "Uncommon",  "habitat": "lake",  "zone_height": 10.0,  "speed": 1.25, "progress_rate": 0.85, "escape_rate": 1.2,  "base_weight_kg": 2.5,  "tension": 1},
-	{"name": "Catfish",     "rarity": "Unusual",   "habitat": "lake",  "zone_height": 10.0,  "speed": 1.5,  "progress_rate": 0.80, "escape_rate": 1.4,  "base_weight_kg": 4.0,  "tension": 2},
-	{"name": "Sturgeon",    "rarity": "Unusual",   "habitat": "cave",  "zone_height": 10.0,  "speed": 1.8,  "progress_rate": 0.75, "escape_rate": 1.6,  "base_weight_kg": 12.0, "tension": 2},
-	{"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake",  "zone_height": 10.0,  "speed": 2.1,  "progress_rate": 0.65, "escape_rate": 1.7,  "base_weight_kg": 0.6,  "tension": 2},
-	{"name": "Clownfish",   "rarity": "Common",    "habitat": "ocean", "zone_height": 10.0,  "speed": 0.6,  "progress_rate": 1.2,  "escape_rate": 0.6,  "base_weight_kg": 0.1,  "tension": 1},
-	{"name": "Blue Tang",   "rarity": "Common",    "habitat": "ocean", "zone_height": 10.0,  "speed": 0.8,  "progress_rate": 1.0,  "escape_rate": 0.8,  "base_weight_kg": 0.9,  "tension": 1},
-	{"name": "Red Tang",    "rarity": "Unusual",   "habitat": "ocean", "zone_height": 10.0,  "speed": 1.2,  "progress_rate": 0.6,  "escape_rate": 1.5,  "base_weight_kg": 2.5,  "tension": 1},
-	{"name": "Salmon",      "rarity": "Uncommon",  "habitat": "ocean", "zone_height": 10.0,  "speed": 1.4,  "progress_rate": 0.8,  "escape_rate": 1.3,  "base_weight_kg": 3.0,  "tension": 1},
-	{"name": "Lionfish",    "rarity": "Rare",      "habitat": "ocean", "zone_height": 10.0,  "speed": 1.9,  "progress_rate": 0.7,  "escape_rate": 1.7,  "base_weight_kg": 0.8,  "tension": 2},
-	{"name": "Guppy",       "rarity": "Common",    "habitat": "lake",  "zone_height": 10.0,  "speed": 0.6,  "progress_rate": 1.1,  "escape_rate": 0.65, "base_weight_kg": 0.05, "tension": 1},
-	{"name": "Snapper",     "rarity": "Uncommon",  "habitat": "ocean", "zone_height": 9.0,   "speed": 1.3,  "progress_rate": 0.82, "escape_rate": 1.28, "base_weight_kg": 2.8,  "tension": 1},
-	{"name": "Muskie",      "rarity": "Rare",      "habitat": "lake",  "zone_height": 7.0,   "speed": 1.95, "progress_rate": 0.66, "escape_rate": 1.8,  "base_weight_kg": 8.0,  "tension": 2},
-	{"name": "Crystal Carp","rarity": "Rare",      "habitat": "cave",  "zone_height": 7.0,   "speed": 1.85, "progress_rate": 0.66, "escape_rate": 1.8,  "base_weight_kg": 1.2,  "tension": 2},
-	{"name": "Ghost Eel",   "rarity": "Rare",      "habitat": "cave",  "zone_height": 7.0,   "speed": 2.0,  "progress_rate": 0.65, "escape_rate": 1.85, "base_weight_kg": 2.2,  "tension": 2},
-	{"name": "Tire",        "rarity": "Trash",     "habitat": "all",   "zone_height": 10.0,  "speed": 1.9,  "progress_rate": 0.75, "escape_rate": 1.7,  "base_weight_kg": 10.0, "tension": 1},
+	{
+		"name": "Minnow", "rarity": "Common", "habitat": "lake", "zone_height": 10.0, "speed": 0.55,
+		"progress_rate": 1.0, "escape_rate": 0.7, "base_weight_kg": 0.08, "tension": 1,
+	},
+	{
+		"name": "Perch", "rarity": "Common", "habitat": "lake", "zone_height": 10.0, "speed": 0.75,
+		"progress_rate": 0.95, "escape_rate": 0.85, "base_weight_kg": 0.3, "tension": 1,
+	},
+	{
+		"name": "Bass", "rarity": "Uncommon", "habitat": "all", "zone_height": 10.0, "speed": 1.0,
+		"progress_rate": 0.90, "escape_rate": 1.05, "base_weight_kg": 1.2, "tension": 1,
+	},
+	{
+		"name": "Pike", "rarity": "Uncommon", "habitat": "lake", "zone_height": 10.0, "speed": 1.25,
+		"progress_rate": 0.85, "escape_rate": 1.2, "base_weight_kg": 2.5, "tension": 1,
+	},
+	{
+		"name": "Catfish", "rarity": "Unusual", "habitat": "lake", "zone_height": 10.0, "speed": 1.5,
+		"progress_rate": 0.80, "escape_rate": 1.4, "base_weight_kg": 4.0, "tension": 2,
+	},
+	{
+		"name": "Sturgeon", "rarity": "Unusual", "habitat": "cave", "zone_height": 10.0, "speed": 1.8,
+		"progress_rate": 0.75, "escape_rate": 1.6, "base_weight_kg": 12.0, "tension": 2,
+	},
+	{
+		"name": "Tophat Fish", "rarity": "Legendary", "habitat": "lake", "zone_height": 10.0,
+		"speed": 2.1, "progress_rate": 0.65, "escape_rate": 1.7, "base_weight_kg": 0.6, "tension": 2,
+	},
+	{
+		"name": "Clownfish", "rarity": "Common", "habitat": "ocean", "zone_height": 10.0, "speed": 0.6,
+		"progress_rate": 1.2, "escape_rate": 0.6, "base_weight_kg": 0.1, "tension": 1,
+	},
+	{
+		"name": "Blue Tang", "rarity": "Common", "habitat": "ocean", "zone_height": 10.0, "speed": 0.8,
+		"progress_rate": 1.0, "escape_rate": 0.8, "base_weight_kg": 0.9, "tension": 1,
+	},
+	{
+		"name": "Red Tang", "rarity": "Unusual", "habitat": "ocean", "zone_height": 10.0, "speed": 1.2,
+		"progress_rate": 0.6, "escape_rate": 1.5, "base_weight_kg": 2.5, "tension": 1,
+	},
+	{
+		"name": "Salmon", "rarity": "Uncommon", "habitat": "ocean", "zone_height": 10.0, "speed": 1.4,
+		"progress_rate": 0.8, "escape_rate": 1.3, "base_weight_kg": 3.0, "tension": 1,
+	},
+	{
+		"name": "Lionfish", "rarity": "Rare", "habitat": "ocean", "zone_height": 10.0, "speed": 1.9,
+		"progress_rate": 0.7, "escape_rate": 1.7, "base_weight_kg": 0.8, "tension": 2,
+	},
+	{
+		"name": "Guppy", "rarity": "Common", "habitat": "lake", "zone_height": 10.0, "speed": 0.6,
+		"progress_rate": 1.1, "escape_rate": 0.65, "base_weight_kg": 0.05, "tension": 1,
+	},
+	{
+		"name": "Snapper", "rarity": "Uncommon", "habitat": "ocean", "zone_height": 9.0, "speed": 1.3,
+		"progress_rate": 0.82, "escape_rate": 1.28, "base_weight_kg": 2.8, "tension": 1,
+	},
+	{
+		"name": "Muskie", "rarity": "Rare", "habitat": "lake", "zone_height": 7.0, "speed": 1.95,
+		"progress_rate": 0.66, "escape_rate": 1.8, "base_weight_kg": 8.0, "tension": 2,
+	},
+	{
+		"name": "Crystal Creeper", "rarity": "Rare", "habitat": "cave", "zone_height": 7.0,
+		"speed": 1.85,
+		"progress_rate": 0.66, "escape_rate": 1.8, "base_weight_kg": 1.2, "tension": 2,
+	},
+	{
+		"name": "Ghost Eel", "rarity": "Rare", "habitat": "cave", "zone_height": 7.0, "speed": 2.0,
+		"progress_rate": 0.65, "escape_rate": 1.85, "base_weight_kg": 2.2, "tension": 2,
+	},
+	{
+		"name": "Tire", "rarity": "Trash", "habitat": "all", "zone_height": 10.0, "speed": 1.9,
+		"progress_rate": 0.75, "escape_rate": 1.7, "base_weight_kg": 10.0, "tension": 1,
+	},
 ]
 
 const FISH_CONDITIONS: Array[Dictionary] = [
@@ -54,11 +109,13 @@ const FISH_CONDITIONS: Array[Dictionary] = [
 
 var _conditions_lookup: Dictionary = {}
 
+
 func _ready() -> void:
 	for entry in FISH_CONDITIONS:
 		var n: String = entry.get("name", "")
 		if n != "":
 			_conditions_lookup[n] = entry
+
 
 func _get_world_conditions() -> Dictionary:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
@@ -104,6 +161,7 @@ func _get_world_conditions() -> Dictionary:
 		"aurora":    aurora_active,
 	}
 
+
 func _check_condition(cond: Dictionary, world: Dictionary) -> bool:
 	var ctype: String = cond.get("type", "")
 	var cval: String = cond.get("value", "")
@@ -120,6 +178,7 @@ func _check_condition(cond: Dictionary, world: Dictionary) -> bool:
 			return world["season"] == cval
 	return false
 
+
 func _fish_passes_requirements(fish_name: String, world: Dictionary) -> bool:
 	if not _conditions_lookup.has(fish_name):
 		return true
@@ -128,6 +187,7 @@ func _fish_passes_requirements(fish_name: String, world: Dictionary) -> bool:
 		if not _check_condition(cond, world):
 			return false
 	return true
+
 
 func _fish_preference_multiplier(fish_name: String, world: Dictionary) -> float:
 	if not _conditions_lookup.has(fish_name):
@@ -210,6 +270,11 @@ const FISH_TEXTURE_PATHS: Dictionary = {
 	"Salmon": "res://Assets/Fish_Catfish_Raw.png",
 	"Lionfish": "res://Assets/Fish_Lionfish_Raw.png",
 	"Tire": "res://Assets/Trash_Tire.png",
+	"Guppy": "res://Assets/Fish_Guppy_Raw.png",
+	"Snapper": "res://Assets/Fish_Snapper_Raw.png",
+	"Muskie": "res://Assets/Fish_Muskie_Raw.png",
+	"Ghost Eel": "res://Assets/Fish_Ghost_Eel_Raw.png",
+	"Crystal Creeper": "res://Assets/Fish_Crystal_Creeper_Raw.png",
 }
 
 var _waiting_for_bite: bool = false
@@ -223,6 +288,7 @@ var _cast_gen: int = 0
 
 const CAST_COOLDOWN_TIME: float = 2.5
 
+
 func _get_held_rod() -> String:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
@@ -232,11 +298,13 @@ func _get_held_rod() -> String:
 		return slot["item"]
 	return ""
 
+
 func _get_rod_stats() -> Dictionary:
 	var rod = _get_held_rod()
 	if rod != "" and ROD_STATS.has(rod):
 		return ROD_STATS[rod]
 	return ROD_STATS["Fishing Rod"]
+
 
 func _apply_rod_to_fish(fish: Dictionary) -> Dictionary:
 	var f := fish.duplicate()
@@ -249,12 +317,14 @@ func _apply_rod_to_fish(fish: Dictionary) -> Dictionary:
 	f["bar_speed"]     = rs.get("bar_speed", 1.0)
 	return f
 
+
 func _process(delta: float) -> void:
 	if _cast_cooldown > 0.0:
 		_cast_cooldown -= delta
 		var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
 		if cursor:
 			cursor.show_cooldown(clamp(_cast_cooldown / CAST_COOLDOWN_TIME, 0.0, 1.0), "fishing")
+
 
 func try_cast(screen_pos: Vector2) -> void:
 	if _cast_cooldown > 0.0:
@@ -294,6 +364,7 @@ func try_cast(screen_pos: Vector2) -> void:
 	_spawn_bobber(world_click)
 	player.is_fishing = true
 	_start_minigame()
+
 
 func _pick_random_fish() -> Dictionary:
 	var luck: float = _get_rod_stats().get("luck", 1.0)
@@ -437,6 +508,7 @@ func _pick_random_fish() -> Dictionary:
 	fish["bar_speed"] = _get_rod_stats().get("bar_speed", 1.0)
 	return fish
 
+
 func _start_minigame() -> void:
 	if _waiting_for_bite:
 		return
@@ -455,6 +527,7 @@ func _start_minigame() -> void:
 		return
 	_launch_minigame(fish)
 
+
 func _launch_minigame(fish: Dictionary) -> void:
 	_waiting_for_bite = false
 	_active_fish = fish
@@ -470,6 +543,7 @@ func _launch_minigame(fish: Dictionary) -> void:
 	mg.fish_escaped.connect(_on_fish_escaped)
 	mg.setup.call_deferred(modified_fish)
 
+
 func _cancel_cast() -> void:
 	if _minigame_active:
 		return
@@ -484,6 +558,7 @@ func _cancel_cast() -> void:
 	if player:
 		player.is_fishing = false
 
+
 func _on_fish_caught(fish: Dictionary) -> void:
 	_minigame_active = false
 	_despawn_bobber()
@@ -493,6 +568,7 @@ func _on_fish_caught(fish: Dictionary) -> void:
 	if player:
 		player.is_fishing = false
 	_give_fish_to_player(fish)
+
 
 func _on_fish_escaped() -> void:
 	_minigame_active = false
@@ -504,6 +580,7 @@ func _on_fish_escaped() -> void:
 		player.is_fishing = false
 	_show_lost_notification(_active_fish)
 	_active_fish = {}
+
 
 func _show_lost_notification(fish: Dictionary) -> void:
 	if fish.is_empty():
@@ -546,6 +623,7 @@ func _show_lost_notification(fish: Dictionary) -> void:
 	tween.tween_interval(2.2)
 	tween.tween_property(container, "modulate:a", 0.0, 0.6)
 	tween.tween_callback(container.queue_free)
+
 
 func _give_fish_to_player(fish: Dictionary) -> void:
 	var weight_kg: float = fish.get("weight_kg", 0.1)
@@ -593,7 +671,13 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 			return
 	_show_catch_notification(display_name, weight_kg, mutations, was_new)
 
-func _show_catch_notification(name: String, weight_kg: float, mutations: Array, was_new: bool = false) -> void:
+
+func _show_catch_notification(
+	name: String,
+	weight_kg: float,
+	mutations: Array,
+	was_new: bool = false,
+) -> void:
 	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if not canvas:
 		return
@@ -669,18 +753,24 @@ func _show_catch_notification(name: String, weight_kg: float, mutations: Array, 
 	tween.tween_property(container, "modulate:a", 0.0, 0.6)
 	tween.tween_callback(container.queue_free)
 
+
 func _get_base_weight_for_name(fish_name: String) -> float:
 	for f in FISH_TABLE:
-		if f["name"] == fish_name or "Albino " + f["name"] == fish_name or "Shiny " + f["name"] == fish_name:
+		if f["name"] == fish_name \
+			or "Albino " + f["name"] == fish_name \
+			or "Shiny " + f["name"] == fish_name:
 			return f["base_weight_kg"]
 	return 1.0
+
 
 func _get_fish_texture_path(fish_name: String) -> String:
 	var base_name := fish_name.replace("Albino ", "").replace("Shiny ", "")
 	return FISH_TEXTURE_PATHS.get(base_name, "")
 
+
 func _has_item_for_fish(_fish: Dictionary) -> bool:
 	return true
+
 
 func _consume_rod_durability() -> void:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
@@ -695,6 +785,7 @@ func _consume_rod_durability() -> void:
 		Inventory.remove_item(slot_index, false)
 	else:
 		Inventory.inventory_changed.emit()
+
 
 func _get_player() -> Node:
 	if _player and is_instance_valid(_player):
@@ -713,11 +804,13 @@ func _get_player() -> Node:
 				return _player
 	return null
 
+
 func _get_world_gen() -> Node:
 	if _world_gen and is_instance_valid(_world_gen):
 		return _world_gen
 	_world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 	return _world_gen
+
 
 func _generate_weight(base_kg: float) -> float:
 	var r1 := randf()
@@ -727,6 +820,7 @@ func _generate_weight(base_kg: float) -> float:
 	var avg := (r1 + r2 + r3 + r4) / 4.0
 	var multiplier: float = lerp(0.1, 3.0, pow(avg, 1.35))
 	return snappedf(base_kg * multiplier, 0.01)
+
 
 func _generate_mutations() -> Array:
 	var mutations: Array = []
@@ -759,6 +853,7 @@ func _generate_mutations() -> Array:
 
 	return mutations
 
+
 func _get_size_tag(weight_kg: float, base_kg: float) -> String:
 	var ratio := weight_kg / base_kg
 	if ratio >= 2.5:
@@ -772,6 +867,7 @@ func _get_size_tag(weight_kg: float, base_kg: float) -> String:
 	elif ratio <= 0.35:
 		return " (small)"
 	return ""
+
 
 func _spawn_bobber(world_pos: Vector2) -> void:
 	_despawn_bobber()
@@ -788,6 +884,7 @@ func _spawn_bobber(world_pos: Vector2) -> void:
 			var peer_id := player.get_multiplayer_authority()
 			_sync_bobber_spawn.rpc(peer_id, world_pos)
 
+
 func _despawn_bobber() -> void:
 	if _bobber and is_instance_valid(_bobber):
 		_bobber.queue_free()
@@ -797,6 +894,7 @@ func _despawn_bobber() -> void:
 		if player:
 			var peer_id := player.get_multiplayer_authority()
 			_sync_bobber_despawn.rpc(peer_id)
+
 
 func _show_catch_icon(fish: Dictionary) -> void:
 	var player := _get_player()
@@ -813,6 +911,7 @@ func _show_catch_icon(fish: Dictionary) -> void:
 		var peer_id := player.get_multiplayer_authority()
 		_sync_catch_icon_show.rpc(peer_id, player.global_position, fish["rarity"])
 
+
 func _hide_catch_icon() -> void:
 	if _catch_icon_scene and is_instance_valid(_catch_icon_scene):
 		_catch_icon_scene.queue_free()
@@ -823,6 +922,8 @@ func _hide_catch_icon() -> void:
 			_sync_catch_icon_hide.rpc(player.get_multiplayer_authority())
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_bobber_spawn(owner_peer_id: int, world_pos: Vector2) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -842,6 +943,8 @@ func _sync_bobber_spawn(owner_peer_id: int, world_pos: Vector2) -> void:
 	scene.add_child(bobber)
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_bobber_despawn(owner_peer_id: int) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -854,6 +957,8 @@ func _sync_bobber_despawn(owner_peer_id: int) -> void:
 		existing.queue_free()
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_catch_icon_show(owner_peer_id: int, player_pos: Vector2, rarity: String) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -873,6 +978,8 @@ func _sync_catch_icon_show(owner_peer_id: int, player_pos: Vector2, rarity: Stri
 	scene.add_child(icon)
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_catch_icon_hide(owner_peer_id: int) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -884,11 +991,13 @@ func _sync_catch_icon_hide(owner_peer_id: int) -> void:
 	if existing:
 		existing.queue_free()
 
+
 func sync_fishing_state_to_peer(peer_id: int) -> void:
 	if _bobber and is_instance_valid(_bobber):
 		var player := _get_player()
 		if player:
 			_sync_bobber_spawn.rpc_id(peer_id, player.get_multiplayer_authority(), _bobber.position)
+
 
 func _has_empty_slot() -> bool:
 	for slot in Inventory.slots:
@@ -898,6 +1007,7 @@ func _has_empty_slot() -> bool:
 		if Inventory.inv_slots[i]["item"] == "":
 			return true
 	return false
+
 
 func _show_full_inventory_notice() -> void:
 	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")

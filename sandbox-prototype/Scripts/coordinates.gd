@@ -3,6 +3,7 @@ extends Label
 var toggle_ui = false
 var can_toggle_ui = true
 
+
 func get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -12,6 +13,7 @@ func get_local_player():
 			else:
 				return child
 	return null
+
 
 func get_current_biome_name(player_pos: Vector2) -> String:
 	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
@@ -23,6 +25,7 @@ func get_current_biome_name(player_pos: Vector2) -> String:
 	if world_gen.has_method("is_forest_at") and world_gen.is_forest_at(player_pos):
 		return "Forest"
 	return "Plains"
+
 
 func _process(_delta):
 	var player = get_local_player()

@@ -12,15 +12,20 @@ var _portrait_rect: TextureRect = null
 var _player_in_range: bool = false
 var _talking: bool = false
 var _reveal_chars: float = 0.0
+
+
 func _ready() -> void:
 	add_to_group("village_npcs")
 	z_index = 2
 	_make_body()
 	_make_prompt()
 	_make_talk_panel()
+
+
 func _process(delta: float) -> void:
 	var player := _get_local_player()
-	_player_in_range = player != null and player.global_position.distance_to(global_position) <= talk_range
+	_player_in_range = player != null \
+		and player.global_position.distance_to(global_position) <= talk_range
 	if _label:
 		_label.visible = _player_in_range and not _talking
 		_label.global_position = global_position + Vector2(-42, -92)
@@ -30,6 +35,8 @@ func _process(delta: float) -> void:
 			_body_label.visible_characters = int(_reveal_chars)
 		if Input.is_action_just_pressed("exit"):
 			_close_talk()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if _talking:
@@ -39,6 +46,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			if player and player.get("is_spectator") == true:
 				return
 			_open_talk()
+
+
 func _make_body() -> void:
 	var body := ColorRect.new()
 	body.color = Color(0.24, 0.48, 0.82, 1.0)
@@ -58,6 +67,8 @@ func _make_body() -> void:
 	shape.shape = rect
 	shape.position = Vector2(0, -28)
 	add_child(shape)
+
+
 func _make_prompt() -> void:
 	_label = Label.new()
 	_label.text = "Right-click to talk"
@@ -68,6 +79,8 @@ func _make_prompt() -> void:
 	_label.visible = false
 	_label.top_level = true
 	add_child(_label)
+
+
 func _make_talk_panel() -> void:
 	_talk_panel = PanelContainer.new()
 	_talk_panel.visible = false
@@ -99,6 +112,8 @@ func _make_talk_panel() -> void:
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body_label.visible_characters = 0
 	box.add_child(_body_label)
+
+
 func _open_talk() -> void:
 	var player := _get_local_player()
 	if player:
@@ -109,18 +124,24 @@ func _open_talk() -> void:
 	_body_label.visible_characters = 0
 	_talk_panel.visible = true
 	_talk_panel.global_position = global_position + Vector2(-220, -220)
+
+
 func _advance_talk() -> void:
 	if _reveal_chars < dialogue_line.length():
 		_reveal_chars = dialogue_line.length()
 		_body_label.visible_characters = int(_reveal_chars)
 		return
 	_close_talk()
+
+
 func _close_talk() -> void:
 	var player := _get_local_player()
 	if player:
 		player.set("talking_to_npc", false)
 	_talking = false
 	_talk_panel.visible = false
+
+
 func _get_local_player() -> CharacterBody2D:
 	var scene := get_tree().root.get_node_or_null("Scene")
 	if not scene:

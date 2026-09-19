@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://ulgth6ds4w1h"]
+
+[ext_resource type="Script" uid="uid://cgxwkhvk486sc" path="res://Scenes/ghost_eel.gd" id="1_uj0sm"]
+[ext_resource type="Texture2D" uid="uid://dd3itrvu74m2m" path="res://Assets/Fish_Ghost_Eel_Raw.png" id="2_u1b2g"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]
+
+[node name="Ghost_Eel" type="Node2D" unique_id=2093844244]
+scale = Vector2(1.2727493, 1.2727493)
+script = ExtResource("1_uj0sm")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1711902116]
+scale = Vector2(1.4621397, 1.4621397)
+texture = ExtResource("2_u1b2g")
+
+[node name="Area2D" type="Area2D" parent="Sprite2D" unique_id=592487033]
+scale = Vector2(0.6119902, 0.6119902)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D" unique_id=1571312396]
+scale = Vector2(1.8857987, 1.8857987)
+shape = SubResource("CircleShape2D_xvnr3")

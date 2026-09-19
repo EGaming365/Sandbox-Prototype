@@ -16,6 +16,7 @@ var label: Label = null
 
 var chicken_texture = preload("res://Assets/Chicken_Raw.png")  # adjust path as needed
 
+
 func _ready():
 	visible = false
 	z_index = 2
@@ -36,10 +37,12 @@ func _ready():
 	await get_tree().process_frame
 	visible = true
 
+
 func _update_label():
 	if label:
 		label.text = str(stack_count) if stack_count > 1 else ""
 		label.global_position = global_position + Vector2(-8, -24)
+
 
 func _process(delta):
 	if label:
@@ -86,6 +89,7 @@ func _process(delta):
 	else:
 		scene_node.remove_floor_item(item_id)
 
+
 func _do_despawn():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
@@ -95,6 +99,7 @@ func _do_despawn():
 			scene_node.sync_remove_floor_item.rpc(item_id)
 	else:
 		scene_node.remove_floor_item(item_id)
+
 
 func _is_inventory_full(item_name: String) -> bool:
 	for slot in Inventory.slots:

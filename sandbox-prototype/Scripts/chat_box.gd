@@ -95,6 +95,7 @@ const ITEM_ALIASES: Dictionary = {
 
 var _chat_close_cooldown: float = 0.0
 
+
 func _get_steam_name_for_peer(peer_id: int) -> String:
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node:
@@ -111,6 +112,7 @@ func _get_steam_name_for_peer(peer_id: int) -> String:
 	if peer_id == multiplayer.get_unique_id():
 		return Steam.getFriendPersonaName(Steam.getSteamID())
 	return "Player_" + str(peer_id)
+
 
 func _handle_command(text: String):
 	var parts = text.split(" ")
@@ -169,17 +171,25 @@ func _handle_command(text: String):
 				"misty", "mist":
 					weather_node._set_weather(weather_node.WeatherType.MISTY)
 				_:
-					_add_message("[System] Unknown weather. Use: clear, rain, thunder, thunderstorm, wind, foggy, misty")
+					_add_message(
+						"[System] Unknown weather. Use: clear, rain, thunder, thunderstorm, wind, "
+						+ "foggy, misty"
+					)
 					return
 			if multiplayer.has_multiplayer_peer():
-				weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+				weather_node.sync_weather_state.rpc(
+					weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
+				)
 			_add_message("[System] Weather set to: " + parts[1].to_lower())
 		"/tp", "/teleport":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
 			if parts.size() < 3:
-				_add_message("[System] Usage: /tp <player> <x> <y>  OR  /tp <player> here  OR  /tp <player> <target_player>")
+				_add_message(
+					"[System] Usage: /tp <player> <x> <y>  OR  /tp <player> here  OR  "
+					+ "/tp <player> <target_player>"
+				)
 				return
 			var scene_node = get_tree().root.get_node("Scene")
 			var subject_matches = []
@@ -196,7 +206,9 @@ func _handle_command(text: String):
 				var names = ""
 				for m in subject_matches:
 					names += m["name"] + ", "
-				_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
+				_add_message(
+					"[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.",
+				)
 				return
 			var subject = subject_matches[0]
 			var dest: Vector2
@@ -218,13 +230,17 @@ func _handle_command(text: String):
 						if sname.to_lower().begins_with(target_name.to_lower()):
 							target_matches.append({"node": child, "name": sname})
 				if target_matches.size() == 0:
-					_add_message("[System] Target '" + target_name + "' not found. Use: here, X Y coords, or a player name.")
+					_add_message(
+						"[System] Target '" + target_name + "' not found. Use: here, X Y coords, or a player name.",
+					)
 					return
 				elif target_matches.size() > 1:
 					var names = ""
 					for m in target_matches:
 						names += m["name"] + ", "
-					_add_message("[System] Multiple targets found: " + names.trim_suffix(", ") + ". Be more specific.")
+					_add_message(
+						"[System] Multiple targets found: " + names.trim_suffix(", ") + ". Be more specific.",
+					)
 					return
 				dest = target_matches[0]["node"].global_position
 			if subject["peer_id"] == multiplayer.get_unique_id():
@@ -260,7 +276,9 @@ func _handle_command(text: String):
 						_add_message("[System] Unknown time. Use: morning, day, evening, night, or a number below 1")
 						return
 			if multiplayer.has_multiplayer_peer():
-				weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+				weather_node.sync_weather_state.rpc(
+					weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
+				)
 			_add_message("[System] Time set to: " + parts[1].to_lower())
 		"/spawn":
 			if my_steam_id != ADMIN_STEAM_ID:
@@ -289,7 +307,10 @@ func _handle_command(text: String):
 				scene_node.host_spawn_chicken(spawn_pos)
 			var display_x = spawn_pos.x / 100.0
 			var display_y = spawn_pos.y / -100.0
-			_add_message("[System] Spawned chicken at (" + str(display_x).pad_zeros(1) + ", " + str(display_y).pad_zeros(1) + ")")
+			_add_message(
+				"[System] Spawned chicken at (" + str(display_x).pad_zeros(1)
+				+ ", " + str(display_y).pad_zeros(1) + ")",
+			)
 		"/kill":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
@@ -313,7 +334,9 @@ func _handle_command(text: String):
 				var names = ""
 				for m in matches:
 					names += m["name"] + ", "
-				_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
+				_add_message(
+					"[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.",
+				)
 				return
 			var target = matches[0]
 			if target["peer_id"] == multiplayer.get_unique_id():
@@ -342,14 +365,18 @@ func _handle_command(text: String):
 					weather_node._was_night = true
 					weather_node._start_aurora()
 					if multiplayer.has_multiplayer_peer():
-						weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+						weather_node.sync_weather_state.rpc(
+							weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
+						)
 					_add_message("[System] Aurora Borealis summoned.")
 				"none":
 					weather_node._end_aurora()
 					if weather_node.has_method("clear_day_event"):
 						weather_node.clear_day_event()
 					if multiplayer.has_multiplayer_peer():
-						weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+						weather_node.sync_weather_state.rpc(
+							weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
+						)
 					_add_message("[System] Event cleared.")
 				_:
 					if event_name == "rainbow":
@@ -357,14 +384,18 @@ func _handle_command(text: String):
 						if weather_node.has_method("start_day_event"):
 							weather_node.start_day_event("Rainbow")
 						if multiplayer.has_multiplayer_peer():
-							weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+							weather_node.sync_weather_state.rpc(
+								weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
+							)
 						_add_message("[System] Rainbow event summoned.")
 					elif event_name == "divine blessing" or event_name == "blessing":
 						weather_node.time_of_day = 0.5
 						if weather_node.has_method("start_day_event"):
 							weather_node.start_day_event("Divine Blessing")
 						if multiplayer.has_multiplayer_peer():
-							weather_node.sync_weather_state.rpc(weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer)
+							weather_node.sync_weather_state.rpc(
+								weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
+							)
 						_add_message("[System] Divine Blessing event summoned.")
 					else:
 						_add_message("[System] Unknown event. Use: none, aurora, rainbow, divine blessing")
@@ -490,7 +521,13 @@ func _handle_command(text: String):
 		_:
 			_add_message("[System] Unknown command: " + cmd)
 
-func _give_item_to_player(target_name: String, item_name: String, amount: int, weight_kg: float = 0.0):
+
+func _give_item_to_player(
+	target_name: String,
+	item_name: String,
+	amount: int,
+	weight_kg: float = 0.0,
+):
 	var scene_node = get_tree().root.get_node("Scene")
 	var my_steam_id = Steam.getSteamID()
 	if not multiplayer.has_multiplayer_peer():
@@ -515,7 +552,9 @@ func _give_item_to_player(target_name: String, item_name: String, amount: int, w
 		var names = ""
 		for m in matches:
 			names += m["name"] + ", "
-		_add_message("[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.")
+		_add_message(
+			"[System] Multiple players found: " + names.trim_suffix(", ") + ". Be more specific.",
+		)
 		return
 	var target_peer_id = matches[0]["peer_id"]
 	var found_name = matches[0]["name"]
@@ -526,14 +565,18 @@ func _give_item_to_player(target_name: String, item_name: String, amount: int, w
 	_add_message("[System] Gave " + str(amount) + "x " + item_name + " to " + found_name)
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _rpc_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 	_do_give_item(item_name, amount, weight_kg)
+
 
 func _normalize_item_key(item_name: String) -> String:
 	var key := item_name.strip_edges().to_lower().replace("_", " ")
 	while key.contains("  "):
 		key = key.replace("  ", " ")
 	return key
+
 
 func _canonical_item_name(raw_item_name: String) -> String:
 	var key := _normalize_item_key(raw_item_name)
@@ -546,6 +589,7 @@ func _canonical_item_name(raw_item_name: String) -> String:
 		if _normalize_item_key(str(item_name)) == key:
 			return str(item_name)
 	return raw_item_name.strip_edges()
+
 
 func _get_item_texture(item_name: String) -> Texture2D:
 	var tex := Inventory.get_texture(item_name)
@@ -601,6 +645,7 @@ const FISH_BASE_WEIGHTS: Dictionary = {
 	"Salmon": 3.0, "Clownfish": 0.1, "Blue Tang": 0.9,
 	"Red Tang": 2.5, "Lionfish": 0.8, "Tire": 10.0,
 }
+
 
 func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 	item_name = _canonical_item_name(item_name)
@@ -691,6 +736,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				remaining -= add
 	Inventory.inventory_changed.emit()
 
+
 func _get_non_stackable_start_count(item_name: String) -> int:
 	match item_name:
 		"Axe":
@@ -714,6 +760,7 @@ func _get_non_stackable_start_count(item_name: String) -> int:
 		_:
 			return 1
 
+
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -724,6 +771,7 @@ func _get_local_player():
 				return child
 	return null
 
+
 func _ready():
 	input_row.visible = false
 	scroll_container.visible = false
@@ -731,6 +779,7 @@ func _ready():
 	_open_chat("")
 	await get_tree().process_frame
 	_close_chat()
+
 
 func _open_chat(prefill: String):
 	is_open = true
@@ -741,6 +790,7 @@ func _open_chat(prefill: String):
 	input_field.grab_focus()
 	input_field.caret_column = input_field.text.length()
 
+
 func _close_chat():
 	is_open = false
 	input_row.visible = false
@@ -750,6 +800,7 @@ func _close_chat():
 	_chat_close_cooldown = 0.2
 	if messages.is_empty():
 		scroll_container.visible = false
+
 
 func _add_message(msg: String):
 	messages.append(msg)
@@ -769,12 +820,14 @@ func _add_message(msg: String):
 	hide_timer = HIDE_DELAY
 	_scroll_to_latest_message.call_deferred()
 
+
 func _scroll_to_latest_message():
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var bar := scroll_container.get_v_scroll_bar()
 	if bar:
 		scroll_container.scroll_vertical = int(bar.max_value)
+
 
 func _on_input_submitted(text: String):
 	var trimmed = text.strip_edges()
@@ -787,6 +840,7 @@ func _on_input_submitted(text: String):
 		_send_chat(trimmed)
 	_close_chat()
 
+
 func _send_chat(text: String):
 	var steam_id = Steam.getSteamID()
 	var steam_name = Steam.getFriendPersonaName(steam_id)
@@ -797,8 +851,11 @@ func _send_chat(text: String):
 		_add_message(msg)
 
 @rpc("any_peer", "call_local", "reliable")
+
+
 func _broadcast_message(msg: String):
 	_add_message(msg)
+
 
 func _process(delta: float):
 	if not is_open:
@@ -817,6 +874,7 @@ func _process(delta: float):
 			_close_chat()
 			get_viewport().set_input_as_handled()
 
+
 func _input(event):
 	if not is_open:
 		if event is InputEventKey and event.pressed and not event.echo:
@@ -825,6 +883,7 @@ func _input(event):
 				get_viewport().set_input_as_handled()
 				return
 
+
 func _add_system_message(msg: String):
 	var my_steam_id = Steam.getSteamID()
 	if my_steam_id != ADMIN_STEAM_ID:
@@ -832,16 +891,21 @@ func _add_system_message(msg: String):
 	_add_message("[System] " + msg)
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _rpc_teleport(dest: Vector2):
 	var local_player = _get_local_player()
 	if local_player:
 		local_player.global_position = dest
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _rpc_kill_player():
 	var local_player = _get_local_player()
 	if local_player:
 		local_player.take_damage(local_player.synced_health)
+
 
 func _find_safe_cave_pos(cave_gen: Node, near: Vector2) -> Vector2:
 	var tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
@@ -855,11 +919,14 @@ func _find_safe_cave_pos(cave_gen: Node, near: Vector2) -> Vector2:
 				var angle := (float(i) / float(attempts)) * TAU
 				pos = near + Vector2(cos(angle), sin(angle)) * radius
 			var tc: Vector2i = cave_gen.world_to_tile(pos)
-			if cave_gen._carved_tiles.has(tc) and not cave_gen._water_tiles.has(tc) and not cave_gen._wall_tiles.has(tc):
+			if cave_gen._carved_tiles.has(tc) \
+				and not cave_gen._water_tiles.has(tc) \
+				and not cave_gen._wall_tiles.has(tc):
 				if tilemap:
 					pos = tilemap.to_global(tilemap.map_to_local(tc))
 				return pos
 	return Vector2.ZERO
+
 
 func _find_safe_overworld_pos(world_gen: Node, near: Vector2) -> Vector2:
 	for radius in [0, 64, 128, 256, 512]:

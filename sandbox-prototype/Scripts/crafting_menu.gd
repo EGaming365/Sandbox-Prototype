@@ -3,9 +3,11 @@ extends Control
 @export var is_advanced: bool = false
 var recipes = []
 
+
 func _ready():
 	hide()
 	_build_ui()
+
 
 func open(advanced: bool = false):
 	is_advanced = advanced
@@ -13,8 +15,10 @@ func open(advanced: bool = false):
 	_build_ui()
 	show()
 
+
 func close():
 	hide()
+
 
 func _build_ui():
 	var vbox = $PanelContainer/VBoxContainer
@@ -47,6 +51,7 @@ func _build_ui():
 
 		vbox.add_child(row)
 
+
 func _on_craft_pressed(recipe: Dictionary, btn: Button):
 	if Crafting.can_craft(recipe):
 		Crafting.craft(recipe)
@@ -58,6 +63,7 @@ func _on_craft_pressed(recipe: Dictionary, btn: Button):
 		await get_tree().create_timer(0.5).timeout
 		btn.text = "Craft"
 
+
 func _process(_delta):
 	if visible:
 		var vbox = $PanelContainer/VBoxContainer
@@ -67,6 +73,7 @@ func _process(_delta):
 				var recipe = _get_recipe_for_row(row)
 				if recipe and btn:
 					btn.disabled = not Crafting.can_craft(recipe)
+
 
 func _get_recipe_for_row(row: HBoxContainer):
 	var label = row.get_child(1) as Label

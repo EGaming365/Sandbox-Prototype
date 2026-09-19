@@ -58,6 +58,7 @@ var _paint_tiles: Array = []
 
 var chunk_update_timer: float = 0.0
 
+
 func _ready():
 	await get_tree().process_frame
 	Loading_Screens.show_loading("Creating World", 4.0)
@@ -72,6 +73,7 @@ func _ready():
 		print("World seed: ", world_seed)
 
 	generate_world()
+
 
 func generate_world():
 	tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
@@ -94,12 +96,14 @@ func generate_world():
 
 	_update_chunks_around_player()
 
+
 func set_world_settings(seed: int, synced_tile_size: int, frequency: float, threshold: float):
 	world_seed = seed
 	tile_size = synced_tile_size
 	biome_noise_frequency = frequency
 	forest_threshold = threshold
 	generate_world()
+
 
 func _process(delta):
 	_paint_next_tiles()
@@ -109,6 +113,7 @@ func _process(delta):
 		return
 	chunk_update_timer = chunk_update_interval
 	_update_chunks_around_player()
+
 
 func _get_local_player():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
@@ -122,6 +127,7 @@ func _get_local_player():
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				return child
 	return null
+
 
 func _update_chunks_around_player():
 	if not tilemap:
@@ -164,6 +170,7 @@ func _update_chunks_around_player():
 			   abs(cc.y - player_chunk.y) <= chunk_unload_distance
 	)
 
+
 func queue_chunks_around_world_pos(world_pos: Vector2, radius_chunks: int = 2) -> void:
 	if not tilemap:
 		return
@@ -176,6 +183,7 @@ func queue_chunks_around_world_pos(world_pos: Vector2, radius_chunks: int = 2) -
 	pending_chunks.sort_custom(func(a, b):
 		return a.distance_squared_to(center_chunk) < b.distance_squared_to(center_chunk)
 	)
+
 
 func _paint_next_tiles():
 	var painted := 0
@@ -200,6 +208,7 @@ func _paint_next_tiles():
 		_paint_index += 1
 		painted += 1
 
+
 func _precompute_chunk(chunk_coord: Vector2i):
 	_paint_tiles.clear()
 	var start = chunk_to_start_tile(chunk_coord)
@@ -213,6 +222,7 @@ func _precompute_chunk(chunk_coord: Vector2i):
 		biome_by_tile[tc] = biome
 		_paint_tiles[i] = [tc, biome]
 
+
 func _apply_tile(tile_coord: Vector2i, biome: BiomeType):
 	match biome:
 		BiomeType.WATER_LAKE, BiomeType.WATER_OCEAN:
@@ -224,6 +234,7 @@ func _apply_tile(tile_coord: Vector2i, biome: BiomeType):
 			tilemap.set_cell(0, tile_coord, FOREST_SOURCE, FOREST_ATLAS)
 		_:
 			tilemap.set_cell(0, tile_coord, PLAINS_SOURCE, PLAINS_ATLAS)
+
 
 func _unload_chunk(chunk_coord: Vector2i):
 	pending_chunks.erase(chunk_coord)
@@ -240,6 +251,7 @@ func _unload_chunk(chunk_coord: Vector2i):
 			biome_by_tile.erase(tc)
 			land_biome_cache.erase(tc)
 
+
 func _calculate_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 	var ocean_result := _get_ocean_biome(tile_coord)
 	if ocean_result != BiomeType.PLAINS:
@@ -250,6 +262,7 @@ func _calculate_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 		return BiomeType.WATER_LAKE
 
 	return land
+
 
 func _get_ocean_biome(tile_coord: Vector2i) -> BiomeType:
 	if tile_to_world_center(tile_coord).length() < spawn_water_safe_radius:
@@ -278,6 +291,7 @@ func _get_ocean_biome(tile_coord: Vector2i) -> BiomeType:
 
 	return BiomeType.PLAINS
 
+
 func _calculate_land_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 	if land_biome_cache.has(tile_coord):
 		return land_biome_cache[tile_coord]
@@ -288,6 +302,7 @@ func _calculate_land_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 		result = BiomeType.FOREST
 	land_biome_cache[tile_coord] = result
 	return result
+
 
 func _is_forest_lake_tile(tile_coord: Vector2i) -> bool:
 	if tile_to_world_center(tile_coord).length() < spawn_water_safe_radius:
@@ -300,6 +315,7 @@ func _is_forest_lake_tile(tile_coord: Vector2i) -> bool:
 	)
 	return _is_inside_lake_region(tile_coord, region)
 
+
 func _is_inside_lake_region(tile_coord: Vector2i, region: Vector2i) -> bool:
 	for lake in _get_lakes_for_region(region):
 		var offset: Vector2 = Vector2(tile_coord) - lake["center"]
@@ -308,6 +324,7 @@ func _is_inside_lake_region(tile_coord: Vector2i, region: Vector2i) -> bool:
 		if (offset.x * offset.x) / (rx * rx) + (offset.y * offset.y) / (ry * ry) <= 1.0:
 			return true
 	return false
+
 
 func _get_lakes_for_region(region: Vector2i) -> Array:
 	if lake_region_cache.has(region):
@@ -355,6 +372,7 @@ func _get_lakes_for_region(region: Vector2i) -> Array:
 	lake_region_cache[region] = lakes
 	return lakes
 
+
 func _get_ocean_for_region(region: Vector2i) -> Array:
 	if ocean_region_cache.has(region):
 		return ocean_region_cache[region]
@@ -384,7 +402,10 @@ func _get_ocean_for_region(region: Vector2i) -> Array:
 					neighbor_rng.seed = _ocean_region_seed(neighbor)
 					if neighbor_rng.randf() <= ocean_chance_per_region:
 						var n_half := ocean_region_size_tiles / 2
-						var n_origin := Vector2(neighbor.x * ocean_region_size_tiles, neighbor.y * ocean_region_size_tiles)
+						var n_origin := Vector2(
+							neighbor.x * ocean_region_size_tiles,
+							neighbor.y * ocean_region_size_tiles,
+						)
 						var n_center := n_origin + Vector2(
 							neighbor_rng.randf_range(n_half * 0.3, n_half * 1.7),
 							neighbor_rng.randf_range(n_half * 0.3, n_half * 1.7)
@@ -422,6 +443,7 @@ func _get_ocean_for_region(region: Vector2i) -> Array:
 	ocean_region_cache[region] = oceans
 	return oceans
 
+
 func _pick_lake_center_in_region(region: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
 	var origin := Vector2i(region.x * lake_region_size_tiles, region.y * lake_region_size_tiles)
 	for _attempt in 6:
@@ -433,6 +455,7 @@ func _pick_lake_center_in_region(region: Vector2i, rng: RandomNumberGenerator) -
 			return center
 	return Vector2i(99999999, 99999999)
 
+
 func _is_forest_core_tile(tile_coord: Vector2i) -> bool:
 	var m := lake_forest_margin_tiles
 	for offset in [Vector2i(0,0), Vector2i(m,0), Vector2i(-m,0), Vector2i(0,m), Vector2i(0,-m),
@@ -441,15 +464,18 @@ func _is_forest_core_tile(tile_coord: Vector2i) -> bool:
 			return false
 	return true
 
+
 func world_to_tile(world_pos: Vector2) -> Vector2i:
 	if tilemap:
 		return tilemap.local_to_map(tilemap.to_local(world_pos))
 	return Vector2i(floori(world_pos.x / tile_size), floori(world_pos.y / tile_size))
 
+
 func tile_to_world_center(tile_coord: Vector2i) -> Vector2:
 	if tilemap:
 		return tilemap.to_global(tilemap.map_to_local(tile_coord))
 	return Vector2((tile_coord.x + 0.5) * tile_size, (tile_coord.y + 0.5) * tile_size)
+
 
 func tile_to_chunk(tile_coord: Vector2i) -> Vector2i:
 	return Vector2i(
@@ -457,11 +483,14 @@ func tile_to_chunk(tile_coord: Vector2i) -> Vector2i:
 		floori(float(tile_coord.y) / float(chunk_size_tiles))
 	)
 
+
 func chunk_to_start_tile(chunk_coord: Vector2i) -> Vector2i:
 	return Vector2i(chunk_coord.x * chunk_size_tiles, chunk_coord.y * chunk_size_tiles)
 
+
 func is_chunk_loaded(chunk_coord: Vector2i) -> bool:
 	return loaded_chunks.has(chunk_coord)
+
 
 func get_biome_at(world_pos: Vector2) -> BiomeType:
 	var tc := world_to_tile(world_pos)
@@ -469,32 +498,41 @@ func get_biome_at(world_pos: Vector2) -> BiomeType:
 		return biome_by_tile[tc]
 	return _calculate_biome_for_tile(tc)
 
+
 func is_water_at(world_pos: Vector2) -> bool:
 	var b := get_biome_at(world_pos)
 	return b == BiomeType.WATER_LAKE or b == BiomeType.WATER_OCEAN
 
+
 func is_water_tile_at(world_pos: Vector2) -> bool:
 	return is_water_at(world_pos)
+
 
 func is_lake_at(world_pos: Vector2) -> bool:
 	return get_biome_at(world_pos) == BiomeType.WATER_LAKE
 
+
 func is_ocean_at(world_pos: Vector2) -> bool:
 	return get_biome_at(world_pos) == BiomeType.WATER_OCEAN
+
 
 func is_forest_at(world_pos: Vector2) -> bool:
 	return get_biome_at(world_pos) == BiomeType.FOREST
 
+
 func is_forest_tile_at(world_pos: Vector2) -> bool:
 	return is_forest_at(world_pos)
+
 
 func _lake_region_seed(region: Vector2i) -> int:
 	var m := world_seed ^ (region.x * 374761393) ^ (region.y * 668265263) ^ 1442695041
 	return abs(m)
 
+
 func _ocean_region_seed(region: Vector2i) -> int:
 	var m := world_seed ^ (region.x * 198491317) ^ (region.y * 512927357) ^ 2654435761
 	return abs(m)
+
 
 func _ensure_noise_ready():
 	noise = FastNoiseLite.new()
@@ -502,6 +540,7 @@ func _ensure_noise_ready():
 	noise.seed = world_seed
 	noise.frequency = biome_noise_frequency
 	noise.fractal_octaves = 4
+
 
 func _find_water_source():
 	water_source_id = -1
@@ -520,6 +559,7 @@ func _find_water_source():
 			water_source_id = water_source_fallback_id
 			return
 	push_warning("WorldGen: water tile source '%s' not found." % water_source_name)
+
 
 func _force_reload_all_chunks():
 	biome_by_tile.clear()

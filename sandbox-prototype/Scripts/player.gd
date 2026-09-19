@@ -68,11 +68,13 @@ const DROWN_TIME: float = 8.0
 const DROWN_SLOW_MAX: float = 0.45
 const DROWN_SINK_PIXELS: float = 18.0
 
+
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
 		set_multiplayer_authority(name.to_int())
 	else:
 		set_multiplayer_authority(1)
+
 
 func _ready():
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
@@ -103,8 +105,10 @@ func _ready():
 		$CollisionShape2D.disabled = true
 	_setup_hand()
 	call_deferred("_setup_camera")
-	if multiplayer.has_multiplayer_peer() and is_multiplayer_authority() and multiplayer.get_unique_id() != 0:
+	if multiplayer.has_multiplayer_peer() and is_multiplayer_authority() \
+		and multiplayer.get_unique_id() != 0:
 		_register_steam_id_when_ready.call_deferred()
+
 
 func _register_steam_id_when_ready():
 	var attempts = 0
@@ -114,12 +118,14 @@ func _register_steam_id_when_ready():
 			return
 		if not multiplayer.has_multiplayer_peer():
 			return
-		if multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		if multiplayer.get_multiplayer_peer().get_connection_status() \
+			== MultiplayerPeer.CONNECTION_CONNECTED:
 			break
 		attempts += 1
 	if not is_instance_valid(self):
 		return
-	if multiplayer.get_multiplayer_peer().get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+	if multiplayer.get_multiplayer_peer().get_connection_status() \
+		!= MultiplayerPeer.CONNECTION_CONNECTED:
 		print("ERROR: peer never connected, skipping steam id registration")
 		return
 	var scene_node = get_tree().root.get_node_or_null("Scene")
@@ -129,6 +135,7 @@ func _register_steam_id_when_ready():
 			scene_node.sync_peer_steam_ids.rpc(scene_node.peer_to_steam_id)
 		else:
 			scene_node.register_steam_id.rpc_id(1, Steam.getSteamID())
+
 
 func _play_anim(anim_name: String):
 	anim.play(anim_name)
@@ -140,6 +147,7 @@ func _play_anim(anim_name: String):
 		pants_sprite.play(anim_name)
 
 var _hand_scales: Dictionary = {}
+
 
 func _setup_hand():
 	hand_sprite = Sprite2D.new()
@@ -165,6 +173,7 @@ func _setup_hand():
 			if s.x > 0 and s.y > 0:
 				_hand_scales[item_name] = Vector2(12.0 / s.x, 12.0 / s.y)
 
+
 func _apply_hand_texture(tex: Texture2D):
 	var scale = _hand_scales.get(synced_held_item, Vector2(0.017, 0.017))
 	hand_sprite.scale = scale
@@ -174,6 +183,7 @@ func _apply_hand_texture(tex: Texture2D):
 	RenderingServer.force_draw()
 	hand_sprite.visible = true
 	hand_sprite.modulate = Color(1, 1, 1, 1)
+
 
 func _setup_camera():
 	var is_local = not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()
@@ -188,9 +198,11 @@ func _setup_camera():
 	camera.make_current()
 	camera.global_position = global_position
 
+
 func _process(delta):
 	if _is_inventory_open():
 		return
+
 
 func _physics_process(delta):
 	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
@@ -215,8 +227,12 @@ func _physics_process(delta):
 		velocity = Vector2.ZERO
 		move_and_slide()
 		_play_anim("idle")
-		if multiplayer.has_multiplayer_peer() and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-			sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
+		if multiplayer.has_multiplayer_peer() \
+			and multiplayer.get_multiplayer_peer().get_connection_status() \
+			== MultiplayerPeer.CONNECTION_CONNECTED:
+			sync_position_rpc.rpc(
+				global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item,
+			)
 		return
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
 		velocity = synced_velocity
@@ -296,12 +312,17 @@ func _physics_process(delta):
 	_update_hand_sprite()
 	_update_offhand_sprite()
 
-	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 \
+		and multiplayer.get_multiplayer_peer().get_connection_status() \
+		== MultiplayerPeer.CONNECTION_CONNECTED:
+		sync_position_rpc.rpc(
+			global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item,
+		)
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		_update_torch_light()
 	if not multiplayer.has_multiplayer_peer():
 		return
+
 
 func _input(event):
 	if is_dead:
@@ -323,6 +344,7 @@ func _input(event):
 				_start_blocking()
 		elif not event.pressed:
 			_stop_blocking()
+
 
 func _try_attack():
 	var scene_node = get_tree().root.get_node("Scene")
@@ -395,11 +417,13 @@ func _try_attack():
 			_consume_sword_durability()
 			return
 
+
 func _apply_attack_cooldown() -> void:
 	attack_cooldown = ATTACK_COOLDOWN_MAX
 	var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
 	if cursor:
 		cursor.show_cooldown(1.0)
+
 
 func _consume_sword_durability(amount: int = 1) -> bool:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
@@ -416,12 +440,14 @@ func _consume_sword_durability(amount: int = 1) -> bool:
 		return true
 	return false
 
+
 func _kill_chicken(chicken: Node2D) -> void:
 	_spawn_feather_burst(chicken.global_position)
 	if chicken.has_method("take_damage"):
 		chicken.take_damage(9999)
 	else:
 		chicken.queue_free()
+
 
 func _spawn_feather_burst(pos: Vector2) -> void:
 	var particles := CPUParticles2D.new()
@@ -445,14 +471,17 @@ func _spawn_feather_burst(pos: Vector2) -> void:
 	var timer := get_tree().create_timer(particles.lifetime + 0.1)
 	timer.timeout.connect(func(): if is_instance_valid(particles): particles.queue_free())
 
+
 func _is_holding_sword() -> bool:
 	return synced_held_item == "Sword" or synced_held_item == "Stone Sword"
+
 
 func _is_holding_raw_fish() -> bool:
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node and scene_node.has_method("_is_fish_item_name"):
 		return scene_node._is_fish_item_name(synced_held_item)
 	return false
+
 
 func _send_fish_pun() -> void:
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -470,10 +499,12 @@ func _send_fish_pun() -> void:
 	else:
 		chat._add_message(msg)
 
+
 func _get_sword_damage() -> int:
 	if synced_held_item == "Stone Sword":
 		return STONE_SWORD_DAMAGE
 	return SWORD_DAMAGE
+
 
 func _parry_success_flash() -> void:
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
@@ -499,6 +530,7 @@ func _parry_success_flash() -> void:
 	shirt_sprite.modulate = orig_c
 	pants_sprite.modulate = orig_c
 
+
 func _start_blocking() -> void:
 	is_blocking = true
 	parry_timer = PARRY_WINDOW
@@ -506,12 +538,14 @@ func _start_blocking() -> void:
 		hand_sprite.rotation_degrees = -35.0
 	_set_parry_highlight(true)
 
+
 func _set_parry_highlight(on: bool) -> void:
 	var c := Color(1.8, 1.8, 1.8, 1.0) if on else Color(1, 1, 1, 1)
 	anim.modulate = c
 	hair_sprite.modulate = c
 	shirt_sprite.modulate = c
 	pants_sprite.modulate = c
+
 
 func _stop_blocking() -> void:
 	if is_blocking and not _parry_just_landed:
@@ -522,6 +556,7 @@ func _stop_blocking() -> void:
 	if hand_sprite:
 		hand_sprite.rotation_degrees = 0.0
 	_set_parry_highlight(false)
+
 
 func _start_roll() -> void:
 	var dir := Vector2.ZERO
@@ -545,6 +580,7 @@ func _start_roll() -> void:
 		_stop_blocking()
 	_play_anim("walk_down")
 
+
 func _add_roll_collision_exceptions() -> void:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if not is_instance_valid(enemy):
@@ -555,6 +591,7 @@ func _add_roll_collision_exceptions() -> void:
 	for boss in get_tree().get_nodes_in_group("bosses"):
 		if is_instance_valid(boss) and boss is PhysicsBody2D:
 			add_collision_exception_with(boss)
+
 
 func _remove_roll_collision_exceptions() -> void:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
@@ -567,6 +604,7 @@ func _remove_roll_collision_exceptions() -> void:
 		if is_instance_valid(boss) and boss is PhysicsBody2D:
 			remove_collision_exception_with(boss)
 
+
 func _process_roll(delta: float) -> void:
 	roll_timer -= delta
 	velocity = roll_direction * ROLL_SPEED
@@ -574,18 +612,24 @@ func _process_roll(delta: float) -> void:
 	move_and_slide()
 	_update_hand_sprite()
 	_update_offhand_sprite()
-	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-		sync_position_rpc.rpc(global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item)
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_unique_id() != 0 \
+		and multiplayer.get_multiplayer_peer().get_connection_status() \
+		== MultiplayerPeer.CONNECTION_CONNECTED:
+		sync_position_rpc.rpc(
+			global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item,
+		)
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		_update_torch_light()
 	if roll_timer <= 0.0:
 		_end_roll()
+
 
 func _end_roll() -> void:
 	is_rolling = false
 	is_invulnerable = false
 	roll_timer = 0.0
 	_remove_roll_collision_exceptions()
+
 
 func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
 	if is_dead:
@@ -609,6 +653,7 @@ func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
 			return
 	take_damage(amount)
 
+
 func take_damage(amount: int):
 	if is_invulnerable:
 		return
@@ -625,12 +670,14 @@ func take_damage(amount: int):
 	else:
 		_flash_damage()
 
+
 func heal(amount: int):
 	if not is_multiplayer_authority() and multiplayer.has_multiplayer_peer():
 		return
 	if is_dead:
 		return
 	synced_health = min(synced_health + amount, max_health)
+
 
 func die():
 	is_dead = true
@@ -645,15 +692,39 @@ func die():
 	for i in Inventory.slots.size():
 		var slot = Inventory.slots[i]
 		if slot["item"] != "":
-			var is_fish = scene_node._is_fish_item_name(slot["item"]) if scene_node.has_method("_is_fish_item_name") else slot["item"] in scene_node.FISH_ITEM_NAMES
-			var durability = slot.get("durability", slot["count"] if (slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] or is_fish) else 60)
-			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": true, "index": i})
+			var is_fish = (
+				scene_node._is_fish_item_name(slot["item"])
+				if scene_node.has_method("_is_fish_item_name")
+				else slot["item"] in scene_node.FISH_ITEM_NAMES
+			)
+			var tool_names := [
+				"Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword",
+			]
+			var durability = slot.get(
+				"durability", slot["count"] if (slot["item"] in tool_names or is_fish) else 60,
+			)
+			drops.append({
+				"item": slot["item"], "count": slot["count"], "durability": durability,
+				"hotbar": true, "index": i,
+			})
 	for i in Inventory.inv_slots.size():
 		var slot = Inventory.inv_slots[i]
 		if slot["item"] != "":
-			var is_fish = scene_node._is_fish_item_name(slot["item"]) if scene_node.has_method("_is_fish_item_name") else slot["item"] in scene_node.FISH_ITEM_NAMES
-			var durability = slot.get("durability", slot["count"] if (slot["item"] in ["Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword"] or is_fish) else 60)
-			drops.append({"item": slot["item"], "count": slot["count"], "durability": durability, "hotbar": false, "index": i})
+			var is_fish = (
+				scene_node._is_fish_item_name(slot["item"])
+				if scene_node.has_method("_is_fish_item_name")
+				else slot["item"] in scene_node.FISH_ITEM_NAMES
+			)
+			var tool_names2 := [
+				"Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword",
+			]
+			var durability = slot.get(
+				"durability", slot["count"] if (slot["item"] in tool_names2 or is_fish) else 60,
+			)
+			drops.append({
+				"item": slot["item"], "count": slot["count"], "durability": durability,
+				"hotbar": false, "index": i,
+			})
 	for drop in drops:
 		var is_tool = Inventory.non_stackable_items.has(drop["item"])
 		if is_tool:
@@ -664,7 +735,9 @@ func die():
 				if multiplayer.is_server():
 					scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
 				else:
-					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"])
+					scene_node.request_spawn_floor_item.rpc_id(
+						1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"],
+					)
 			else:
 				scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
 		else:
@@ -681,7 +754,9 @@ func die():
 					for i in positions_x.size():
 						scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1)
 				else:
-					scene_node.request_spawn_floor_items_batch.rpc_id(1, positions_x, positions_y, drop["item"], 1)
+					scene_node.request_spawn_floor_items_batch.rpc_id(
+						1, positions_x, positions_y, drop["item"], 1,
+					)
 			else:
 				for i in positions_x.size():
 					scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1)
@@ -694,6 +769,7 @@ func die():
 	await _play_death_respawn_sequence(scene_node)
 
 var _last_hand_item: String = ""
+
 
 func _update_hand_sprite():
 	if not hand_sprite:
@@ -730,6 +806,7 @@ func _update_hand_sprite():
 
 var _last_offhand_item: String = ""
 
+
 func _update_offhand_sprite():
 	if not offhand_sprite:
 		return
@@ -757,9 +834,11 @@ func _update_offhand_sprite():
 	offhand_sprite.visible = true
 	offhand_sprite.modulate = Color(1, 1, 1, 1)
 
+
 func start_chop_cooldown(duration: float):
 	chop_cooldown_max = duration
 	chop_cooldown_timer = duration
+
 
 func _is_inventory_open() -> bool:
 	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
@@ -768,11 +847,14 @@ func _is_inventory_open() -> bool:
 	var chat_open = chat != null and chat.get("is_open")
 	return (inv != null and inv.visible) or chat_open or (wardrobe != null and wardrobe.visible)
 
+
 func _is_chat_open() -> bool:
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	return chat != null and chat.is_open
 
 @rpc("any_peer", "call_local", "reliable")
+
+
 func sync_cosmetics_rpc(hair: bool, shirt: bool, pants: bool):
 	synced_hair = hair
 	synced_shirt = shirt
@@ -781,11 +863,13 @@ func sync_cosmetics_rpc(hair: bool, shirt: bool, pants: bool):
 	shirt_sprite.visible = shirt
 	pants_sprite.visible = pants
 
+
 func apply_cosmetics(hair: bool, shirt: bool, pants: bool):
 	if multiplayer.has_multiplayer_peer():
 		sync_cosmetics_rpc.rpc(hair, shirt, pants)
 	else:
 		sync_cosmetics_rpc(hair, shirt, pants)
+
 
 func _update_drowning(delta: float):
 	if is_dead:
@@ -799,7 +883,9 @@ func _update_drowning(delta: float):
 		in_water = cave_gen._water_tiles.has(cave_gen.world_to_tile(global_position))
 	else:
 		var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
-		in_water = world_gen != null and world_gen.has_method("is_water_at") and world_gen.is_water_at(global_position)
+		in_water = world_gen != null \
+			and world_gen.has_method("is_water_at") \
+			and world_gen.is_water_at(global_position)
 
 	if in_water:
 		drowning_timer += delta
@@ -808,7 +894,9 @@ func _update_drowning(delta: float):
 
 	var drown_pct: float = clamp(drowning_timer / DROWN_TIME, 0.0, 1.0)
 	_set_drowning_alpha(drown_pct)
-	if multiplayer.has_multiplayer_peer() and multiplayer.get_multiplayer_peer().get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+	if multiplayer.has_multiplayer_peer() \
+		and multiplayer.get_multiplayer_peer().get_connection_status() \
+		== MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_drowning_alpha_rpc.rpc(drown_pct)
 	if not multiplayer.has_multiplayer_peer():
 		return
@@ -819,6 +907,7 @@ func _update_drowning(delta: float):
 		take_damage(max_health)
 	elif drowning_timer <= 0.0:
 		drowning_dead = false
+
 
 func _set_drowning_alpha(progress: float):
 	var sink: float = DROWN_SINK_PIXELS * clamp(progress, 0.0, 1.0)
@@ -832,10 +921,13 @@ func _set_drowning_alpha(progress: float):
 		offhand_sprite.position.y = -19 + sink
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
+
+
 func sync_drowning_alpha_rpc(alpha: float):
 	if is_multiplayer_authority():
 		return
 	_set_drowning_alpha(alpha)
+
 
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -849,6 +941,7 @@ func _send_death_message(cause: String):
 		chat._broadcast_message.rpc(msg)
 	else:
 		chat._add_message(msg)
+
 
 func _play_death_respawn_sequence(scene_node):
 	drowning_timer = 0.0
@@ -900,6 +993,8 @@ func _play_death_respawn_sequence(scene_node):
 		_do_respawn(spawn_pos)
 
 @rpc("any_peer", "call_remote", "reliable")
+
+
 func request_respawn_position_rpc():
 	if not multiplayer.is_server():
 		return
@@ -911,8 +1006,11 @@ func request_respawn_position_rpc():
 	receive_respawn_position_rpc.rpc_id(sender, spawn_pos.x, spawn_pos.y)
 
 @rpc("any_peer", "call_remote", "reliable")
+
+
 func receive_respawn_position_rpc(px: float, py: float):
 	_do_respawn(Vector2(px, py))
+
 
 func _do_respawn(spawn_pos: Vector2):
 	drowning_timer = 0.0
@@ -944,6 +1042,7 @@ func _do_respawn(spawn_pos: Vector2):
 	$CollisionShape2D.disabled = false
 	is_dead = false
 
+
 func _flash_damage():
 	if damage_flash_tween:
 		damage_flash_tween.kill()
@@ -964,6 +1063,8 @@ func _flash_damage():
 	)
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
+
+
 func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String):
 	if is_multiplayer_authority():
 		return
@@ -972,6 +1073,7 @@ func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String)
 	synced_held_item = held
 
 var _torch_light_id: int = -1
+
 
 func _update_torch_light():
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")

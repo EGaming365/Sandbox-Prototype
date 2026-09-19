@@ -37,8 +37,10 @@ var _world_gen: Node = null
 @onready var hurtbox: Area2D = $Hurtbox
 @onready var staticbody: StaticBody2D = $StaticBody2D
 
+
 func _is_host() -> bool:
 	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
+
 
 func _ready() -> void:
 	rng.randomize()
@@ -54,13 +56,16 @@ func _ready() -> void:
 	_scene = get_tree().root.get_node_or_null("Scene")
 	_world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 
+
 func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("players"):
 		_player_in_range = true
 
+
 func _on_body_exited(body: Node) -> void:
 	if body.is_in_group("players"):
 		_player_in_range = false
+
 
 func _input(event: InputEvent) -> void:
 	if state == State.DEAD:
@@ -125,12 +130,14 @@ func _input(event: InputEvent) -> void:
 	else:
 		take_damage(damage)
 
+
 func _start_petting() -> void:
 	if state == State.PETTED:
 		return
 	state = State.PETTED
 	sprite.play("idle")
 	_pet_heart_loop()
+
 
 func _pet_heart_loop() -> void:
 	while state == State.PETTED:
@@ -145,6 +152,7 @@ func _pet_heart_loop() -> void:
 		tween.parallel().tween_property(heart, "modulate:a", 0.0, 1.0)
 		tween.tween_callback(heart.queue_free)
 		await get_tree().create_timer(0.2).timeout
+
 
 func _process(delta: float) -> void:
 	_update_drowning(delta)
@@ -170,6 +178,7 @@ func _process(delta: float) -> void:
 			if is_inside_tree() and get_meta("sync_ready", false) and _scene:
 				_scene.sync_chicken_state_rpc.rpc(chicken_id, global_position.x, global_position.y, int(state))
 
+
 func _apply_separation() -> void:
 	if state == State.FLEE:
 		return
@@ -184,6 +193,7 @@ func _apply_separation() -> void:
 	if separation.length() > 0.0:
 		_try_move(separation * 0.05)
 
+
 func _check_flee() -> void:
 	if state == State.PETTED:
 		return
@@ -193,6 +203,7 @@ func _check_flee() -> void:
 	elif state == State.FLEE:
 		state = State.WANDER
 		_pick_wander_target()
+
 
 func _do_wander(delta: float) -> void:
 	if global_position.distance_to(_wander_target) < 8.0:
@@ -216,12 +227,14 @@ func _do_wander(delta: float) -> void:
 		_stuck_timer = 0.0
 	sprite.play("walk_down")
 
+
 func _do_idle(delta: float) -> void:
 	sprite.play("idle")
 	_idle_timer -= delta
 	if _idle_timer <= 0.0:
 		state = State.WANDER
 		_pick_wander_target()
+
 
 func _do_flee(delta: float) -> void:
 	var player := _get_nearest_player()
@@ -244,10 +257,12 @@ func _do_flee(delta: float) -> void:
 		_stuck_timer = 0.0
 	sprite.play("walk_down")
 
+
 func _is_water_at(pos: Vector2) -> bool:
 	if _world_gen and _world_gen.has_method("is_water_at"):
 		return _world_gen.is_water_at(pos)
 	return false
+
 
 func _pick_wander_target() -> void:
 	for _attempt in 12:
@@ -257,6 +272,7 @@ func _pick_wander_target() -> void:
 			_wander_target = candidate
 			return
 	_wander_target = global_position
+
 
 func _get_nearest_player() -> CharacterBody2D:
 	var nearest: CharacterBody2D = null
@@ -270,6 +286,8 @@ func _get_nearest_player() -> CharacterBody2D:
 	return nearest
 
 @rpc("any_peer", "call_remote", "reliable")
+
+
 func _request_damage_rpc(target_chicken_id: int, amount: int) -> void:
 	if not multiplayer.is_server():
 		return
@@ -277,6 +295,7 @@ func _request_damage_rpc(target_chicken_id: int, amount: int) -> void:
 		if chicken.get("chicken_id") == target_chicken_id:
 			chicken.take_damage(amount)
 			return
+
 
 func take_damage(amount: int) -> void:
 	if state == State.DEAD:
@@ -291,6 +310,7 @@ func take_damage(amount: int) -> void:
 	if health <= 0:
 		_die()
 
+
 func _flash_hit() -> void:
 	sprite.modulate = Color(1, 0.1, 0.1, 1)
 	await get_tree().create_timer(0.08).timeout
@@ -300,11 +320,13 @@ func _flash_hit() -> void:
 	await get_tree().create_timer(0.08).timeout
 	sprite.modulate = Color(1, 1, 1, 1)
 
+
 func _die() -> void:
 	if multiplayer.has_multiplayer_peer() and _scene:
 		_scene.chicken_die_rpc.rpc(chicken_id)
 	else:
 		_play_die_sequence()
+
 
 func _play_die_sequence() -> void:
 	state = State.DEAD
@@ -320,12 +342,15 @@ func _play_die_sequence() -> void:
 			_scene.host_spawn_floor_item(global_position + offset, "Chicken_Raw", 1)
 	queue_free()
 
+
 func _update_drowning(delta: float) -> void:
 	if state == State.DEAD:
 		return
 	if not _is_host():
 		return
-	var in_water = _world_gen != null and _world_gen.has_method("is_water_at") and _world_gen.is_water_at(global_position)
+	var in_water = _world_gen != null \
+		and _world_gen.has_method("is_water_at") \
+		and _world_gen.is_water_at(global_position)
 	if in_water:
 		drowning_timer += delta
 	else:
@@ -340,8 +365,10 @@ func _update_drowning(delta: float) -> void:
 	elif drowning_timer <= 0.0:
 		drowning_dead = false
 
+
 func _set_drowning_alpha(alpha: float) -> void:
 	sprite.modulate.a = alpha
+
 
 func _is_position_clear(pos: Vector2) -> bool:
 	var space := get_world_2d().direct_space_state
@@ -360,6 +387,7 @@ func _is_position_clear(pos: Vector2) -> bool:
 		if hit["collider"] != staticbody:
 			return false
 	return true
+
 
 func _try_move(delta: Vector2) -> void:
 	if delta.length() <= 0.001:
@@ -389,6 +417,7 @@ func _try_move(delta: Vector2) -> void:
 		if _escape_from_blocked_position():
 			_blocked_escape_timer = 0.0
 
+
 func _escape_from_blocked_position() -> bool:
 	for i in ESCAPE_ATTEMPTS:
 		var angle = rng.randf_range(0.0, TAU)
@@ -401,12 +430,16 @@ func _escape_from_blocked_position() -> bool:
 	return false
 
 @rpc("authority", "call_local", "reliable")
+
+
 func chicken_flash_hit_rpc(cid: int) -> void:
 	var chicken = get_node_or_null("Chicken_" + str(cid))
 	if chicken and is_instance_valid(chicken):
 		chicken._flash_hit()
 
 @rpc("authority", "call_local", "reliable")
+
+
 func chicken_die_rpc(cid: int) -> void:
 	var chicken = get_node_or_null("Chicken_" + str(cid))
 	if chicken and is_instance_valid(chicken):

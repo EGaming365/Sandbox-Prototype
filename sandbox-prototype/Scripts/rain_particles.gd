@@ -1,5 +1,6 @@
 extends GPUParticles2D
 
+
 func _ready():
 	amount = 300
 	lifetime = 0.8
@@ -25,6 +26,7 @@ func _ready():
 	modulate = Color(0.8, 0.9, 1.0, 0.5)
 	emitting = false
 
+
 func _process(_delta):
 	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	var in_cave: bool = cave_gen != null and cave_gen.get("in_cave") == true
@@ -36,6 +38,7 @@ func _process(_delta):
 			weather.current_weather == weather.WeatherType.THUNDER or \
 			weather.current_weather == weather.WeatherType.THUNDERSTORM
 		emitting = should_rain
+
 
 func set_storm_intensity(heavy: bool):
 	var mat = process_material as ParticleProcessMaterial

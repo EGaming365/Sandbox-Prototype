@@ -8,10 +8,12 @@ var dot_timer: float = 0.0
 var dot_count: int = 0
 var dot_interval: float = 0.5
 
+
 func _ready():
 	title_label = $VBoxContainer/TitleLabel
 	sub_label = $VBoxContainer/SubLabel
 	hide()
+
 
 func _process(delta):
 	if not is_loading:
@@ -21,6 +23,7 @@ func _process(delta):
 		dot_timer = 0.0
 		dot_count = (dot_count + 1) % 4
 		sub_label.text = "Please wait" + ".".repeat(dot_count)
+
 
 func show_loading(title: String, auto_hide_seconds: float = 0.0):
 	is_loading = true
@@ -32,6 +35,7 @@ func show_loading(title: String, auto_hide_seconds: float = 0.0):
 	if auto_hide_seconds > 0.0:
 		await get_tree().create_timer(auto_hide_seconds).timeout
 		hide_loading()
+
 
 func hide_loading():
 	is_loading = false

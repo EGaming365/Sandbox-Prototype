@@ -7,6 +7,7 @@ var is_open: bool = false
 var wardrobe_texture: Texture2D = preload("res://Assets/Wardrobe.png")
 var wardrobe_open_texture: Texture2D = preload("res://Assets/Wardrobe_Open.png")
 
+
 func _ready():
 	visible = false
 	add_to_group("placed_blocks")
@@ -25,6 +26,7 @@ func _ready():
 	await get_tree().process_frame
 	visible = true
 
+
 func _setup_area():
 	if is_placed:
 		$CollisionShape2D.disabled = false
@@ -36,6 +38,7 @@ func _setup_area():
 		$Area2D/CollisionShape2D.disabled = false
 		$Area2D.body_entered.connect(_on_body_entered)
 
+
 func setup_placed(b_id: int):
 	block_id = b_id
 	is_placed = true
@@ -43,10 +46,12 @@ func setup_placed(b_id: int):
 	$Sprite2D.offset = Vector2.ZERO
 	call_deferred("_setup_area")
 
+
 func setup_floor(i_id: int):
 	item_id = i_id
 	is_placed = false
 	$Sprite2D.scale = Vector2(1.5, 1.5)
+
 
 func _input(event):
 	if not is_placed:
@@ -78,6 +83,7 @@ func _input(event):
 			return
 		_hit_wardrobe()
 
+
 func _toggle_wardrobe_ui():
 	var wardrobe_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Wardrobe_UI")
 	if not wardrobe_ui:
@@ -89,12 +95,14 @@ func _toggle_wardrobe_ui():
 	else:
 		wardrobe_ui.close()
 
+
 func close_ui():
 	is_open = false
 	$Sprite2D.texture = wardrobe_texture
 	var wardrobe_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Wardrobe_UI")
 	if wardrobe_ui:
 		wardrobe_ui.visible = false
+
 
 func _hit_wardrobe():
 	$Sprite2D.modulate = Color(1, 0.5, 0.5, 1)
@@ -115,6 +123,7 @@ func _hit_wardrobe():
 		scene_node.host_spawn_floor_item(drop_pos, "Wardrobe", 1)
 		_remove_self()
 
+
 func _remove_self():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node and multiplayer.has_multiplayer_peer():
@@ -127,8 +136,11 @@ func _remove_self():
 			queue_free()
 
 @rpc("authority", "call_local", "reliable")
+
+
 func remove_wardrobe_rpc(_b_id: int):
 	queue_free()
+
 
 func _on_body_entered(body):
 	if is_placed:
@@ -136,6 +148,7 @@ func _on_body_entered(body):
 	if body is CharacterBody2D:
 		if not multiplayer.has_multiplayer_peer() or body.is_multiplayer_authority():
 			_pickup()
+
 
 func _pickup():
 	Inventory.add_item("Wardrobe", wardrobe_texture)
@@ -149,8 +162,10 @@ func _pickup():
 		else:
 			scene_node.remove_floor_item(item_id)
 
+
 func _get_rect() -> Rect2:
 	return Rect2(global_position - Vector2(32, 32), Vector2(64, 64))
+
 
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
@@ -161,6 +176,7 @@ func _get_local_player():
 			else:
 				return child
 	return null
+
 
 func _is_inventory_full(item_name: String) -> bool:
 	if Inventory.non_stackable_items.has(item_name):

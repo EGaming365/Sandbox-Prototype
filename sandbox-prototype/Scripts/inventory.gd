@@ -67,6 +67,7 @@ var offhand_allowed_items: Array = ["Torch"]
 var _emit_dirty: bool = false
 var _emit_timer: float = 0.0
 
+
 func _ready():
 	var textures_to_resize = {
 		"Wood": wood_texture,
@@ -131,8 +132,10 @@ func _ready():
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
 
+
 func get_texture(item_name: String) -> Texture2D:
 	return TEXTURE_MAP.get(item_name, null)
+
 
 func _process(delta):
 	if _emit_dirty:
@@ -142,20 +145,24 @@ func _process(delta):
 			_emit_timer = 0.0
 			inventory_changed.emit()
 
+
 func _queue_emit():
 	_emit_dirty = true
 	_emit_timer = 0.05
+
 
 func discover(item_name: String):
 	if not discovered_items.has(item_name):
 		discovered_items[item_name] = true
 		inventory_changed.emit()
 
+
 func is_discovered(recipe: Dictionary) -> bool:
 	for item in recipe["ingredients"]:
 		if not discovered_items.has(item):
 			return false
 	return true
+
 
 func add_item(item_name, texture):
 	var tex = get_texture(item_name)
@@ -193,6 +200,7 @@ func add_item(item_name, texture):
 			_queue_emit()
 			return
 
+
 func add_item_with_count(item_name: String, texture: Texture2D, count: int):
 	var tex = get_texture(item_name)
 	if tex == null:
@@ -213,6 +221,7 @@ func add_item_with_count(item_name: String, texture: Texture2D, count: int):
 			inventory_changed.emit()
 			return
 
+
 func add_item_with_count_silent(item_name: String, texture: Texture2D, count: int):
 	var tex = get_texture(item_name)
 	if tex == null:
@@ -230,6 +239,7 @@ func add_item_with_count_silent(item_name: String, texture: Texture2D, count: in
 			inv_slots[i]["count"] = count
 			inv_slots[i]["texture"] = tex
 			return
+
 
 func batch_add_item(item_name: String, texture: Texture2D, count: int = 1) -> int:
 	var tex = get_texture(item_name)
@@ -277,6 +287,7 @@ func batch_add_item(item_name: String, texture: Texture2D, count: int = 1) -> in
 			remaining -= add
 	return count - remaining
 
+
 func remove_item(from_index: int, from_inv: bool = false):
 	var target = inv_slots if from_inv else slots
 	target[from_index]["item"] = ""
@@ -284,17 +295,21 @@ func remove_item(from_index: int, from_inv: bool = false):
 	target[from_index]["texture"] = null
 	inventory_changed.emit()
 
+
 func set_offhand_item(item_name: String, texture: Texture2D, count: int):
 	offhand_slot = {"item": item_name, "count": count, "texture": texture}
 	discover(item_name)
 	inventory_changed.emit()
 
+
 func clear_offhand():
 	offhand_slot = {"item": "", "count": 0, "texture": null}
 	inventory_changed.emit()
 
+
 func can_item_go_offhand(item_name: String) -> bool:
 	return item_name == "" or offhand_allowed_items.has(item_name)
+
 
 func move_slot_to_offhand(index: int, from_inv: bool = false) -> bool:
 	var source = inv_slots if from_inv else slots
@@ -321,6 +336,7 @@ func move_slot_to_offhand(index: int, from_inv: bool = false) -> bool:
 	inventory_changed.emit()
 	return true
 
+
 func swap_hotbar_with_offhand(index: int) -> bool:
 	if index < 0 or index >= slots.size():
 		return false
@@ -336,6 +352,7 @@ func swap_hotbar_with_offhand(index: int) -> bool:
 	inventory_changed.emit()
 	return true
 
+
 func move_item(from_index: int, to_index: int, from_inv: bool = false, to_inv: bool = false):
 	var from_arr = inv_slots if from_inv else slots
 	var to_arr = inv_slots if to_inv else slots
@@ -350,16 +367,25 @@ func move_item(from_index: int, to_index: int, from_inv: bool = false, to_inv: b
 		var move_count = min(from_slot["count"], space)
 		var new_to_count = to_slot["count"] + move_count
 		var new_from_count = from_slot["count"] - move_count
-		to_arr[to_index] = {"item": to_slot["item"], "count": new_to_count, "texture": to_slot["texture"]}
+		to_arr[to_index] = {
+			"item": to_slot["item"],
+			"count": new_to_count,
+			"texture": to_slot["texture"],
+		}
 		if new_from_count <= 0:
 			from_arr[from_index] = {"item": "", "count": 0, "texture": null}
 		else:
-			from_arr[from_index] = {"item": from_slot["item"], "count": new_from_count, "texture": from_slot["texture"]}
+			from_arr[from_index] = {
+				"item": from_slot["item"],
+				"count": new_from_count,
+				"texture": from_slot["texture"],
+			}
 	else:
 		var temp = from_arr[from_index].duplicate()
 		from_arr[from_index] = to_arr[to_index].duplicate()
 		to_arr[to_index] = temp
 	inventory_changed.emit()
+
 
 func remove_item_by_name(item_name: String, amount: int):
 	var remaining = amount
@@ -389,6 +415,7 @@ func remove_item_by_name(item_name: String, amount: int):
 				inv_slots[i] = {"item": "", "count": 0, "texture": null}
 	inventory_changed.emit()
 
+
 func count_item(item_name: String) -> int:
 	var total = 0
 	if offhand_slot["item"] == item_name:
@@ -401,8 +428,10 @@ func count_item(item_name: String) -> int:
 			total += inv_slots[i]["count"]
 	return total
 
+
 func flush_inventory_signal():
 	inventory_changed.emit()
+
 
 func consume_axe_durability():
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
@@ -417,8 +446,10 @@ func consume_axe_durability():
 		else:
 			inventory_changed.emit()
 
+
 func request_inventory_update():
 	inventory_changed.emit()
+
 
 func get_fish_weight_display(item_name: String, grams: int) -> String:
 	if grams <= 0:

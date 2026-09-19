@@ -87,6 +87,7 @@ var torch_texture: Texture2D
 var fishing_rod_texture: Texture2D
 var stone_fishing_rod_texture: Texture2D
 
+
 func _ready():
 	stone_texture = load("res://Assets/Stone.png")
 	wood_texture = load("res://Assets/Wood.png")
@@ -104,6 +105,7 @@ func _ready():
 	torch_texture = load("res://Assets/Torch.png")
 	fishing_rod_texture = load("res://Assets/Fishing_Rod.png")
 	stone_fishing_rod_texture = load("res://Assets/Stone_Fishing_Rod.png")
+
 
 func get_item_texture(item_name: String) -> Texture2D:
 	match item_name:
@@ -141,6 +143,7 @@ func get_item_texture(item_name: String) -> Texture2D:
 			return Inventory.stone_fishing_rod_texture
 	return null
 
+
 func is_near_bench() -> bool:
 	var player = _get_local_player()
 	if not player:
@@ -150,6 +153,8 @@ func is_near_bench() -> bool:
 			if player.global_position.distance_to(bench.global_position) <= 100.0:
 				return true
 	return false
+
+
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -159,6 +164,8 @@ func _get_local_player():
 			else:
 				return child
 	return null
+
+
 func can_craft(recipe: Dictionary) -> bool:
 	if bench_recipes.has(recipe) and not is_near_bench():
 		return false
@@ -170,6 +177,7 @@ func can_craft(recipe: Dictionary) -> bool:
 
 	return true
 
+
 func _has_inventory_space() -> bool:
 	for slot in Inventory.slots:
 		if slot["item"] == "":
@@ -178,6 +186,7 @@ func _has_inventory_space() -> bool:
 		if slot["item"] == "":
 			return true
 	return false
+
 
 func craft(recipe: Dictionary, silent: bool = false):
 	if not can_craft(recipe):
@@ -281,7 +290,9 @@ func craft(recipe: Dictionary, silent: bool = false):
 				if multiplayer.is_server():
 					scene_node.host_spawn_floor_item(drop_pos, "Stone Fishing Rod", 100)
 				else:
-					scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, "Stone Fishing Rod", 100)
+					scene_node.request_spawn_floor_item.rpc_id(
+						1, drop_pos.x, drop_pos.y, "Stone Fishing Rod", 100,
+					)
 			else:
 				scene_node.host_spawn_floor_item(drop_pos, "Stone Fishing Rod", 100)
 	elif recipe["result"] == "Pickaxe":
@@ -335,6 +346,7 @@ func craft(recipe: Dictionary, silent: bool = false):
 		return
 	Inventory.inventory_changed.emit()
 
+
 func _count_item(item_name: String) -> int:
 	var total = 0
 	if Inventory.offhand_slot["item"] == item_name:
@@ -346,6 +358,8 @@ func _count_item(item_name: String) -> int:
 		if slot["item"] == item_name:
 			total += slot["count"]
 	return total
+
+
 func _remove_item(item_name: String, amount: int):
 	var remaining = amount
 	if Inventory.offhand_slot["item"] == item_name:
@@ -372,6 +386,7 @@ func _remove_item(item_name: String, amount: int):
 			remaining -= take
 			if Inventory.inv_slots[i]["count"] <= 0:
 				Inventory.inv_slots[i] = {"item": "", "count": 0, "texture": null}
+
 
 func _add_result_silent(recipe: Dictionary):
 	var tex = get_item_texture(recipe["result"])

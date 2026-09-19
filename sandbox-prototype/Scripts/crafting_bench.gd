@@ -11,6 +11,7 @@ var despawn_timer: float = 0.0
 var check_timer: float = 0.0
 var label: Label = null
 
+
 func _ready():
 	visible = false
 	crafting_bench_texture = Crafting.bench_texture
@@ -30,10 +31,12 @@ func _ready():
 	await get_tree().process_frame
 	visible = true
 
+
 func _update_label():
 	if label:
 		label.text = ""
 		label.global_position = global_position + Vector2(-8, -24)
+
 
 func _process(delta):
 	if label:
@@ -66,6 +69,7 @@ func _process(delta):
 	else:
 		scene_node.remove_floor_item(item_id)
 
+
 func _do_despawn():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
@@ -75,6 +79,7 @@ func _do_despawn():
 			scene_node.sync_remove_floor_item.rpc(item_id)
 	else:
 		scene_node.remove_floor_item(item_id)
+
 
 func _is_inventory_full(item_name: String) -> bool:
 	for slot in Inventory.slots:

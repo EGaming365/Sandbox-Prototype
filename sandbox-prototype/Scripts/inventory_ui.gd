@@ -31,6 +31,7 @@ var recipe_category: String = "all"
 var category_buttons: Array = []
 var tab_buttons: Array = []
 
+
 func _ready():
 	hide()
 	Inventory.inventory_changed.connect(update_inventory)
@@ -39,6 +40,7 @@ func _ready():
 	update_inventory()
 	_switch_tab("inventory")
 	call_deferred("_create_overlay")
+
 
 func _create_overlay():
 	var overlay = ColorRect.new()
@@ -52,6 +54,7 @@ func _create_overlay():
 	get_parent().add_child(overlay)
 	get_parent().move_child(overlay, get_index())
 
+
 func _spawn_drop(player, item_type: String, spawn_durability: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	var angle = randf_range(0, TAU)
@@ -61,9 +64,12 @@ func _spawn_drop(player, item_type: String, spawn_durability: int):
 		if multiplayer.is_server():
 			scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
 		else:
-			scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, spawn_durability)
+			scene_node.request_spawn_floor_item.rpc_id(
+				1, drop_pos.x, drop_pos.y, item_type, spawn_durability,
+			)
 	else:
 		scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
+
 
 func _spawn_drop_stack(player, item_type: String, count: int):
 	var scene_node = get_tree().root.get_node("Scene")
@@ -85,6 +91,7 @@ func _spawn_drop_stack(player, item_type: String, count: int):
 	else:
 		scene_node.host_spawn_floor_items_batch(positions, item_type, 1)
 
+
 func _build_tabs():
 	var tab_bar = $PanelContainer/VBoxContainer/Tab_Buttons
 	for child in tab_bar.get_children():
@@ -100,6 +107,7 @@ func _build_tabs():
 	recipe_tab.pressed.connect(func(): _switch_tab("recipes"))
 	tab_bar.add_child(recipe_tab)
 	tab_buttons.append(recipe_tab)
+
 
 func _switch_tab(tab: String):
 	current_tab = tab
@@ -120,6 +128,7 @@ func _switch_tab(tab: String):
 		var btn = tab_buttons[i]
 		var is_active = (i == 0 and tab == "inventory") or (i == 1 and tab == "recipes")
 		btn.modulate = Color(1.5, 1.8, 1.5, 1.0) if is_active else Color(0.6, 0.6, 0.6, 1.0)
+
 
 func _build_slots():
 	var grid = $PanelContainer/VBoxContainer/HBoxContainer/Inventory/PanelContainer/GridContainer
@@ -150,15 +159,18 @@ func _build_slots():
 			panel.mouse_entered.connect(func(): _on_slot_hover(idx))
 			panel.mouse_exited.connect(func(): _on_slot_unhover(idx))
 
+
 func _on_slot_hover(index: int):
 	hovered_slot = index
 	if Inventory.inv_slots[index]["item"] != "":
 		inv_slots_ui[index].add_theme_stylebox_override("panel", slot_scene_selected.duplicate())
 
+
 func _on_slot_unhover(index: int):
 	if hovered_slot == index:
 		hovered_slot = -1
 	inv_slots_ui[index].add_theme_stylebox_override("panel", slot_scene_default.duplicate())
+
 
 func update_inventory():
 	for i in UNLOCKED_SLOTS:
@@ -217,6 +229,7 @@ func update_inventory():
 	if current_tab == "recipes":
 		_update_recipe_panel()
 
+
 func _add_durability_bar(slot: Panel, current: float, max_dur: float):
 	var pct = clamp(current / max_dur, 0.0, 1.0)
 	if pct >= 1.0:
@@ -239,6 +252,7 @@ func _add_durability_bar(slot: Panel, current: float, max_dur: float):
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar_bg.add_child(bar)
 
+
 func _start_split_drag(index: int, item_name: String, tex: Texture2D):
 	dragging_from = index
 	dragging_from_inv = true
@@ -258,6 +272,7 @@ func _start_split_drag(index: int, item_name: String, tex: Texture2D):
 	add_child(container)
 	drag_node = container
 
+
 func _start_full_drag(index: int, tex: Texture2D):
 	dragging_from = index
 	dragging_from_inv = true
@@ -276,7 +291,14 @@ func _start_full_drag(index: int, tex: Texture2D):
 	add_child(container)
 	drag_node = container
 
-func _merge_or_place(arr: Array, index: int, item_name: String, tex: Texture2D, count: int) -> bool:
+
+func _merge_or_place(
+	arr: Array,
+	index: int,
+	item_name: String,
+	tex: Texture2D,
+	count: int,
+) -> bool:
 	var slot = arr[index]
 	if slot["item"] == "":
 		slot["item"] = item_name
@@ -295,6 +317,7 @@ func _merge_or_place(arr: Array, index: int, item_name: String, tex: Texture2D, 
 			_return_split_to_source(leftover)
 		return true
 	return false
+
 
 func _merge_split_into_offhand(item_name: String, tex: Texture2D, count: int) -> bool:
 	if not Inventory.can_item_go_offhand(item_name):
@@ -315,6 +338,7 @@ func _merge_split_into_offhand(item_name: String, tex: Texture2D, count: int) ->
 		return true
 	return false
 
+
 func _return_split_to_source(leftover: int = -1) -> void:
 	var amount = split_hold["count"] if leftover == -1 else leftover
 	if amount <= 0:
@@ -330,11 +354,14 @@ func _return_split_to_source(leftover: int = -1) -> void:
 		Inventory.batch_add_item(split_hold["item"], split_hold["texture"], amount)
 	Inventory.inventory_changed.emit()
 
+
 func _resolve_split_drop() -> void:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	var dropped_on_inv = get_hovered_slot()
 	var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
-	var dropped_on_offhand = hotbar != null and hotbar.has_method("_is_mouse_over_offhand") and hotbar._is_mouse_over_offhand()
+	var dropped_on_offhand = hotbar != null \
+		and hotbar.has_method("_is_mouse_over_offhand") \
+		and hotbar._is_mouse_over_offhand()
 	var item_name = split_hold["item"]
 	var count = split_hold["count"]
 	var tex = split_hold["texture"]
@@ -380,8 +407,10 @@ func _resolve_split_drop() -> void:
 	split_drag = false
 	split_hold = {"item": "", "count": 0, "texture": null}
 
+
 func _gui_input_for_slot(event, index):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and not drag_node:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT \
+			and event.pressed and not drag_node:
 		var data = Inventory.inv_slots[index]
 		if data["item"] != "":
 			var item_name = data["item"]
@@ -408,7 +437,8 @@ func _gui_input_for_slot(event, index):
 				var tex = Inventory.inv_slots[index]["texture"]
 				if Input.is_key_pressed(KEY_CTRL):
 					var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
-					if not Inventory.move_slot_to_offhand(index, true) and hotbar and hotbar.has_method("_flash_offhand_red"):
+					if not Inventory.move_slot_to_offhand(index, true) \
+							and hotbar and hotbar.has_method("_flash_offhand_red"):
 						hotbar._flash_offhand_red()
 					return
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
@@ -463,6 +493,7 @@ func _gui_input_for_slot(event, index):
 			add_child(container)
 			drag_node = container
 
+
 func get_hovered_slot() -> int:
 	var closest = -1
 	var closest_dist = 40.0
@@ -475,6 +506,7 @@ func get_hovered_slot() -> int:
 	return closest
 
 var _last_near_bench: bool = false
+
 
 func _process(_delta):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -559,8 +591,11 @@ func _process(_delta):
 	if drag_node:
 		drag_node.global_position = get_global_mouse_position() - Vector2(20, 20)
 		var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
-		var held_item_name = split_hold["item"] if split_drag else Inventory.inv_slots[dragging_from]["item"]
-		if hotbar and hotbar.has_method("_is_mouse_over_offhand") and hotbar.has_method("set_offhand_drag_valid"):
+		var held_item_name = (
+			split_hold["item"] if split_drag else Inventory.inv_slots[dragging_from]["item"]
+		)
+		if hotbar and hotbar.has_method("_is_mouse_over_offhand") \
+				and hotbar.has_method("set_offhand_drag_valid"):
 			var over_offhand = hotbar._is_mouse_over_offhand()
 			hotbar.set_offhand_drag_valid(not over_offhand or Inventory.can_item_go_offhand(held_item_name))
 		var release_button = MOUSE_BUTTON_RIGHT if split_drag else MOUSE_BUTTON_LEFT
@@ -570,11 +605,14 @@ func _process(_delta):
 			else:
 				var dropped_on_inv = get_hovered_slot()
 				var dropped_on_hotbar = hotbar._get_hovered_slot() if hotbar else -1
-				var dropped_on_offhand = hotbar != null and hotbar.has_method("_is_mouse_over_offhand") and hotbar._is_mouse_over_offhand()
+				var dropped_on_offhand = hotbar != null \
+					and hotbar.has_method("_is_mouse_over_offhand") \
+					and hotbar._is_mouse_over_offhand()
 				if dropped_on_inv != -1 and dropped_on_inv != dragging_from:
 					Inventory.move_item(dragging_from, dropped_on_inv, true, true)
 				elif dropped_on_offhand:
-					if not Inventory.move_slot_to_offhand(dragging_from, true) and hotbar and hotbar.has_method("_flash_offhand_red"):
+					if not Inventory.move_slot_to_offhand(dragging_from, true) \
+							and hotbar and hotbar.has_method("_flash_offhand_red"):
 						hotbar._flash_offhand_red()
 				elif dropped_on_hotbar != -1:
 					Inventory.move_item(dragging_from, dropped_on_hotbar, true, false)
@@ -602,8 +640,11 @@ func _process(_delta):
 			if now_hovered != -1:
 				_on_slot_hover(now_hovered)
 
+
 func _update_recipe_panel():
-	var scroll_vbox = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/ScrollContainer/VBoxContainer
+	var scroll_vbox = get_node(
+		"PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/ScrollContainer/VBoxContainer",
+	)
 	var detail = $PanelContainer/VBoxContainer/HBoxContainer/Recipes/HBoxContainer/Detail
 	for child in scroll_vbox.get_children():
 		scroll_vbox.remove_child(child)
@@ -626,7 +667,9 @@ func _update_recipe_panel():
 		)
 		cat_bar.add_child(btn)
 		category_buttons.append(btn)
-		btn.modulate = Color(2.0, 2.0, 2.0, 1.0) if cat.to_lower() == recipe_category else Color(0.6, 0.6, 0.6, 1.0)
+		btn.modulate = (
+			Color(2.0, 2.0, 2.0, 1.0) if cat.to_lower() == recipe_category else Color(0.6, 0.6, 0.6, 1.0)
+		)
 	var grid = GridContainer.new()
 	grid.columns = 6
 	grid.add_theme_constant_override("h_separation", 6)
@@ -640,7 +683,10 @@ func _update_recipe_panel():
 			continue
 		if Crafting.bench_recipes.has(recipe) and not Crafting.is_near_bench():
 			continue
-		if recipe["result"] in ["Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe", "Fishing Rod", "Stone Fishing Rod"]:
+		if recipe["result"] in [
+			"Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword",
+			"Stone Pickaxe", "Fishing Rod", "Stone Fishing Rod",
+		]:
 			equipment.append(recipe)
 		else:
 			blocks.append(recipe)
@@ -654,6 +700,7 @@ func _update_recipe_panel():
 			filtered = blocks
 	for recipe in filtered:
 		_add_recipe_icon(grid, recipe, detail)
+
 
 func _add_recipe_icon(grid: GridContainer, recipe: Dictionary, detail: VBoxContainer):
 	var btn = Button.new()
@@ -703,6 +750,7 @@ func _add_recipe_icon(grid: GridContainer, recipe: Dictionary, detail: VBoxConta
 	)
 	grid.add_child(btn)
 
+
 func _show_recipe_detail(recipe: Dictionary, detail: VBoxContainer):
 	selected_recipe = recipe
 	for child in detail.get_children():
@@ -745,6 +793,7 @@ func _show_recipe_detail(recipe: Dictionary, detail: VBoxContainer):
 	)
 	detail.add_child(craft_btn)
 
+
 func _on_craft(recipe: Dictionary, btn: Button):
 	if Crafting.can_craft(recipe):
 		Crafting.craft(recipe)
@@ -762,6 +811,7 @@ func _on_craft(recipe: Dictionary, btn: Button):
 			await get_tree().create_timer(0.5).timeout
 			if is_instance_valid(btn):
 				btn.text = "Craft"
+
 
 func _on_craft_max(recipe: Dictionary, btn: Button):
 	if btn != null and is_instance_valid(btn):
@@ -785,8 +835,10 @@ func _on_craft_max(recipe: Dictionary, btn: Button):
 		if is_instance_valid(btn):
 			btn.text = "Craft"
 
+
 func toggle():
 	toggle_to("inventory")
+
 
 func toggle_to(tab: String):
 	var overlay = get_parent().get_node_or_null("DarkOverlay")
@@ -802,6 +854,7 @@ func toggle_to(tab: String):
 		_switch_tab(tab)
 		update_inventory()
 
+
 func _is_fish_item(item_name: String) -> bool:
 	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
 	if fishing_manager:
@@ -809,7 +862,11 @@ func _is_fish_item(item_name: String) -> bool:
 			var base_name: String = fish.get("name", "")
 			if item_name == base_name or item_name == "Albino " + base_name:
 				return true
-	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Red Tang", "Lionfish", "Tire"]:
+	for f in [
+		"Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish",
+		"Salmon", "Clownfish", "Blue Tang", "Red Tang", "Lionfish", "Tire",
+		"Guppy", "Snapper", "Muskie", "Ghost Eel", "Crystal Creeper",
+	]:
 		if item_name == f or item_name == "Albino " + f:
 			return true
 	return false

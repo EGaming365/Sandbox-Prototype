@@ -6,6 +6,7 @@ var _registry: Dictionary = {
 	"spider_queen": true,
 }
 
+
 func handle_command(raw: String) -> void:
 	if not ENABLED:
 		return
@@ -22,6 +23,7 @@ func handle_command(raw: String) -> void:
 			scene_node.request_spawn_boss.rpc_id(1, key)
 		return
 	spawn_by_key(key)
+
 
 func spawn_by_key(key: String) -> void:
 	if not ENABLED:
@@ -44,6 +46,7 @@ func spawn_by_key(key: String) -> void:
 	if boss and is_instance_valid(boss) and boss.has_signal("boss_died"):
 		boss.boss_died.connect(_on_boss_died.bind(key))
 	print("BossManager: spawned '%s'" % key)
+
 
 func _on_boss_died(key: String) -> void:
 	print("BossManager: '%s' defeated" % key)

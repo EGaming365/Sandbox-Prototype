@@ -13,6 +13,7 @@ var hit_radius: float = BASE_HIT_RADIUS
 var _timer: float = 0.0
 var _sprite: Sprite2D
 
+
 func _init(tex: Texture2D, dir: Vector2, spd: float, dmg: int = 1, vscale: float = 1.0) -> void:
 	direction = dir
 	speed = spd
@@ -23,6 +24,7 @@ func _init(tex: Texture2D, dir: Vector2, spd: float, dmg: int = 1, vscale: float
 	_sprite.texture = tex
 	_sprite.scale = Vector2(vscale, vscale)
 	add_child(_sprite)
+
 
 func _process(delta: float) -> void:
 	if not ENABLED:
@@ -39,11 +41,13 @@ func _process(delta: float) -> void:
 		return
 	_check_hit()
 
+
 func _check_wall_hit() -> bool:
 	var cave_gen: Node = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	if not cave_gen or not cave_gen.has_method("is_tile_solid"):
 		return false
 	return cave_gen.is_tile_solid(global_position)
+
 
 func _check_hit() -> void:
 	for p in get_tree().get_nodes_in_group("players"):

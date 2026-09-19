@@ -45,6 +45,7 @@ var healing_drain_multiplier: float = 10.0
 var aurora_glow_rect: ColorRect
 var _aurora_glow_phase: float = 0.0
 
+
 func _ready():
 	hunger_bar.max_value = 100
 	hunger_bar.value = 100
@@ -71,6 +72,7 @@ func _ready():
 	$EffectLabel.add_theme_constant_override("outline_size", 5)
 	$EffectLabel.visible = false
 
+
 func _setup_icon_hover():
 	weather_icon.mouse_filter = Control.MOUSE_FILTER_PASS
 	time_icon.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -90,12 +92,14 @@ func _setup_icon_hover():
 	$SeasonDisplay.mouse_entered.connect(func(): _show_info(season_info, _get_season_text()))
 	$SeasonDisplay.mouse_exited.connect(func(): season_info.visible = false)
 
+
 func _show_info(label: Label, text: String):
 	if text == "":
 		label.visible = false
 		return
 	label.text = text
 	label.visible = true
+
 
 func _get_weather_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
@@ -111,6 +115,7 @@ func _get_weather_text() -> String:
 		6: return "Misty"
 	return ""
 
+
 func _get_time_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if not weather:
@@ -124,11 +129,13 @@ func _get_time_text() -> String:
 		return "Morning"
 	return "Night"
 
+
 func _get_event_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if weather and weather.aurora_active:
 		return "Aurora Borealis"
 	return ""
+
 
 func _get_season_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
@@ -140,6 +147,7 @@ func _get_season_text() -> String:
 		2: return "Autumn"
 		3: return "Winter"
 	return ""
+
 
 func _process(delta):
 	var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
@@ -179,7 +187,10 @@ func _process(delta):
 		in_water = world_gen.is_water_at(player.global_position)
 
 	var is_moving = player != null and player.velocity.length() > 0
-	var is_healing = player != null and hunger >= regen_hunger_min and thirst >= regen_thirst_min and player.synced_health < player.max_health
+	var is_healing = player != null \
+		and hunger >= regen_hunger_min \
+		and thirst >= regen_thirst_min \
+		and player.synced_health < player.max_health
 
 	var drain_multiplier: float
 	if is_healing:
@@ -296,22 +307,29 @@ func _process(delta):
 		else:
 			aurora_glow_rect.color = aurora_glow_rect.color.lerp(Color(0, 0, 0, 0), delta * 2.0)
 
+
 func _send_death_message(cause: String):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	if not chat:
 		return
-	var player_name = Steam.getFriendPersonaName(Steam.getSteamID()) if (multiplayer.has_multiplayer_peer() and Steam != null) else "Player"
+	var player_name = (
+		Steam.getFriendPersonaName(Steam.getSteamID())
+		if (multiplayer.has_multiplayer_peer() and Steam != null)
+		else "Player"
+	)
 	var msg = player_name + " died of " + cause
 	if multiplayer.has_multiplayer_peer():
 		chat._broadcast_message.rpc(msg)
 	else:
 		chat._add_message(msg)
 
+
 func reset_stats():
 	hunger = 100.0
 	thirst = 100.0
 	hunger_bar.value = 100.0
 	thirst_bar.value = 100.0
+
 
 func _create_aurora_glow():
 	aurora_glow_rect = ColorRect.new()
@@ -323,10 +341,12 @@ func _create_aurora_glow():
 	glow_parent.move_child(aurora_glow_rect, event_display.get_index())
 	aurora_glow_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
+
 func set_aurora_icon(active: bool):
 	event_icon.texture = tex_aurora_borealis if active else null
 	if active and not aurora_glow_rect:
 		_create_aurora_glow()
+
 
 func set_season_icon(season: int):
 	match season:

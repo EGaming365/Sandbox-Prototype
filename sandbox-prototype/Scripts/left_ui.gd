@@ -1,7 +1,9 @@
 extends Control
 
+
 func _ready():
 	process_priority = -100
+
 
 func _process(_delta):
 	if Input.is_action_just_pressed("click"):
@@ -31,6 +33,7 @@ func _process(_delta):
 					inv.toggle()
 				else:
 					inv.toggle_to("inventory")
+
 
 func _input(event):
 	if Input.is_action_just_pressed("exit"):

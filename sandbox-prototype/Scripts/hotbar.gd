@@ -32,6 +32,7 @@ const TOOL_MAX_DURABILITY = {
 	"Copper Fishing Rod": 120.0,
 }
 
+
 func _ready():
 	for i in range(10):
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
@@ -40,6 +41,7 @@ func _ready():
 	Inventory.inventory_changed.connect(update_hotbar)
 	_prewarm_textures()
 	update_hotbar()
+
 
 func _prewarm_textures():
 	var dummy = TextureRect.new()
@@ -52,6 +54,7 @@ func _prewarm_textures():
 	await get_tree().process_frame
 	dummy.queue_free()
 
+
 func get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -62,6 +65,7 @@ func get_local_player():
 				return child
 	return null
 
+
 func _spawn_drop(player, item_type: String, spawn_durability: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	var angle = randf_range(0, TAU)
@@ -71,9 +75,12 @@ func _spawn_drop(player, item_type: String, spawn_durability: int):
 		if multiplayer.is_server():
 			scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
 		else:
-			scene_node.request_spawn_floor_item.rpc_id(1, drop_pos.x, drop_pos.y, item_type, spawn_durability)
+			scene_node.request_spawn_floor_item.rpc_id(
+				1, drop_pos.x, drop_pos.y, item_type, spawn_durability,
+			)
 	else:
 		scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
+
 
 func _spawn_drop_stack(player, item_type: String, count: int):
 	var scene_node = get_tree().root.get_node("Scene")
@@ -94,6 +101,7 @@ func _spawn_drop_stack(player, item_type: String, count: int):
 	else:
 		for i in positions_x.size():
 			scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, 1)
+
 
 func update_hotbar():
 	for i in range(10):
@@ -173,6 +181,7 @@ func update_hotbar():
 				bar_bg.add_child(bar)
 	_update_offhand_slot()
 
+
 func _create_offhand_slot():
 	offhand_slot = Panel.new()
 	offhand_slot.name = "OffhandSlot"
@@ -182,6 +191,7 @@ func _create_offhand_slot():
 	$HBoxContainer.add_spacer(false)
 	$HBoxContainer.add_child(offhand_slot)
 	offhand_slot.gui_input.connect(_gui_input_for_offhand)
+
 
 func _update_offhand_slot():
 	if not offhand_slot:
@@ -221,12 +231,18 @@ func _update_offhand_slot():
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	offhand_slot.add_child(label)
 
+
 func _gui_input_for_offhand(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		if Inventory.offhand_slot["item"] != "":
-			var added = Inventory.batch_add_item(Inventory.offhand_slot["item"], Inventory.offhand_slot["texture"], Inventory.offhand_slot["count"])
+			var added = Inventory.batch_add_item(
+				Inventory.offhand_slot["item"],
+				Inventory.offhand_slot["texture"],
+				Inventory.offhand_slot["count"],
+			)
 			if added >= Inventory.offhand_slot["count"]:
 				Inventory.clear_offhand()
+
 
 func _start_split_drag(index: int, item_name: String, tex: Texture2D):
 	dragging_from = index
@@ -247,6 +263,7 @@ func _start_split_drag(index: int, item_name: String, tex: Texture2D):
 	add_child(container)
 	drag_node = container
 
+
 func _start_full_drag(index: int, tex: Texture2D):
 	dragging_from = index
 	dragging_from_inv = false
@@ -265,7 +282,14 @@ func _start_full_drag(index: int, tex: Texture2D):
 	add_child(container)
 	drag_node = container
 
-func _merge_or_place(arr: Array, index: int, item_name: String, tex: Texture2D, count: int) -> bool:
+
+func _merge_or_place(
+	arr: Array,
+	index: int,
+	item_name: String,
+	tex: Texture2D,
+	count: int,
+) -> bool:
 	var slot = arr[index]
 	if slot["item"] == "":
 		slot["item"] = item_name
@@ -284,6 +308,7 @@ func _merge_or_place(arr: Array, index: int, item_name: String, tex: Texture2D, 
 			_return_split_to_source(leftover)
 		return true
 	return false
+
 
 func _merge_split_into_offhand(item_name: String, tex: Texture2D, count: int) -> bool:
 	if not Inventory.can_item_go_offhand(item_name):
@@ -304,6 +329,7 @@ func _merge_split_into_offhand(item_name: String, tex: Texture2D, count: int) ->
 		return true
 	return false
 
+
 func _return_split_to_source(leftover: int = -1) -> void:
 	var amount = split_hold["count"] if leftover == -1 else leftover
 	if amount <= 0:
@@ -318,6 +344,7 @@ func _return_split_to_source(leftover: int = -1) -> void:
 	else:
 		Inventory.batch_add_item(split_hold["item"], split_hold["texture"], amount)
 	Inventory.inventory_changed.emit()
+
 
 func _resolve_split_drop() -> void:
 	var dropped_on_hotbar = _get_hovered_slot()
@@ -351,8 +378,10 @@ func _resolve_split_drop() -> void:
 	split_drag = false
 	split_hold = {"item": "", "count": 0, "texture": null}
 
+
 func _gui_input_for_slot(event, index):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed and not drag_node:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT \
+			and event.pressed and not drag_node:
 		var data = Inventory.slots[index]
 		if data["item"] != "":
 			var item_name = data["item"]
@@ -437,6 +466,7 @@ func _gui_input_for_slot(event, index):
 			add_child(container)
 			drag_node = container
 
+
 func _ready_slots():
 	for i in range(10):
 		var slot = slots[i]
@@ -445,12 +475,15 @@ func _ready_slots():
 		slot.mouse_entered.connect(func(): _on_slot_hover(idx))
 		slot.mouse_exited.connect(func(): _on_slot_unhover(idx))
 
+
 func _on_slot_hover(index: int):
 	hovered_hotbar_slot = index
+
 
 func _on_slot_unhover(index: int):
 	if hovered_hotbar_slot == index:
 		hovered_hotbar_slot = -1
+
 
 func _get_hovered_slot() -> int:
 	var closest = -1
@@ -463,11 +496,13 @@ func _get_hovered_slot() -> int:
 			closest = i
 	return closest
 
+
 func _get_hovered_inv_slot():
 	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	if inv_ui and inv_ui.visible:
 		return inv_ui.get_hovered_slot()
 	return -1
+
 
 func _process(delta: float) -> void:
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -485,7 +520,8 @@ func _process(delta: float) -> void:
 		if i == current_slot and not inv_open:
 			panel.add_theme_stylebox_override("panel", hotbar_selected)
 			panel.z_index = 1
-		elif inv_open and i == hovered_hotbar_slot + 1 and Inventory.slots[hovered_hotbar_slot]["item"] != "":
+		elif inv_open and i == hovered_hotbar_slot + 1 \
+				and Inventory.slots[hovered_hotbar_slot]["item"] != "":
 			panel.add_theme_stylebox_override("panel", hotbar_selected)
 			panel.z_index = 1
 		else:
@@ -654,6 +690,7 @@ func _process(delta: float) -> void:
 							Inventory.slots[drop_index]["count"] -= 1
 							Inventory.inventory_changed.emit()
 
+
 func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if not drag_node:
@@ -674,13 +711,17 @@ func _input(event):
 				else:
 					Inventory.slots[slot_index]["count"] -= 1
 					Inventory.inventory_changed.emit()
-			elif data["item"] == "Fishing Rod" or data["item"] == "Stone Fishing Rod" or data["item"] == "Copper Fishing Rod":
+			elif data["item"] == "Fishing Rod" \
+					or data["item"] == "Stone Fishing Rod" \
+					or data["item"] == "Copper Fishing Rod":
 				_try_fish_cast(event.position)
+
 
 func _try_fish_cast(screen_pos: Vector2) -> void:
 	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
 	if fishing_manager:
 		fishing_manager.try_cast(screen_pos)
+
 
 func _is_fish_item(item_name: String) -> bool:
 	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
@@ -689,16 +730,24 @@ func _is_fish_item(item_name: String) -> bool:
 			var base_name: String = fish.get("name", "")
 			if item_name == base_name or item_name == "Albino " + base_name:
 				return true
-	for f in ["Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish", "Salmon", "Clownfish", "Blue Tang", "Red Tang", "Lionfish", "Tire"]:
+	for f in [
+		"Minnow", "Perch", "Bass", "Pike", "Catfish", "Sturgeon", "Tophat Fish",
+		"Salmon", "Clownfish", "Blue Tang", "Red Tang", "Lionfish", "Tire",
+		"Guppy", "Snapper", "Muskie", "Ghost Eel", "Crystal Creeper",
+	]:
 		if item_name == f or item_name == "Albino " + f:
 			return true
 	return false
 
+
 func _is_mouse_over_offhand() -> bool:
-	return offhand_slot != null and offhand_slot.get_global_rect().has_point(get_global_mouse_position())
+	return offhand_slot != null \
+		and offhand_slot.get_global_rect().has_point(get_global_mouse_position())
+
 
 func set_offhand_drag_valid(is_valid: bool) -> void:
 	offhand_drag_valid = is_valid
+
 
 func _flash_offhand_red() -> void:
 	offhand_flash_timer = 0.22

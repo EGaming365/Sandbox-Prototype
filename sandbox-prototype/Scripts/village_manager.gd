@@ -16,6 +16,7 @@ extends Node2D
 var _loaded: bool = false
 var _npc_script: Script = preload("res://Scripts/eric_the_guide.gd")
 
+
 func preload_village() -> void:
 	if _loaded:
 		return
@@ -23,8 +24,10 @@ func preload_village() -> void:
 	_spawn_houses()
 	_spawn_npcs()
 
+
 func get_spawn_position() -> Vector2:
 	return global_position + spawn_position
+
 
 func add_house(pos: Vector2, size: Vector2 = house_size) -> Node2D:
 	var house := Node2D.new()
@@ -63,7 +66,13 @@ func add_house(pos: Vector2, size: Vector2 = house_size) -> Node2D:
 	collision.add_child(shape)
 	return house
 
-func add_npc(pos: Vector2, npc_name: String = "Villager", dialogue_line: String = "", portrait: Texture2D = null) -> Node:
+
+func add_npc(
+	pos: Vector2,
+	npc_name: String = "Villager",
+	dialogue_line: String = "",
+	portrait: Texture2D = null,
+) -> Node:
 	var npc := CharacterBody2D.new()
 	npc.name = npc_name.replace(" ", "_")
 	npc.set_script(_npc_script)
@@ -75,6 +84,7 @@ func add_npc(pos: Vector2, npc_name: String = "Villager", dialogue_line: String 
 	if portrait:
 		npc.npc_portrait = portrait
 	return npc
+
 
 func set_surface_active(active: bool) -> void:
 	visible = active
@@ -89,9 +99,11 @@ func set_surface_active(active: bool) -> void:
 			child.set_collision_layer_value(1, active)
 			child.set_collision_mask_value(1, active)
 
+
 func _spawn_houses() -> void:
 	for pos in house_positions:
 		add_house(pos)
+
 
 func _spawn_npcs() -> void:
 	add_npc(Vector2(0, 60), "Eric the Guide", "Hello traveller!")

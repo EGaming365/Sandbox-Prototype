@@ -1,7 +1,6 @@
 extends Control
 
 var current_section: String = "game"
-var current_collection_sub: String = "recipes"
 var discovered_fish: Array = []
 var fish_records: Dictionary = {}
 var fish_catch_counts: Dictionary = {}
@@ -10,15 +9,23 @@ var btn_base_colors: Dictionary = {}
 var selected_fish_btn: Button = null
 var aurora_active: bool = false
 
+@export var fish_columns: int = 6
+@export var fish_slot_size: int = 116
+@export var fish_slot_separation: int = 6
+@export var notification_duration: float = 4.0
+@export var notification_fade_time: float = 1.0
+@export var notification_y_offset: float = -600.0
+
+
 func _ready():
 	hide()
 	_connect_nav()
 	_cache_base_colors()
 	_switch_section("game")
-	_switch_collection_sub("recipes")
 	get_viewport().gui_focus_changed.connect(func(_c): pass)
 
 var _just_opened: bool = false
+
 
 func toggle():
 	if visible:
@@ -27,18 +34,20 @@ func toggle():
 		show()
 		_just_opened = true
 		_switch_section(current_section)
-		_switch_collection_sub(current_collection_sub)
 		_set_online_ui(true)
+
 
 func close_ui():
 	hide()
 	_close_info_panel()
 	_set_online_ui(false)
 
+
 func _set_online_ui(v: bool) -> void:
 	var scene_root = get_tree().root.get_node_or_null("Scene")
 	if scene_root and scene_root.has_method("set_online_ui_visible"):
 		scene_root.set_online_ui_visible(v)
+
 
 func _process(_delta):
 	if _just_opened:
@@ -61,6 +70,7 @@ func _process(_delta):
 			close_ui()
 			get_viewport().set_input_as_handled()
 
+
 func _input(event):
 	if _just_opened or not visible:
 		return
@@ -72,6 +82,7 @@ func _input(event):
 			close_ui()
 			get_viewport().set_input_as_handled()
 
+
 func set_aurora(state: bool):
 	aurora_active = state
 	var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
@@ -79,6 +90,7 @@ func set_aurora(state: bool):
 		hud.set_aurora_icon(state)
 	if state:
 		_show_aurora_notification()
+
 
 func _show_aurora_notification():
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
@@ -142,13 +154,14 @@ func _show_aurora_notification():
 	await get_tree().process_frame
 	vbox.offset_left = -vbox.size.x / 2.0
 	vbox.offset_right = vbox.size.x / 2.0
-	vbox.offset_top = -vbox.size.y / 2.0 - 600.0
-	vbox.offset_bottom = vbox.size.y / 2.0 - 600.0
+	vbox.offset_top = -vbox.size.y / 2.0 + notification_y_offset
+	vbox.offset_bottom = vbox.size.y / 2.0 + notification_y_offset
 
 	var tween = vbox.create_tween()
-	tween.tween_interval(4.0)
-	tween.tween_property(vbox, "modulate:a", 0.0, 1.0)
+	tween.tween_interval(notification_duration)
+	tween.tween_property(vbox, "modulate:a", 0.0, notification_fade_time)
 	tween.tween_callback(vbox.queue_free)
+
 
 func show_day_event_notification(event_name: String):
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
@@ -201,16 +214,17 @@ func show_day_event_notification(event_name: String):
 	await get_tree().process_frame
 	vbox.offset_left = -vbox.size.x / 2.0
 	vbox.offset_right = vbox.size.x / 2.0
-	vbox.offset_top = -vbox.size.y / 2.0 - 600.0
-	vbox.offset_bottom = vbox.size.y / 2.0 - 600.0
+	vbox.offset_top = -vbox.size.y / 2.0 + notification_y_offset
+	vbox.offset_bottom = vbox.size.y / 2.0 + notification_y_offset
 
 	var tween = vbox.create_tween()
-	tween.tween_interval(4.0)
-	tween.tween_property(vbox, "modulate:a", 0.0, 1.0)
+	tween.tween_interval(notification_duration)
+	tween.tween_property(vbox, "modulate:a", 0.0, notification_fade_time)
 	tween.tween_callback(vbox.queue_free)
 
+
 func _cache_base_colors():
-	for n in ["Game", "Settings", "Collection", "Mastery", "Blank"]:
+	for n in ["Game", "Collection"]:
 		var btn = $PanelContainer/VBoxContainer/HBoxContainer.get_node(n) as Button
 		var mark = btn.get_node(n + "Mark") as ColorRect
 		mark_base_colors[n] = mark.color
@@ -226,21 +240,20 @@ func _cache_base_colors():
 		pressed_style.bg_color = btn_base_colors[n].darkened(0.3)
 		btn.add_theme_stylebox_override("pressed", pressed_style)
 
+
 func _connect_nav():
 	$PanelContainer/VBoxContainer/HBoxContainer/Game.pressed.connect(func(): _switch_section("game"))
-	$PanelContainer/VBoxContainer/HBoxContainer/Settings.pressed.connect(func(): _switch_section("settings"))
-	$PanelContainer/VBoxContainer/HBoxContainer/Collection.pressed.connect(func(): _switch_section("collection"))
-	$PanelContainer/VBoxContainer/HBoxContainer/Mastery.pressed.connect(func(): _switch_section("mastery"))
-	$PanelContainer/VBoxContainer/HBoxContainer/Blank.pressed.connect(func(): _switch_section("blank"))
-	for n in ["Game", "Settings", "Collection", "Mastery", "Blank"]:
+	get_node("PanelContainer/VBoxContainer/HBoxContainer/Collection").pressed.connect(
+		func(): _switch_section("collection")
+	)
+	for n in ["Game", "Collection"]:
 		var btn = $PanelContainer/VBoxContainer/HBoxContainer.get_node(n) as Button
 		var capture = n
 		btn.mouse_entered.connect(func(): _update_mark(capture))
 		btn.mouse_exited.connect(func(): _update_mark(capture))
 		btn.button_down.connect(func(): _update_mark(capture))
 		btn.button_up.connect(func(): _update_mark(capture))
-	$PanelContainer/MarginContainer/CollectionSection/HBoxContainer/Recipes.pressed.connect(func(): _switch_collection_sub("recipes"))
-	$PanelContainer/MarginContainer/CollectionSection/HBoxContainer/Fish.pressed.connect(func(): _switch_collection_sub("fish"))
+
 
 func _update_mark(btn_name: String):
 	var btn = $PanelContainer/VBoxContainer/HBoxContainer.get_node(btn_name) as Button
@@ -252,43 +265,32 @@ func _update_mark(btn_name: String):
 	else:
 		mark.color = mark_base_colors[btn_name]
 
+
 func _switch_section(section: String):
 	current_section = section
 	var sections = {
 		"game":       $PanelContainer/MarginContainer/GameSection,
-		"settings":   $PanelContainer/MarginContainer/SettingsSection,
 		"collection": $PanelContainer/MarginContainer/CollectionSection,
-		"mastery":    $PanelContainer/MarginContainer/MasterySection,
-		"blank":      $PanelContainer/MarginContainer/BlankSection,
 	}
 	for key in sections:
 		sections[key].visible = (key == section)
 	var marks = {
 		"game":       $PanelContainer/VBoxContainer/HBoxContainer/Game/GameMark,
-		"settings":   $PanelContainer/VBoxContainer/HBoxContainer/Settings/SettingsMark,
 		"collection": $PanelContainer/VBoxContainer/HBoxContainer/Collection/CollectionMark,
-		"mastery":    $PanelContainer/VBoxContainer/HBoxContainer/Mastery/MasteryMark,
-		"blank":      $PanelContainer/VBoxContainer/HBoxContainer/Blank/BlankMark,
 	}
 	for key in marks:
 		marks[key].visible = (key == section)
+	if section == "collection":
+		_build_fish_panel()
 
-func _switch_collection_sub(sub: String):
-	current_collection_sub = sub
-	var subnav = $PanelContainer/MarginContainer/CollectionSection/HBoxContainer
-	for btn in subnav.get_children():
-		btn.modulate = Color(1.5, 1.8, 1.5, 1.0) if btn.name.to_lower() == sub else Color(0.6, 0.6, 0.6, 1.0)
-	match sub:
-		"recipes":
-			_build_recipes_panel()
-		"fish":
-			_build_fish_panel()
 
 func _get_panel() -> Node:
 	return $PanelContainer/MarginContainer/CollectionSection/Panel
 
+
 func _get_info() -> Node:
 	return $PanelContainer/MarginContainer/CollectionSection/Info
+
 
 func _build_fish_panel():
 	_clear_panel()
@@ -296,10 +298,11 @@ func _build_fish_panel():
 	var info = _get_info()
 	call_deferred("_populate_fish_panel", panel, info)
 
+
 func _populate_fish_panel(panel: Control, info: Control):
-	var columns = 6
-	var slot_size = 116
-	var separation = 6
+	var columns = fish_columns
+	var slot_size = fish_slot_size
+	var separation = fish_slot_separation
 	var total_width = columns * slot_size + (columns - 1) * separation
 
 	var scroll = ScrollContainer.new()
@@ -330,7 +333,10 @@ func _populate_fish_panel(panel: Control, info: Control):
 	grid.add_theme_constant_override("v_separation", separation)
 	vbox.add_child(grid)
 
-	var rarity_order = {"Trash": 0, "Common": 1, "Uncommon": 2, "Unusual": 3, "Rare": 4, "Epic": 5, "Legendary": 6, "Mythic": 7, "Exotic": 8}
+	var rarity_order = {
+		"Trash": 0, "Common": 1, "Uncommon": 2, "Unusual": 3, "Rare": 4,
+		"Epic": 5, "Legendary": 6, "Mythic": 7, "Exotic": 8,
+	}
 	var sorted_fish = FishingManager.FISH_TABLE.duplicate()
 	sorted_fish.sort_custom(func(a, b):
 		var ra = rarity_order.get(a.get("rarity", "Common"), 0)
@@ -340,6 +346,7 @@ func _populate_fish_panel(panel: Control, info: Control):
 
 	for fish in sorted_fish:
 		_add_fish_slot(grid, fish, info)
+
 
 func _make_slot_style(border: bool, border_color: Color) -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
@@ -355,6 +362,7 @@ func _make_slot_style(border: bool, border_color: Color) -> StyleBoxFlat:
 	if border:
 		style.border_color = border_color
 	return style
+
 
 func _add_fish_slot(grid: GridContainer, fish: Dictionary, info: Control):
 	var discovered = fish["name"] in discovered_fish
@@ -425,6 +433,7 @@ func _add_fish_slot(grid: GridContainer, fish: Dictionary, info: Control):
 	)
 	grid.add_child(btn)
 
+
 func _deselect_fish_btn():
 	if selected_fish_btn == null:
 		return
@@ -433,6 +442,7 @@ func _deselect_fish_btn():
 	selected_fish_btn.add_theme_stylebox_override("hover", _make_slot_style(true, prev_color))
 	selected_fish_btn.add_theme_stylebox_override("pressed", _make_slot_style(true, prev_color))
 	selected_fish_btn = null
+
 
 func _show_fish_detail(fish: Dictionary, detail: Control, discovered: bool):
 	var rarity_color = _rarity_color(fish.get("rarity", ""))
@@ -445,7 +455,9 @@ func _show_fish_detail(fish: Dictionary, detail: Control, discovered: bool):
 	var avg_weight_label = $PanelContainer/MarginContainer/CollectionSection/Info/AvgWeightLabel
 	var hint_label = $PanelContainer/MarginContainer/CollectionSection/Info/HintLabel
 	var stats_container = $PanelContainer/MarginContainer/CollectionSection/Info/StatsContainer
-	var mutations_container = $PanelContainer/MarginContainer/CollectionSection/Info/MutationsContainer
+	var mutations_container = get_node(
+		"PanelContainer/MarginContainer/CollectionSection/Info/MutationsContainer",
+	)
 
 	name_label.text = fish["name"] if discovered else "???"
 	name_label.modulate = rarity_color
@@ -468,7 +480,9 @@ func _show_fish_detail(fish: Dictionary, detail: Control, discovered: bool):
 	habitat_label.modulate = Color(0.7, 0.7, 0.7)
 	habitat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-	avg_weight_label.text = "Avg Weight: " + _format_weight(fish.get("base_weight_kg", 0.0)) if discovered else ""
+	avg_weight_label.text = (
+		"Avg Weight: " + _format_weight(fish.get("base_weight_kg", 0.0)) if discovered else ""
+	)
 	avg_weight_label.modulate = Color(0.7, 0.7, 0.7)
 	avg_weight_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
@@ -514,18 +528,13 @@ func _show_fish_detail(fish: Dictionary, detail: Control, discovered: bool):
 		albino_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		mutations_container.add_child(albino_label)
 
+
 func _clear_panel():
 	selected_fish_btn = null
 	var panel = _get_panel()
 	for child in panel.get_children():
 		child.queue_free()
 
-func _build_recipes_panel():
-	_clear_panel()
-	var panel = _get_panel()
-	var label = Label.new()
-	label.text = "Recipes coming soon"
-	panel.add_child(label)
 
 func _rarity_color(rarity: String) -> Color:
 	match rarity:
@@ -540,6 +549,7 @@ func _rarity_color(rarity: String) -> Color:
 		"Exotic":    return Color(0.0, 0.949, 1.0, 1.0)
 	return Color.WHITE
 
+
 func _get_fish_owned(fish_name: String) -> String:
 	for slot in Inventory.slots:
 		if slot["item"] == fish_name:
@@ -548,6 +558,7 @@ func _get_fish_owned(fish_name: String) -> String:
 		if slot["item"] == fish_name:
 			return Inventory.get_fish_weight_display(fish_name, slot["count"])
 	return "None"
+
 
 func discover_fish(fish_name: String, weight_kg: float):
 	var base_name = fish_name.replace("Albino ", "")
@@ -569,6 +580,7 @@ func discover_fish(fish_name: String, weight_kg: float):
 			fish_catch_counts[albino_key] = 0
 		fish_catch_counts[albino_key] += 1
 
+
 func _get_fish_catches(fish_name: String) -> Array:
 	if not fish_name in fish_records:
 		return ["None", "None"]
@@ -578,10 +590,12 @@ func _get_fish_catches(fish_name: String) -> Array:
 		_format_weight(rec["smallest"])
 	]
 
+
 func _format_weight(kg: float) -> String:
 	if kg < 1.0:
 		return str(int(kg * 1000)) + "g"
 	return str(snappedf(kg, 0.01)) + "kg"
+
 
 func _style_fish_scrollbar(scroll: ScrollContainer):
 	var bar := scroll.get_v_scroll_bar()
@@ -590,6 +604,7 @@ func _style_fish_scrollbar(scroll: ScrollContainer):
 	bar.custom_minimum_size.x = 18
 	bar.size.x = 18
 	bar.position.x = scroll.size.x + 8
+
 
 func _close_info_panel():
 	var info = _get_info()

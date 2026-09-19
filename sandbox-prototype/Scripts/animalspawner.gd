@@ -22,6 +22,7 @@ var _despawn_timer: Timer
 var _next_chicken_id: int = 0
 var _next_night_enemy_id: int = 0
 
+
 func _ready() -> void:
 	_spawn_timer = Timer.new()
 	_spawn_timer.wait_time = 5.0
@@ -39,6 +40,7 @@ func _ready() -> void:
 
 	call_deferred("_wait_for_scene")
 
+
 func _wait_for_scene() -> void:
 	_scene_node = get_tree().root.get_node_or_null("Scene")
 	if not _scene_node:
@@ -49,9 +51,11 @@ func _wait_for_scene() -> void:
 	_despawn_timer.start()
 	_spawn_timer.start()
 
+
 func _wait_for_player() -> void:
 	while get_tree().get_nodes_in_group("players").is_empty():
 		await get_tree().process_frame
+
 
 func _count_chickens_in_radius() -> int:
 	var center := _get_player_center()
@@ -61,6 +65,7 @@ func _count_chickens_in_radius() -> int:
 			if center.distance_to((chicken as Node2D).global_position) <= despawn_radius:
 				count += 1
 	return count
+
 
 func _on_spawn_tick() -> void:
 	if not _scene_node:
@@ -84,6 +89,7 @@ func _on_spawn_tick() -> void:
 			_spawn_chicken(pos)
 			chicken_count += 1
 			spawned_this_tick += 1
+
 
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
@@ -134,6 +140,7 @@ func _check_despawn() -> void:
 			if not aggressive:
 				e.queue_free()
 
+
 func _spawn_chicken(pos: Vector2) -> void:
 	var chicken = CHICKEN_SCENE.instantiate()
 	chicken.chicken_id = _next_chicken_id
@@ -144,11 +151,14 @@ func _spawn_chicken(pos: Vector2) -> void:
 	_scene_node.add_child(chicken)
 	chicken.set_multiplayer_authority(1)
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
-		_scene_node.spawn_chicken_on_client_rpc.rpc(chicken.global_position.x, chicken.global_position.y, chicken.chicken_id)
+		_scene_node.spawn_chicken_on_client_rpc.rpc(
+			chicken.global_position.x, chicken.global_position.y, chicken.chicken_id,
+		)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if is_instance_valid(chicken):
 		chicken.set_meta("sync_ready", true)
+
 
 func _spawn_night_enemy(pos: Vector2) -> void:
 	if _is_too_bright_for_enemy_spawn(pos):
@@ -162,11 +172,14 @@ func _spawn_night_enemy(pos: Vector2) -> void:
 	_scene_node.add_child(enemy)
 	enemy.set_multiplayer_authority(1)
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
-		_scene_node.spawn_enemy_on_client_rpc.rpc(enemy.global_position.x, enemy.global_position.y, enemy.enemy_id)
+		_scene_node.spawn_enemy_on_client_rpc.rpc(
+			enemy.global_position.x, enemy.global_position.y, enemy.enemy_id,
+		)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if is_instance_valid(enemy):
 		enemy.set_meta("sync_ready", true)
+
 
 func spawn_combat_night_enemy(pos: Vector2, combat_room_id: int) -> Node:
 	if not _scene_node:
@@ -183,10 +196,13 @@ func spawn_combat_night_enemy(pos: Vector2, combat_room_id: int) -> Node:
 	_scene_node.add_child(enemy)
 	enemy.set_multiplayer_authority(1)
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
-		_scene_node.spawn_enemy_on_client_rpc.rpc(enemy.global_position.x, enemy.global_position.y, enemy.enemy_id)
+		_scene_node.spawn_enemy_on_client_rpc.rpc(
+			enemy.global_position.x, enemy.global_position.y, enemy.enemy_id,
+		)
 	if is_instance_valid(enemy):
 		enemy.set_meta("sync_ready", true)
 	return enemy
+
 
 func spawn_combat_boss(pos: Vector2, combat_room_id: int) -> Node:
 	if not _scene_node:
@@ -205,11 +221,14 @@ func spawn_combat_boss(pos: Vector2, combat_room_id: int) -> Node:
 	_scene_node.add_child(boss)
 	boss.set_multiplayer_authority(1)
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
-		_scene_node.spawn_boss_on_client_rpc.rpc(boss.global_position.x, boss.global_position.y, _next_night_enemy_id)
+		_scene_node.spawn_boss_on_client_rpc.rpc(
+			boss.global_position.x, boss.global_position.y, _next_night_enemy_id,
+		)
 	if is_instance_valid(boss):
 		boss.set_meta("sync_ready", true)
 	_next_night_enemy_id += 1
 	return boss
+
 
 func _count_night_enemies_in_radius() -> int:
 	var center := _get_player_center()
@@ -219,6 +238,7 @@ func _count_night_enemies_in_radius() -> int:
 			if center.distance_to((enemy as Node2D).global_position) <= despawn_radius:
 				count += 1
 	return count
+
 
 func _get_player_center() -> Vector2:
 	var players := get_tree().get_nodes_in_group("players")
@@ -237,6 +257,7 @@ func _get_player_center() -> Vector2:
 	else:
 		return (players[0] as Node2D).global_position
 
+
 func _is_spawn_pos_clear(pos: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = _scene_node.get_world_2d().direct_space_state
 	var query := PhysicsShapeQueryParameters2D.new()
@@ -247,15 +268,18 @@ func _is_spawn_pos_clear(pos: Vector2) -> bool:
 	query.collision_mask = 1
 	return space.intersect_shape(query).is_empty()
 
+
 func _is_too_bright_for_enemy_spawn(pos: Vector2) -> bool:
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 	if not lighting or not lighting.has_method("get_light_level_at"):
 		return false
 	return lighting.get_light_level_at(pos) > max_enemy_spawn_light_level
 
+
 func _is_night() -> bool:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	return weather != null and weather.has_method("is_night") and weather.is_night()
+
 
 func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -> Vector2:
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
@@ -284,7 +308,11 @@ func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -
 		return pos
 	return Vector2.ZERO
 
-func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_enemies") -> Vector2:
+
+func _random_cave_spawn_pos(
+	cave_world_gen: Node,
+	avoid_group: String = "night_enemies",
+) -> Vector2:
 	var players := get_tree().get_nodes_in_group("players")
 	if players.is_empty():
 		return Vector2.ZERO
@@ -319,6 +347,7 @@ func _random_cave_spawn_pos(cave_world_gen: Node, avoid_group: String = "night_e
 		return pos
 	return Vector2.ZERO
 
+
 func _is_position_on_screen(pos: Vector2, margin: float = 160.0) -> bool:
 	var viewport := get_viewport()
 	if not viewport:
@@ -331,6 +360,7 @@ func _is_position_on_screen(pos: Vector2, margin: float = 160.0) -> bool:
 	var rect := Rect2(top_left, size + Vector2(margin * 2.0, margin * 2.0))
 	return rect.has_point(pos)
 
+
 func clear_room_entities(combat_room_id: int) -> void:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if is_instance_valid(enemy) and int(enemy.get_meta("combat_room_id", -999)) == combat_room_id:
@@ -338,8 +368,10 @@ func clear_room_entities(combat_room_id: int) -> void:
 	for boss in get_tree().get_nodes_in_group("bosses"):
 		if is_instance_valid(boss) and int(boss.get_meta("combat_room_id", -999)) == combat_room_id:
 			boss.queue_free()
-	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() and _scene_node.has_method("despawn_room_entities_rpc"):
+	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() \
+			and _scene_node.has_method("despawn_room_entities_rpc"):
 		_scene_node.despawn_room_entities_rpc.rpc(combat_room_id)
+
 
 func clear_all_entities() -> void:
 	_spawn_timer.stop()
@@ -350,7 +382,8 @@ func clear_all_entities() -> void:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if is_instance_valid(enemy):
 			enemy.queue_free()
-	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() and _scene_node.has_method("clear_chickens_and_enemies_rpc"):
+	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() \
+			and _scene_node.has_method("clear_chickens_and_enemies_rpc"):
 		_scene_node.clear_chickens_and_enemies_rpc.rpc()
 	_out_of_range_timers.clear()
 	await get_tree().create_timer(3.0).timeout

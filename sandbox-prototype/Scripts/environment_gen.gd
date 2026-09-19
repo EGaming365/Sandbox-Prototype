@@ -88,6 +88,7 @@ const _MAX_BIOME_QUERIES_PER_FRAME: int = 200
 
 var _biome_queries_this_frame: int = 0
 
+
 func _ready():
 	scene_node = get_tree().root.get_node_or_null("Scene")
 	world_gen   = get_tree().root.get_node_or_null("Scene/WorldGen")
@@ -105,6 +106,7 @@ func _ready():
 		var tex = load("res://Assets/Grass" + str(i) + ".png")
 		if tex:
 			_grass_textures.append(tex)
+
 
 func _process(delta):
 	_process_load_queue_step()
@@ -131,6 +133,7 @@ func _process(delta):
 	_update_cave_regions()
 	_update_chunks_around_player()
 
+
 func _process_load_queue_step():
 	if _chunk_load_queue.is_empty():
 		return
@@ -140,18 +143,32 @@ func _process_load_queue_step():
 	if not _chunk_load_queue.is_empty() and _chunk_load_queue[0] == chunk_coord:
 		_chunk_load_queue.pop_front()
 
+
 func _start_chunk_build(chunk_coord: Vector2i):
 	_building_chunk = chunk_coord
 	_build_jobs.clear()
 	_build_kind_index = 0
 	_biome_cache.clear()
 	_build_kinds = [
-		{ "kind": "rock",  "forest": true,  "count": forest_rocks_per_chunk,  "min_dist": rock_min_distance },
-		{ "kind": "rock",  "forest": false, "count": plains_rocks_per_chunk,  "min_dist": rock_min_distance },
-		{ "kind": "tree",  "forest": true,  "count": forest_trees_per_chunk,  "min_dist": forest_tree_min_distance },
-		{ "kind": "tree",  "forest": false, "count": plains_trees_per_chunk,  "min_dist": plains_tree_min_distance },
+		{
+			"kind": "rock", "forest": true,
+			"count": forest_rocks_per_chunk, "min_dist": rock_min_distance,
+		},
+		{
+			"kind": "rock", "forest": false,
+			"count": plains_rocks_per_chunk, "min_dist": rock_min_distance,
+		},
+		{
+			"kind": "tree", "forest": true,
+			"count": forest_trees_per_chunk, "min_dist": forest_tree_min_distance,
+		},
+		{
+			"kind": "tree", "forest": false,
+			"count": plains_trees_per_chunk, "min_dist": plains_tree_min_distance,
+		},
 		{ "kind": "grass", "forest": false, "count": float(grass_count_per_chunk), "min_dist": 0.0 },
 	]
+
 
 func _step_chunk_build():
 	_biome_queries_this_frame = 0
@@ -180,9 +197,22 @@ func _step_chunk_build():
 		_build_grass_pass(chunk_coord)
 		return
 
-	_build_object_pass(chunk_coord, pass_def["kind"], pass_def["forest"], pass_def["count"], pass_def["min_dist"])
+	_build_object_pass(
+		chunk_coord,
+		pass_def["kind"],
+		pass_def["forest"],
+		pass_def["count"],
+		pass_def["min_dist"],
+	)
 
-func _build_object_pass(chunk_coord: Vector2i, kind: String, wants_forest: bool, count: float, min_dist: float):
+
+func _build_object_pass(
+	chunk_coord: Vector2i,
+	kind: String,
+	wants_forest: bool,
+	count: float,
+	min_dist: float,
+):
 	if count <= 0.0:
 		return
 
@@ -234,6 +264,7 @@ func _build_object_pass(chunk_coord: Vector2i, kind: String, wants_forest: bool,
 
 		spawned += 1
 
+
 func _is_valid_object_position(pos: Vector2, wants_forest: bool) -> bool:
 	if _is_water_cached(pos):
 		return false
@@ -250,6 +281,7 @@ func _is_valid_object_position(pos: Vector2, wants_forest: bool) -> bool:
 		if _is_forest_cached(check) != wants_forest:
 			return false
 	return true
+
 
 func _build_grass_pass(chunk_coord: Vector2i):
 	if _grass_textures.is_empty():
@@ -316,6 +348,7 @@ func _build_grass_pass(chunk_coord: Vector2i):
 	_build_jobs.append({ "env_id": "", "kind": "grass", "pos": Vector2.ZERO,
 			"chunk_coord": chunk_coord, "blades": blades })
 
+
 func _process_object_spawn_queue():
 	var spawned := 0
 	while spawned < objects_spawned_per_frame and not _object_spawn_queue.is_empty():
@@ -338,6 +371,7 @@ func _process_object_spawn_queue():
 
 		_spawn_object(env_id, job["kind"], job["pos"], chunk_coord)
 		spawned += 1
+
 
 func _build_grass_multimesh(chunk_coord: Vector2i, blades: Array):
 	if _grass_nodes.has(chunk_coord):
@@ -386,8 +420,10 @@ func _build_grass_multimesh(chunk_coord: Vector2i, blades: Array):
 
 	_grass_nodes[chunk_coord] = root
 
+
 func _biome_key(pos: Vector2) -> Vector2i:
 	return Vector2i(floori(pos.x / _BIOME_CELL), floori(pos.y / _BIOME_CELL))
+
 
 func _is_water_cached(pos: Vector2) -> bool:
 	var k: Vector2i = _biome_key(pos)
@@ -401,6 +437,7 @@ func _is_water_cached(pos: Vector2) -> bool:
 	_biome_cache[water_k] = result
 	return result
 
+
 func _is_forest_cached(pos: Vector2) -> bool:
 	var k: Vector2i = _biome_key(pos)
 	var forest_k := Vector2i(k.x * 3, k.y * 3)
@@ -412,6 +449,7 @@ func _is_forest_cached(pos: Vector2) -> bool:
 		result = world_gen.is_forest_at(pos)
 	_biome_cache[forest_k] = result
 	return result
+
 
 func _is_safely_in_biome_cached(pos: Vector2, wants_forest: bool) -> bool:
 	if _is_water_cached(pos):
@@ -427,7 +465,13 @@ func _is_safely_in_biome_cached(pos: Vector2, wants_forest: bool) -> bool:
 			return false
 	return true
 
-func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: float, kind: String = "") -> bool:
+
+func _passes_distance_rule(
+	chunk_coord: Vector2i,
+	pos: Vector2,
+	min_distance: float,
+	kind: String = "",
+) -> bool:
 	var min_sq := min_distance * min_distance
 	for dx in [-1, 0, 1]:
 		for dy in [-1, 0, 1]:
@@ -445,6 +489,7 @@ func _passes_distance_rule(chunk_coord: Vector2i, pos: Vector2, min_distance: fl
 					return false
 	return true
 
+
 func apply_env_state(destroyed: Dictionary, hits: Dictionary):
 	_world_state_received = true
 	destroyed_env_objects = destroyed.duplicate(true)
@@ -454,15 +499,18 @@ func apply_env_state(destroyed: Dictionary, hits: Dictionary):
 	for env_id in env_object_hits.keys():
 		set_object_hits(env_id, env_object_hits[env_id])
 
+
 func set_world_seed(seed: int):
 	world_seed = seed
 	_world_state_received = false
 	_unload_all_chunks()
 	_cave_positions.clear()
 
+
 func mark_destroyed(env_id: String):
 	destroyed_env_objects[env_id] = true
 	_despawn_object(env_id)
+
 
 func set_object_hits(env_id: String, hits: int):
 	env_object_hits[env_id] = hits
@@ -471,12 +519,17 @@ func set_object_hits(env_id: String, hits: int):
 		if is_instance_valid(obj) and _has_property(obj, "hits"):
 			obj.hits = hits
 
+
 func _update_chunks_around_player():
 	var player_tile: Vector2i  = world_gen.world_to_tile(local_player.global_position)
 	var center_chunk: Vector2i = world_gen.tile_to_chunk(player_tile)
 
-	for x in range(center_chunk.x - render_distance_chunks, center_chunk.x + render_distance_chunks + 1):
-		for y in range(center_chunk.y - render_distance_chunks, center_chunk.y + render_distance_chunks + 1):
+	var x_min := center_chunk.x - render_distance_chunks
+	var x_max := center_chunk.x + render_distance_chunks + 1
+	var y_min := center_chunk.y - render_distance_chunks
+	var y_max := center_chunk.y + render_distance_chunks + 1
+	for x in range(x_min, x_max):
+		for y in range(y_min, y_max):
 			var cc := Vector2i(x, y)
 			if not loaded_chunks.has(cc) and not _chunk_load_queue.has(cc):
 				_chunk_load_queue.append(cc)
@@ -490,6 +543,7 @@ func _update_chunks_around_player():
 		_unload_chunk(cc)
 		_chunk_load_queue.erase(cc)
 
+
 func queue_chunks_around_world_pos(world_pos: Vector2, radius_chunks: int = 2) -> void:
 	if not world_gen:
 		return
@@ -502,6 +556,7 @@ func queue_chunks_around_world_pos(world_pos: Vector2, radius_chunks: int = 2) -
 	_chunk_load_queue.sort_custom(func(a, b):
 		return a.distance_squared_to(center_chunk) < b.distance_squared_to(center_chunk)
 	)
+
 
 func _update_cave_regions():
 	if not local_player or not world_gen:
@@ -533,6 +588,7 @@ func _update_cave_regions():
 		var region: Vector2i = _cave_region_load_queue.pop_front()
 		if not _loaded_cave_regions.has(region):
 			_load_cave_region(region)
+
 
 func _load_cave_region(region: Vector2i):
 	_loaded_cave_regions[region] = true
@@ -579,6 +635,7 @@ func _load_cave_region(region: Vector2i):
 	scene_node.add_child(cave)
 	_active_caves[region] = cave
 
+
 func _clear_objects_near_cave(cave_pos: Vector2):
 	var clear_radius := 260.0
 	var clear_radius_sq := clear_radius * clear_radius
@@ -600,6 +657,7 @@ func _clear_objects_near_cave(cave_pos: Vector2):
 			destroyed_env_objects[job.get("env_id", "")] = true
 			_object_spawn_queue.remove_at(i)
 
+
 func _unload_cave_region(region: Vector2i):
 	_cave_region_load_queue.erase(region)
 	_loaded_cave_regions.erase(region)
@@ -609,6 +667,7 @@ func _unload_cave_region(region: Vector2i):
 		if is_instance_valid(cave):
 			cave.queue_free()
 		_active_caves.erase(region)
+
 
 func _unload_all_cave_regions():
 	_cave_region_load_queue.clear()
@@ -623,13 +682,16 @@ func _unload_all_cave_regions():
 	_cave_positions.clear()
 	_loaded_cave_regions.clear()
 
+
 func _tile_to_cave_region(tc: Vector2i) -> Vector2i:
 	return Vector2i(
 		floori(float(tc.x) / float(cave_region_size_tiles)),
 		floori(float(tc.y) / float(cave_region_size_tiles)))
 
+
 func _cave_region_seed(region: Vector2i) -> int:
 	return abs(world_seed ^ (region.x * 246813579) ^ (region.y * 135792468) ^ 1357924680)
+
 
 func _load_chunk(chunk_coord: Vector2i):
 	if loaded_chunks.has(chunk_coord):
@@ -645,6 +707,7 @@ func _load_chunk(chunk_coord: Vector2i):
 
 	if not _chunk_build_queue.has(chunk_coord):
 		_chunk_build_queue.append(chunk_coord)
+
 
 func _unload_chunk(chunk_coord: Vector2i):
 	_chunk_build_queue.erase(chunk_coord)
@@ -675,6 +738,7 @@ func _unload_chunk(chunk_coord: Vector2i):
 	object_positions_by_chunk.erase(chunk_coord)
 	loaded_chunks.erase(chunk_coord)
 
+
 func _unload_all_chunks():
 	_chunk_load_queue.clear()
 	_chunk_build_queue.clear()
@@ -700,6 +764,7 @@ func _unload_all_chunks():
 			node.queue_free()
 	_grass_nodes.clear()
 
+
 func _spawn_object(env_id: String, kind: String, pos: Vector2, _chunk_coord: Vector2i):
 	if active_objects.has(env_id):
 		return
@@ -723,6 +788,7 @@ func _spawn_object(env_id: String, kind: String, pos: Vector2, _chunk_coord: Vec
 	scene_node.add_child(obj)
 	active_objects[env_id] = obj
 
+
 func _despawn_object(env_id: String):
 	if not active_objects.has(env_id):
 		return
@@ -730,6 +796,7 @@ func _despawn_object(env_id: String):
 	if is_instance_valid(obj):
 		obj.queue_free()
 	active_objects.erase(env_id)
+
 
 func _refresh_references() -> bool:
 	if not scene_node:
@@ -747,6 +814,7 @@ func _refresh_references() -> bool:
 				break
 	return local_player != null
 
+
 func _get_chunk_world_bounds(chunk_coord: Vector2i) -> Array:
 	var start_tile: Vector2i = world_gen.chunk_to_start_tile(chunk_coord)
 	var chunk_size: int = world_gen.chunk_size_tiles
@@ -756,6 +824,7 @@ func _get_chunk_world_bounds(chunk_coord: Vector2i) -> Array:
 	var world_max: Vector2 = world_gen.tile_to_world_center(end_tile)   + Vector2(ts * 0.5, ts * 0.5)
 	return [world_min, world_max]
 
+
 func _chunk_seed(chunk_coord: Vector2i, kind: String, wants_forest: bool) -> int:
 	var biome_key: int = 1 if wants_forest else 0
 	var kind_key: int = 0
@@ -763,17 +832,24 @@ func _chunk_seed(chunk_coord: Vector2i, kind: String, wants_forest: bool) -> int
 		kind_key = 7
 	elif kind == "tree":
 		kind_key = 13
-	var mixed: int = world_seed ^ (chunk_coord.x * 374761393) ^ (chunk_coord.y * 1234567891) ^ (kind_key * 7919) ^ (biome_key * 104729)
+	var mixed: int = world_seed \
+		^ (chunk_coord.x * 374761393) \
+		^ (chunk_coord.y * 1234567891) \
+		^ (kind_key * 7919) \
+		^ (biome_key * 104729)
 	return abs(mixed)
+
 
 func _make_env_id(kind: String, chunk_coord: Vector2i, index: int) -> String:
 	return kind + ":" + str(chunk_coord.x) + ":" + str(chunk_coord.y) + ":" + str(index)
+
 
 func _has_property(obj: Object, property_name: String) -> bool:
 	for prop in obj.get_property_list():
 		if prop.name == property_name:
 			return true
 	return false
+
 
 func _is_too_close_to_cave(pos: Vector2) -> bool:
 	for cave_pos in _cave_positions.values():

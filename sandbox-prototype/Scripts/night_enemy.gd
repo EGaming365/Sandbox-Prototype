@@ -68,8 +68,10 @@ const PASSIVE_WANDER_RANGE: float = 160.0
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var staticbody: StaticBody2D = $StaticBody2D
 
+
 func _is_host() -> bool:
 	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
+
 
 func _ready() -> void:
 	rng.randomize()
@@ -87,6 +89,7 @@ func _ready() -> void:
 	_world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 	_scene_node = get_tree().root.get_node_or_null("Scene")
 	_tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
+
 
 func _process(delta: float) -> void:
 	_update_drowning(delta)
@@ -132,7 +135,8 @@ func _process(delta: float) -> void:
 				_path.clear()
 				_pick_passive_wander_target()
 				return
-			if attack_cooldown <= 0.0 and global_position.distance_to(target.global_position) <= attack_range:
+			if attack_cooldown <= 0.0 \
+					and global_position.distance_to(target.global_position) <= attack_range:
 				_begin_charge(target)
 			else:
 				_path_timer -= delta
@@ -182,7 +186,10 @@ func _process(delta: float) -> void:
 	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0:
 		if is_inside_tree() and get_meta("sync_ready", false):
 			if _scene_node:
-				_scene_node.sync_enemy_state_rpc.rpc(enemy_id, global_position.x, global_position.y, int(state), health)
+				_scene_node.sync_enemy_state_rpc.rpc(
+					enemy_id, global_position.x, global_position.y, int(state), health,
+				)
+
 
 func _do_passive(delta: float, target: CharacterBody2D) -> void:
 	if target and global_position.distance_to(target.global_position) <= detection_radius:
@@ -213,6 +220,7 @@ func _do_passive(delta: float, target: CharacterBody2D) -> void:
 		_passive_stuck_timer = 0.0
 	sprite.play("walk_down")
 
+
 func _pick_passive_wander_target() -> void:
 	for _attempt in 10:
 		var angle := rng.randf_range(0.0, TAU)
@@ -222,6 +230,7 @@ func _pick_passive_wander_target() -> void:
 			_wander_target = candidate
 			return
 	_wander_target = global_position
+
 
 func _follow_path(delta: float) -> void:
 	if _path.is_empty():
@@ -238,12 +247,15 @@ func _follow_path(delta: float) -> void:
 	_try_move(dir * speed * delta)
 	sprite.play("walk_down")
 
+
 func _build_path_to(target_pos: Vector2) -> Array:
-	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave") and _cave_gen._carved_tiles.size() > 0:
+	if _cave_gen and is_instance_valid(_cave_gen) \
+			and _cave_gen.get("in_cave") and _cave_gen._carved_tiles.size() > 0:
 		if _path_segment_clear(global_position, target_pos):
 			return _steer_path(target_pos)
 		return _astar_cave(target_pos, _cave_gen)
 	return _steer_path(target_pos)
+
 
 func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
 	if not _tilemap or not is_instance_valid(_tilemap):
@@ -316,6 +328,7 @@ func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
 
 	return []
 
+
 func _heap_push(heap: Array, entry: Array) -> void:
 	heap.append(entry)
 	var i: int = heap.size() - 1
@@ -327,6 +340,7 @@ func _heap_push(heap: Array, entry: Array) -> void:
 		heap[parent] = heap[i]
 		heap[i] = tmp
 		i = parent
+
 
 func _heap_sift_down(heap: Array, i: int) -> void:
 	var size: int = heap.size()
@@ -345,6 +359,7 @@ func _heap_sift_down(heap: Array, i: int) -> void:
 		heap[i] = tmp
 		i = smallest
 
+
 func _steer_path(target_pos: Vector2) -> Array:
 	var path: Array = []
 	var steps := 12
@@ -355,6 +370,7 @@ func _steer_path(target_pos: Vector2) -> Array:
 			break
 		path.append(point)
 	return path
+
 
 func _simplify_path(path: Array) -> Array:
 	if path.size() <= 2:
@@ -371,6 +387,7 @@ func _simplify_path(path: Array) -> Array:
 		i = j
 	return simplified
 
+
 func _path_segment_clear(from: Vector2, to: Vector2) -> bool:
 	var dist: float = from.distance_to(to)
 	var steps := int(dist / 24.0) + 1
@@ -380,10 +397,12 @@ func _path_segment_clear(from: Vector2, to: Vector2) -> bool:
 			return false
 	return true
 
+
 func _begin_charge(target: CharacterBody2D) -> void:
 	state = State.CHARGING
 	charge_timer = 0.0
 	sprite.play("idle")
+
 
 func _begin_dash() -> void:
 	state = State.DASHING
@@ -392,6 +411,7 @@ func _begin_dash() -> void:
 	_clear_charge_glow()
 	if multiplayer.has_multiplayer_peer():
 		_sync_begin_dash_rpc.rpc(dash_direction.x, dash_direction.y)
+
 
 func _on_dash_hit(target: CharacterBody2D) -> void:
 	state = State.COOLDOWN
@@ -412,6 +432,7 @@ func _on_dash_hit(target: CharacterBody2D) -> void:
 		state = State.CHASE
 		_reset_visuals()
 
+
 func _on_dash_miss() -> void:
 	state = State.COOLDOWN
 	attack_cooldown = attack_cooldown_max * 0.5
@@ -425,14 +446,17 @@ func _on_dash_miss() -> void:
 		state = State.CHASE
 		_reset_visuals()
 
+
 func _play_miss_stumble() -> void:
 	sprite.modulate = Color(1, 0.3, 0.3, 1.0)
 	await get_tree().create_timer(0.25).timeout
 	if state != State.DEAD:
 		_reset_visuals()
 
+
 func _reset_visuals() -> void:
 	sprite.modulate = Color(1, 1, 1, 1)
+
 
 func _apply_separation(delta: float) -> void:
 	for other in _cached_enemies:
@@ -444,6 +468,7 @@ func _apply_separation(delta: float) -> void:
 			var push := diff.normalized() * SEPARATION_FORCE * delta
 			global_position += push
 			(other as Node2D).global_position -= push
+
 
 func _is_position_clear_for_dash(pos: Vector2) -> bool:
 	var space := get_world_2d().direct_space_state
@@ -464,6 +489,7 @@ func _is_position_clear_for_dash(pos: Vector2) -> bool:
 			query.exclude.append((enemy.staticbody as CollisionObject2D).get_rid())
 	var hits := space.intersect_shape(query)
 	return hits.size() == 0
+
 
 func _resolve_overlap() -> void:
 	var space := get_world_2d().direct_space_state
@@ -493,11 +519,14 @@ func _resolve_overlap() -> void:
 			push_dir = Vector2(randf_range(-1, 1), randf_range(-1, 1))
 		global_position += push_dir.normalized() * 4.0
 
+
 func _set_charge_glow(pct: float) -> void:
 	sprite.modulate = Color(0.55, 0.1, 0.1, 1.0).lerp(Color(1.0, 1.0, 0.0, 1.0), pct)
 
+
 func _clear_charge_glow() -> void:
 	_reset_visuals()
+
 
 func take_damage(amount: int) -> void:
 	if state == State.DEAD:
@@ -514,6 +543,7 @@ func take_damage(amount: int) -> void:
 	if health <= 0:
 		_die()
 
+
 func _die(drop_loot: bool = true) -> void:
 	if state == State.DEAD:
 		return
@@ -523,6 +553,7 @@ func _die(drop_loot: bool = true) -> void:
 		_sync_die_rpc.rpc()
 	else:
 		_play_die_sequence()
+
 
 func _drop_string() -> void:
 	if not _is_host():
@@ -536,11 +567,13 @@ func _drop_string() -> void:
 		var drop_pos := global_position + Vector2(cos(angle), sin(angle)) * radius
 		_scene_node.host_spawn_floor_item(drop_pos, "String", 1)
 
+
 func _flash_hit() -> void:
 	sprite.modulate = Color(1, 0.1, 0.1, 1)
 	await get_tree().create_timer(0.08).timeout
 	if state != State.DEAD:
 		_reset_visuals()
+
 
 func _play_die_sequence() -> void:
 	state = State.DEAD
@@ -550,6 +583,7 @@ func _play_die_sequence() -> void:
 	tween.parallel().tween_property(sprite, "modulate", Color(1, 0.1, 0.1, 0), 0.35)
 	await tween.finished
 	queue_free()
+
 
 func _get_nearest_player() -> CharacterBody2D:
 	var nearest: CharacterBody2D = null
@@ -562,13 +596,16 @@ func _get_nearest_player() -> CharacterBody2D:
 				nearest = p
 	return nearest
 
+
 func _is_night() -> bool:
 	if not _weather or not is_instance_valid(_weather):
 		return true
 	return not _weather.has_method("is_night") or _weather.is_night()
 
+
 func _is_in_cave() -> bool:
 	return _cave_gen != null and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave")
+
 
 func _try_move(delta: Vector2) -> void:
 	if delta.length() <= 0.001:
@@ -597,6 +634,7 @@ func _try_move(delta: Vector2) -> void:
 		_escape_from_blocked_position()
 		_blocked_escape_timer = 0.0
 
+
 func _is_position_clear(pos: Vector2) -> bool:
 	var key := Vector2i(floori(pos.x / 16.0), floori(pos.y / 16.0))
 	if _cached_position_clear.has(key):
@@ -620,6 +658,7 @@ func _is_position_clear(pos: Vector2) -> bool:
 	_cached_position_clear[key] = true
 	return true
 
+
 func _escape_from_blocked_position() -> bool:
 	for i in ESCAPE_ATTEMPTS:
 		var angle = rng.randf_range(0.0, TAU)
@@ -629,6 +668,7 @@ func _escape_from_blocked_position() -> bool:
 			global_position = candidate
 			return true
 	return false
+
 
 func _update_drowning(delta: float) -> void:
 	if state == State.DEAD:
@@ -650,17 +690,24 @@ func _update_drowning(delta: float) -> void:
 	elif drowning_timer <= 0.0:
 		drowning_dead = false
 
+
 func _is_current_world_water() -> bool:
 	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave"):
 		var tc: Vector2i = _cave_gen.world_to_tile(global_position)
 		return _cave_gen._water_tiles.has(tc)
-	return _world_gen != null and is_instance_valid(_world_gen) and _world_gen.has_method("is_water_at") and _world_gen.is_water_at(global_position)
+	return _world_gen != null and is_instance_valid(_world_gen) \
+		and _world_gen.has_method("is_water_at") \
+		and _world_gen.is_water_at(global_position)
 
 @rpc("authority", "call_remote", "unreliable_ordered")
+
+
 func _sync_charge_glow_rpc(pct: float) -> void:
 	_set_charge_glow(pct)
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_begin_dash_rpc(dir_x: float, dir_y: float) -> void:
 	dash_direction = Vector2(dir_x, dir_y)
 	dash_timer = 0.0
@@ -668,13 +715,19 @@ func _sync_begin_dash_rpc(dir_x: float, dir_y: float) -> void:
 	sprite.play("idle")
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_dash_miss_rpc() -> void:
 	_play_miss_stumble()
 
 @rpc("authority", "call_local", "reliable")
+
+
 func _sync_flash_hit_rpc() -> void:
 	_flash_hit()
 
 @rpc("authority", "call_local", "reliable")
+
+
 func _sync_die_rpc() -> void:
 	_play_die_sequence()

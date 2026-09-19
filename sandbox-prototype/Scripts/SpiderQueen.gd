@@ -65,8 +65,10 @@ var _bar_label: Label = null
 
 signal boss_died
 
+
 func _is_host() -> bool:
 	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
+
 
 func _find_nearest_player() -> Node2D:
 	var nearest: Node2D = null
@@ -80,6 +82,7 @@ func _find_nearest_player() -> Node2D:
 			nearest = p
 	return nearest
 
+
 func _ready() -> void:
 	if not ENABLED:
 		queue_free()
@@ -90,6 +93,7 @@ func _ready() -> void:
 	add_to_group("bosses")
 	_player = _find_nearest_player()
 	_setup_health_bar()
+
 
 func _setup_health_bar() -> void:
 	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")
@@ -152,9 +156,11 @@ func _setup_health_bar() -> void:
 		_bar_fill.value = 1.0
 	_bar_container.visible = true
 
+
 func _draw() -> void:
 	var half := draw_size * 0.5
 	draw_rect(Rect2(-half, -half, draw_size, draw_size), Color.WHITE)
+
 
 func _physics_process(delta: float) -> void:
 	if not ENABLED:
@@ -190,6 +196,7 @@ func _physics_process(delta: float) -> void:
 			if scene_node:
 				scene_node.sync_boss_state_rpc.rpc(enemy_id, global_position.x, global_position.y, health)
 
+
 func _check_contact_damage() -> void:
 	var scene_node := get_tree().root.get_node_or_null("Scene")
 	for p in get_tree().get_nodes_in_group("players"):
@@ -208,6 +215,7 @@ func _check_contact_damage() -> void:
 			p.take_damage(CONTACT_DAMAGE)
 		return
 
+
 func _move_toward_player(delta: float) -> void:
 	var to_player := _player.global_position - global_position
 	var dist := to_player.length()
@@ -224,6 +232,7 @@ func _move_toward_player(delta: float) -> void:
 		velocity = velocity.move_toward(Vector2.ZERO, MOVE_SPEED * delta * 10.0)
 	move_and_slide()
 
+
 func _pick_attack() -> void:
 	match randi() % 4:
 		0: _do_scatter_shot()
@@ -231,9 +240,11 @@ func _pick_attack() -> void:
 		2: _do_jump()
 		3: _do_rapid_fire()
 
+
 func _set_idle(cooldown: float) -> void:
 	_state = State.IDLE
 	_attack_timer = cooldown
+
 
 func _fire_scatter_row(row_offset_fraction: float) -> void:
 	var base_angle := global_position.angle_to_point(_player.global_position)
@@ -244,11 +255,13 @@ func _fire_scatter_row(row_offset_fraction: float) -> void:
 		var angle := base_angle - spread + step * i + offset
 		_fire_bullet(angle, SCATTER_SPEED)
 
+
 func _do_scatter_shot() -> void:
 	_state = State.SCATTER_SHOT
 	_fire_scatter_row(0.0)
 	_scatter_row = 1
 	_scatter_timer = SCATTER_ROW_DELAY
+
 
 func _tick_scatter(delta: float) -> void:
 	if _scatter_row != 1:
@@ -260,15 +273,20 @@ func _tick_scatter(delta: float) -> void:
 	_scatter_row = 0
 	_set_idle(2.5)
 
+
 func _do_summon_eggs() -> void:
 	_state = State.SUMMON_EGGS
 	for i in EGG_COUNT:
-		var offset := Vector2(randf_range(-EGG_SCATTER_RADIUS, EGG_SCATTER_RADIUS), randf_range(-EGG_SCATTER_RADIUS, EGG_SCATTER_RADIUS))
+		var offset := Vector2(
+			randf_range(-EGG_SCATTER_RADIUS, EGG_SCATTER_RADIUS),
+			randf_range(-EGG_SCATTER_RADIUS, EGG_SCATTER_RADIUS),
+		)
 		var egg := EGG_SCENE.instantiate()
 		get_parent().add_child(egg)
 		egg.global_position = global_position + offset
 		egg.enemy_scene = NIGHT_ENEMY_SCENE
 	_set_idle(4.0)
+
 
 func _do_jump() -> void:
 	_state = State.JUMP
@@ -276,6 +294,7 @@ func _do_jump() -> void:
 	_jump_target = _player.global_position + Vector2(randf_range(-30, 30), randf_range(-30, 30))
 	_jump_timer = 0.0
 	_is_airborne = true
+
 
 func _tick_jump(delta: float) -> void:
 	_jump_timer += delta
@@ -287,6 +306,7 @@ func _tick_jump(delta: float) -> void:
 		_land_burst()
 		_apply_landing_knockback()
 		_set_idle(3.5)
+
 
 func _apply_landing_knockback() -> void:
 	if not is_instance_valid(_player):
@@ -305,14 +325,17 @@ func _apply_landing_knockback() -> void:
 	else:
 		_player.global_position += dir * (JUMP_LAND_RADIUS - dist + 20.0)
 
+
 func _land_burst() -> void:
 	for i in LAND_BURST_COUNT:
 		_fire_bullet((TAU / LAND_BURST_COUNT) * i, LAND_BURST_SPEED)
+
 
 func _do_rapid_fire() -> void:
 	_state = State.RAPID_FIRE
 	_rapid_fire_remaining = RAPID_FIRE_COUNT
 	_rapid_fire_timer = 0.0
+
 
 func _tick_rapid_fire(delta: float) -> void:
 	_rapid_fire_timer -= delta
@@ -327,10 +350,12 @@ func _tick_rapid_fire(delta: float) -> void:
 	_rapid_fire_remaining -= 1
 	_rapid_fire_timer = RAPID_FIRE_INTERVAL
 
+
 func _fire_bullet(angle: float, spd: float, dmg: int = 1) -> void:
 	var b := BossBullet.new(_bullet_texture, Vector2.from_angle(angle), spd, dmg, bullet_visual_scale)
 	get_parent().add_child(b)
 	b.global_position = global_position
+
 
 func _update_health_bar() -> void:
 	if not _bar_fill or not is_instance_valid(_bar_fill):
@@ -339,12 +364,14 @@ func _update_health_bar() -> void:
 		return
 	_bar_fill.value = clampf(float(health) / float(max_health), 0.0, 1.0)
 
+
 func take_damage(amount: int) -> void:
 	if not ENABLED:
 		return
 	health -= amount
 	if health <= 0:
 		_die()
+
 
 func _die() -> void:
 	if _bar_container and is_instance_valid(_bar_container):

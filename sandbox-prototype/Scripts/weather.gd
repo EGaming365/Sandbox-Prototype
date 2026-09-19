@@ -83,6 +83,7 @@ var current_season: int = 0
 var total_days_elapsed: int = 0
 const DAYS_PER_SEASON: int = 20
 
+
 func _ready():
 	rng.randomize()
 	current_season = rng.randi() % 4
@@ -99,6 +100,7 @@ func _ready():
 		_set_weather(current_weather)
 	_weather_initialized = true
 
+
 func _create_aurora_overlay():
 	aurora_overlay_layer = CanvasLayer.new()
 	aurora_overlay_layer.layer = 109
@@ -108,6 +110,7 @@ func _create_aurora_overlay():
 	aurora_overlay.color = Color(0.0, 0.0, 0.0, 0.0)
 	aurora_overlay_layer.add_child(aurora_overlay)
 	get_tree().root.add_child(aurora_overlay_layer)
+
 
 func _create_fog_overlay():
 	fog_overlay_layer = CanvasLayer.new()
@@ -147,6 +150,7 @@ void fragment() {
 	fog_overlay_layer.add_child(fog_overlay)
 	get_tree().root.add_child(fog_overlay_layer)
 
+
 func _create_wind_particles():
 	wind_layer = CanvasLayer.new()
 	wind_layer.layer = 0
@@ -179,6 +183,7 @@ func _create_wind_particles():
 	wind_layer.add_child(wind_particles)
 	get_tree().root.add_child(wind_layer)
 
+
 func _process(delta):
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		_update_day_night(delta)
@@ -207,6 +212,7 @@ func _process(delta):
 			lightning_flash.color = Color(1, 1, 1, 0)
 	_update_day_event(delta)
 
+
 func _update_aurora_overlay(delta):
 	if not aurora_overlay:
 		return
@@ -226,7 +232,13 @@ func _update_aurora_overlay(delta):
 		aurora_overlay.color = Color(blended.r, blended.g, blended.b, 0.15 * _aurora_fade)
 	else:
 		_aurora_fade = move_toward(_aurora_fade, 0.0, delta * 0.3)
-		aurora_overlay.color = Color(aurora_overlay.color.r, aurora_overlay.color.g, aurora_overlay.color.b, 0.15 * _aurora_fade)
+		aurora_overlay.color = Color(
+			aurora_overlay.color.r,
+			aurora_overlay.color.g,
+			aurora_overlay.color.b,
+			0.15 * _aurora_fade,
+		)
+
 
 func _update_fog_overlay(delta):
 	if not fog_overlay or not fog_material:
@@ -259,6 +271,7 @@ func _update_fog_overlay(delta):
 	fog_material.set_shader_parameter("distortion_strength", distortion)
 	fog_material.set_shader_parameter("time", Time.get_ticks_msec() / 1000.0)
 
+
 func _update_wind_particles(delta):
 	if not wind_particles:
 		return
@@ -275,7 +288,9 @@ func _update_wind_particles(delta):
 	_wind_sway_angle += deg_to_rad(wind_direction_drift_speed) * _wind_sway_dir * delta
 	if abs(_wind_sway_angle) >= deg_to_rad(wind_sway_degrees):
 		_wind_sway_dir *= -1.0
-		_wind_sway_angle = clamp(_wind_sway_angle, -deg_to_rad(wind_sway_degrees), deg_to_rad(wind_sway_degrees))
+		_wind_sway_angle = clamp(
+			_wind_sway_angle, -deg_to_rad(wind_sway_degrees), deg_to_rad(wind_sway_degrees),
+		)
 	wind_direction = Vector2.from_angle(_wind_base_angle + _wind_sway_angle)
 	var vp_size := get_viewport().get_visible_rect().size
 	var max_dim: float = max(vp_size.x, vp_size.y) * 1.5
@@ -287,12 +302,14 @@ func _update_wind_particles(delta):
 		mat.direction = Vector3(1, 0, 0)
 		mat.emission_box_extents = Vector3(64, max_dim * 0.7, 1)
 
+
 func _update_day_event(delta):
 	if day_event_timer <= 0.0:
 		return
 	day_event_timer -= delta
 	if day_event_timer <= 0.0:
 		day_event = ""
+
 
 func _track_clear_days():
 	var day_integer = int(time_of_day)
@@ -306,6 +323,7 @@ func _track_clear_days():
 		if total_days_elapsed % DAYS_PER_SEASON == 0:
 			_advance_season()
 
+
 func _advance_season():
 	current_season = (current_season + 1) % 4
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
@@ -318,23 +336,30 @@ func _advance_season():
 		_sync_season.rpc(current_season)
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_season(season: int):
 	current_season = season
 	var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
 	if hud and hud.has_method("set_season_icon"):
 		hud.set_season_icon(season)
 
+
 func _create_day_night():
 	canvas_modulate = CanvasModulate.new()
 	canvas_modulate.name = "DayNightTint"
 	get_tree().root.get_node("Scene").add_child.call_deferred(canvas_modulate)
+
 
 func _create_rain():
 	rain_particles = get_tree().root.get_node_or_null("Scene/RainCanvas/RainParticles")
 	if not rain_particles:
 		print("ERROR: RainParticles not found")
 		return
-	rain_particles.emitting = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	rain_particles.emitting = current_weather == WeatherType.RAIN \
+		or current_weather == WeatherType.THUNDER \
+		or current_weather == WeatherType.THUNDERSTORM
+
 
 func _create_lightning_flash():
 	lightning_flash_layer = CanvasLayer.new()
@@ -348,6 +373,7 @@ func _create_lightning_flash():
 	lightning_flash.z_index = 10
 	lightning_flash_layer.add_child(lightning_flash)
 	get_tree().root.add_child.call_deferred(lightning_flash_layer)
+
 
 func _update_day_night(delta):
 	time_of_day += delta / day_length_seconds
@@ -364,8 +390,10 @@ func _update_day_night(delta):
 			_end_aurora()
 	_apply_day_night_color()
 
+
 func is_night() -> bool:
 	return time_of_day < 0.05 or time_of_day >= 0.97
+
 
 func _start_aurora():
 	aurora_active = true
@@ -379,6 +407,7 @@ func _start_aurora():
 	if multiplayer.has_multiplayer_peer():
 		_sync_aurora.rpc(true)
 
+
 func _end_aurora():
 	aurora_active = false
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
@@ -388,11 +417,14 @@ func _end_aurora():
 		_sync_aurora.rpc(false)
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_aurora(state: bool):
 	aurora_active = state
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 	if extras:
 		extras.set_aurora(state)
+
 
 func _apply_day_night_color():
 	if not canvas_modulate:
@@ -431,10 +463,12 @@ func _apply_day_night_color():
 			tint = tint.lerp(Color(0.82, 0.88, 0.92), 0.14)
 	canvas_modulate.color = tint
 
+
 func _update_weather_timer(delta):
 	weather_timer -= delta
 	if weather_timer <= 0.0:
 		_pick_next_weather()
+
 
 func _pick_next_weather():
 	if aurora_active:
@@ -470,8 +504,10 @@ func _pick_next_weather():
 		_start_day_event("Rainbow" if rng.randf() < 0.65 else "Divine Blessing")
 	weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 
+
 func _update_lightning(delta):
-	var is_electric: bool = current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	var is_electric: bool = current_weather == WeatherType.THUNDER \
+		or current_weather == WeatherType.THUNDERSTORM
 	if _is_in_cave():
 		lightning_alpha = move_toward(lightning_alpha, 0.0, delta * 1.5)
 		if lightning_flash and lightning_flash_enabled:
@@ -517,6 +553,8 @@ func _update_lightning(delta):
 		lightning_flash.color = Color(1, 1, 1, lightning_alpha)
 
 @rpc("any_peer", "call_remote", "reliable")
+
+
 func sync_weather_state(weather: int, synced_time: float, timer: float):
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		return
@@ -525,6 +563,7 @@ func sync_weather_state(weather: int, synced_time: float, timer: float):
 	weather_timer = timer
 	_set_weather(current_weather)
 	_apply_day_night_color()
+
 
 func _get_random_lightning_world_position() -> Vector2:
 	var players = get_tree().get_nodes_in_group("players")
@@ -538,6 +577,7 @@ func _get_random_lightning_world_position() -> Vector2:
 	if camera:
 		return camera.get_screen_center_position()
 	return Vector2.ZERO
+
 
 func _show_lightning_strike(world_pos: Vector2):
 	var bolt = Line2D.new()
@@ -556,6 +596,7 @@ func _show_lightning_strike(world_pos: Vector2):
 	await get_tree().create_timer(0.45).timeout
 	if is_instance_valid(bolt):
 		bolt.queue_free()
+
 
 func _kill_players_hit_by_lightning(world_pos: Vector2):
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
@@ -577,7 +618,11 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 		if overlaps.size() > 0:
 			continue
 		var player_id = player.name.to_int()
-		var player_name = Steam.getFriendPersonaName(player_id) if multiplayer.has_multiplayer_peer() else "Player"
+		var player_name = (
+			Steam.getFriendPersonaName(player_id)
+			if multiplayer.has_multiplayer_peer()
+			else "Player"
+		)
 		if player_name == "" or player_name == null:
 			player_name = "Player"
 		if multiplayer.has_multiplayer_peer():
@@ -599,6 +644,7 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 		if chicken.global_position.distance_to(world_pos) <= lightning_hit_radius:
 			chicken.take_damage(9999)
 
+
 func _get_local_player():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
@@ -613,6 +659,8 @@ func _get_local_player():
 	return null
 
 @rpc("authority", "call_local", "reliable")
+
+
 func lightning_strike_rpc(pos_x: float, pos_y: float):
 	var strike_pos = Vector2(pos_x, pos_y)
 	if lightning_flash_enabled:
@@ -621,19 +669,28 @@ func lightning_strike_rpc(pos_x: float, pos_y: float):
 		_show_lightning_strike(strike_pos)
 	_kill_players_hit_by_lightning(strike_pos)
 
+
 func _is_position_on_screen(world_pos: Vector2) -> bool:
 	var camera = get_viewport().get_camera_2d()
 	if not camera:
 		return false
 	var screen_size = get_viewport().get_visible_rect().size
 	var cam_pos = camera.get_screen_center_position()
-	var screen_rect = Rect2(cam_pos - screen_size / 2.0 - Vector2(lightning_render_padding, lightning_render_padding), screen_size + Vector2(lightning_render_padding * 2.0, lightning_render_padding * 2.0))
+	var screen_rect = Rect2(
+		cam_pos - screen_size / 2.0 - Vector2(lightning_render_padding, lightning_render_padding),
+		screen_size + Vector2(lightning_render_padding * 2.0, lightning_render_padding * 2.0),
+	)
 	return screen_rect.has_point(world_pos)
 
+
 func _set_weather(new_weather: WeatherType):
-	var was_raining: bool = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	var was_raining: bool = current_weather == WeatherType.RAIN \
+		or current_weather == WeatherType.THUNDER \
+		or current_weather == WeatherType.THUNDERSTORM
 	current_weather = new_weather
-	var raining: bool = current_weather == WeatherType.RAIN or current_weather == WeatherType.THUNDER or current_weather == WeatherType.THUNDERSTORM
+	var raining: bool = current_weather == WeatherType.RAIN \
+		or current_weather == WeatherType.THUNDER \
+		or current_weather == WeatherType.THUNDERSTORM
 	if rain_particles:
 		rain_particles.emitting = raining
 		rain_particles.set_storm_intensity(current_weather == WeatherType.THUNDERSTORM)
@@ -658,6 +715,7 @@ func _set_weather(new_weather: WeatherType):
 		_:
 			lightning_timer = 0.0
 
+
 func _start_day_event(event_name: String):
 	day_event = event_name
 	day_event_timer = rng.randf_range(90.0, 180.0)
@@ -671,10 +729,12 @@ func _start_day_event(event_name: String):
 	else:
 		_show_rain_notification(event_name + " has begun.")
 
+
 func start_day_event(event_name: String):
 	_start_day_event(event_name)
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		_sync_day_event.rpc(event_name, day_event_timer)
+
 
 func clear_day_event():
 	day_event = ""
@@ -683,14 +743,19 @@ func clear_day_event():
 		_sync_clear_day_event.rpc()
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_day_event(event_name: String, timer: float):
 	_start_day_event(event_name)
 	day_event_timer = timer
 
 @rpc("authority", "call_remote", "reliable")
+
+
 func _sync_clear_day_event():
 	day_event = ""
 	day_event_timer = 0.0
+
 
 func _show_rain_notification(msg: String):
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
@@ -712,6 +777,7 @@ func _show_rain_notification(msg: String):
 	tween.tween_interval(4.0)
 	tween.tween_property(label, "modulate:a", 0.0, 1.0)
 	tween.tween_callback(label.queue_free)
+
 
 func _is_in_cave() -> bool:
 	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")

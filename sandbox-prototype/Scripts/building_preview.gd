@@ -22,11 +22,14 @@ var active: bool = false
 var current_rotation_deg: float = 0.0
 var current_item_name: String = ""
 
+
 func get_place_pos() -> Vector2:
 	return global_position
 
+
 func get_place_offset() -> Vector2:
 	return Vector2.ZERO
+
 
 func _ready():
 	z_index = 100
@@ -34,6 +37,7 @@ func _ready():
 	preview_sprite.modulate = Color(0, 1, 0, 0.5)
 	add_child(preview_sprite)
 	hide()
+
 
 func activate(texture: Texture2D, item_name: String = ""):
 	current_item_name = item_name
@@ -48,11 +52,13 @@ func activate(texture: Texture2D, item_name: String = ""):
 	active = true
 	show()
 
+
 func deactivate():
 	active = false
 	current_item_name = ""
 	hide()
 	preview_sprite.texture = null
+
 
 func get_snapped_mouse_pos() -> Vector2:
 	var mouse = get_global_mouse_position()
@@ -60,6 +66,7 @@ func get_snapped_mouse_pos() -> Vector2:
 		snapped(mouse.x, GRID_SIZE),
 		snapped(mouse.y, GRID_SIZE)
 	)
+
 
 func get_local_player() -> Node:
 	for child in get_tree().root.get_node("Scene").get_children():
@@ -71,11 +78,14 @@ func get_local_player() -> Node:
 				return child
 	return null
 
+
 func get_current_rotation() -> float:
 	return current_rotation_deg
 
+
 func _input(_event):
 	pass
+
 
 func _process(_delta):
 	if not active:
@@ -89,6 +99,7 @@ func _process(_delta):
 	else:
 		can_place = false
 	preview_sprite.modulate = Color(0, 1, 0, 0.5) if can_place else Color(1, 0, 0, 0.5)
+
 
 func _is_occupied(pos: Vector2) -> bool:
 	for block in get_tree().get_nodes_in_group("placed_blocks"):

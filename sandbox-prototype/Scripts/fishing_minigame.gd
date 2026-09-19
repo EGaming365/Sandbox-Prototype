@@ -27,6 +27,7 @@ signal fish_escaped
 var progress := 50.0
 var _ready_to_process: bool = false
 
+
 func _ready():
 	fish_zone = $HBoxContainer/Catchbar/FishZone
 	player_bar = $HBoxContainer/Catchbar/PlayerBar
@@ -37,6 +38,7 @@ func _ready():
 	hold_button.button_up.connect(_on_hold_button_button_up)
 	$HBoxContainer/ProgressBar/Panel.visible = false
 	$HBoxContainer/Catchbar/Panel.visible = false
+
 
 func setup(fish_data: Dictionary):
 	var display_name: String = fish_data.name
@@ -87,11 +89,14 @@ func setup(fish_data: Dictionary):
 	bar_speed = fish_data.get("bar_speed", 1.0)
 	_ready_to_process = true
 
+
 func _on_hold_button_button_down():
 	holding = true
 
+
 func _on_hold_button_button_up():
 	holding = false
+
 
 func _process(delta):
 	if not _ready_to_process:
@@ -106,6 +111,7 @@ var fish_target_y := 0.3
 var fish_move_timer: float = 0.0
 var fish_move_interval: float = 1.5
 
+
 func _update_fish_zone(delta):
 	fish_move_timer -= delta
 	if fish_move_timer <= 0.0:
@@ -119,11 +125,13 @@ func _update_fish_zone(delta):
 	fish_zone_y = move_toward(fish_zone_y, fish_target_y, fish_speed * 0.18 * delta)
 	fish_zone_y = clamp(fish_zone_y, 0.0, max_y)
 
+
 func _update_player(delta):
 	var target_vel: float = -0.35 * bar_speed if holding else 0.5 * bar_speed
 	player_vel = lerp(player_vel, target_vel, delta * 6.0 * bar_speed)
 	player_y += player_vel * delta
 	player_y = clamp(player_y, 0.0, 1.0 - effective_player_h / TRACK_HEIGHT)
+
 
 func _update_progress(delta):
 	var p_top := player_y
@@ -143,6 +151,7 @@ func _update_progress(delta):
 	elif progress <= 0.0:
 		emit_signal("fish_escaped")
 		queue_free()
+
 
 func _apply_visuals():
 	fish_zone.position.y = fish_zone_y * TRACK_HEIGHT

@@ -5,8 +5,10 @@ var hearts = []
 var max_health = 10
 var current_health = 10
 
+
 func _ready():
 	_build_hearts()
+
 
 func _build_hearts():
 	var hbox = HBoxContainer.new()
@@ -21,6 +23,7 @@ func _build_hearts():
 		tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
 		hearts.append(tex)
 		hbox.add_child(tex)
+
 
 func update_hearts(health: int):
 	current_health = health

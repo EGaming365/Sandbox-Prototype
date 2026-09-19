@@ -9,6 +9,7 @@ var _local_player: CharacterBody2D = null
 var _label: Label = null
 var _cave_world_gen: Node = null
 
+
 func _ready():
 	z_index = 2
 	var area: Area2D = get_node_or_null("Area2D")
@@ -27,6 +28,7 @@ func _ready():
 	if not _cave_world_gen:
 		push_error("Cave: CaveWorldGen not found at Scene/CaveWorldGen")
 
+
 func _process(_delta):
 	if not _player_inside or not _local_player or not _cave_world_gen:
 		return
@@ -40,6 +42,7 @@ func _process(_delta):
 			_cave_world_gen.enter_cave(_local_player)
 			_label.text = prompt_exit
 
+
 func _on_body_entered(body: Node):
 	if not _is_local_player(body):
 		return
@@ -49,12 +52,14 @@ func _on_body_entered(body: Node):
 		_label.text = prompt_exit if (_cave_world_gen and _cave_world_gen.in_cave) else prompt_enter
 		_label.visible = true
 
+
 func _on_body_exited(body: Node):
 	if not _is_local_player(body):
 		return
 	_player_inside = false
 	if _label:
 		_label.visible = false
+
 
 func _is_local_player(body: Node) -> bool:
 	if not body is CharacterBody2D:

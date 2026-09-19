@@ -26,9 +26,11 @@ var _cave_gen: Node = null
 var _weather: Node = null
 var _vp: Viewport = null
 
+
 func _ready():
 	set_process(true)
 	call_deferred("_setup_overlay")
+
 
 func _setup_overlay():
 	var canvas := CanvasLayer.new()
@@ -46,15 +48,19 @@ func _setup_overlay():
 	_weather = get_tree().root.get_node_or_null("Scene/Weather")
 	_vp = get_viewport()
 
+
 func _overlay_source() -> String:
 	return """extends Node2D
 var lighting_manager: Node
+
+
 func _draw():
 \tif not lighting_manager:
 \t\treturn
 \tfor entry in lighting_manager._draw_rects:
 \t\tdraw_rect(entry[0], Color(0, 0, 0, entry[1]), true)
 """
+
 
 func _recalculate_and_build():
 	_light_map.clear()
@@ -160,6 +166,7 @@ func _recalculate_and_build():
 					full_dark_alpha
 				])
 
+
 func _update_darkness_base():
 	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave"):
 		_current_darkness = cave_base_darkness
@@ -181,6 +188,7 @@ func _update_darkness_base():
 			_current_darkness = lerp(_current_darkness, 0.0, 0.6)
 	else:
 		_current_darkness = day_base_darkness
+
 
 func _process(delta):
 	_timer -= delta
@@ -216,6 +224,7 @@ func _process(delta):
 	if _overlay:
 		_overlay.queue_redraw()
 
+
 func _sources_moved_tiles_cheap() -> bool:
 	for source_id in _sources:
 		var src = _sources[source_id]
@@ -231,6 +240,7 @@ func _sources_moved_tiles_cheap() -> bool:
 		if not _sources.has(source_id):
 			return true
 	return false
+
 
 func _camera_view_changed() -> bool:
 	if not _vp or not is_instance_valid(_vp):
@@ -250,6 +260,7 @@ func _camera_view_changed() -> bool:
 		return true
 	return false
 
+
 func _get_visible_tile_bounds() -> Array:
 	if not _vp:
 		return []
@@ -267,7 +278,13 @@ func _get_visible_tile_bounds() -> Array:
 		min_tc.y + int(ceil(screen_size.y / light_detail_tile_size)) + pad * 2)
 	return [min_tc, max_tc, top_left_world]
 
-func add_light_source(node: Node2D, radius: int, strength: float, bright_close: bool = false) -> int:
+
+func add_light_source(
+	node: Node2D,
+	radius: int,
+	strength: float,
+	bright_close: bool = false,
+) -> int:
 	var id := _next_source_id
 	_next_source_id += 1
 	_sources[id] = {
@@ -282,7 +299,13 @@ func add_light_source(node: Node2D, radius: int, strength: float, bright_close: 
 	_dirty = true
 	return id
 
-func add_static_light(world_pos: Vector2, radius: int, strength: float, bright_close: bool = false) -> int:
+
+func add_static_light(
+	world_pos: Vector2,
+	radius: int,
+	strength: float,
+	bright_close: bool = false,
+) -> int:
 	var id := _next_source_id
 	_next_source_id += 1
 	_sources[id] = {
@@ -297,16 +320,19 @@ func add_static_light(world_pos: Vector2, radius: int, strength: float, bright_c
 	_dirty = true
 	return id
 
+
 func remove_light_source(id: int):
 	_sources.erase(id)
 	_committed_source_tiles.erase(id)
 	_dirty = true
+
 
 func get_light_level_at(world_pos: Vector2) -> float:
 	var tile := Vector2i(
 		floori(world_pos.x / light_detail_tile_size),
 		floori(world_pos.y / light_detail_tile_size))
 	return _light_map.get(tile, 0.0)
+
 
 func mark_dirty():
 	_dirty = true

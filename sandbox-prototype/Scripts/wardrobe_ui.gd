@@ -1,7 +1,9 @@
 extends Control
 
 @onready var tab_buttons: HBoxContainer = $PanelContainer/HBoxContainer/Left/Tab_Buttons
-@onready var grid: GridContainer = $PanelContainer/HBoxContainer/Left/ScrollContainer/MarginContainer/GridContainer
+@onready var grid: GridContainer = get_node(
+	"PanelContainer/HBoxContainer/Left/ScrollContainer/MarginContainer/GridContainer",
+)
 
 var tabs = ["Body", "Accessories", "Hair", "Shirt", "Pants"]
 var current_tab: String = "Body"
@@ -13,11 +15,13 @@ var selected_options: Dictionary = {
 	"Pants": "Basic",
 }
 
+
 func _ready():
 	visible = false
 	_setup_tabs()
 	var panel = $PanelContainer
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
 
 func _setup_tabs():
 	for child in tab_buttons.get_children():
@@ -31,10 +35,12 @@ func _setup_tabs():
 		tab_buttons.add_child(btn)
 	_on_tab_pressed("Body")
 
+
 func _on_tab_pressed(tab_name: String):
 	current_tab = tab_name
 	_highlight_active_tab()
 	_load_tab_contents(tab_name)
+
 
 func _highlight_active_tab():
 	for btn in tab_buttons.get_children():
@@ -51,6 +57,7 @@ func _highlight_active_tab():
 			btn.remove_theme_stylebox_override("normal")
 			btn.remove_theme_stylebox_override("hover")
 
+
 func _load_tab_contents(tab_name: String):
 	for child in grid.get_children():
 		child.queue_free()
@@ -66,6 +73,7 @@ func _load_tab_contents(tab_name: String):
 		"Pants":
 			_add_options(["None", "Basic"])
 
+
 func _add_options(option_names: Array):
 	for opt_name in option_names:
 		var btn = Button.new()
@@ -76,6 +84,7 @@ func _add_options(option_names: Array):
 			btn.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 			btn.add_theme_stylebox_override("normal", _make_highlight_style())
 		grid.add_child(btn)
+
 
 func _make_highlight_style() -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
@@ -90,6 +99,7 @@ func _make_highlight_style() -> StyleBoxFlat:
 	style.corner_radius_bottom_left = 4
 	style.corner_radius_bottom_right = 4
 	return style
+
 
 func _on_option_pressed(option_name: String):
 	var player = _get_local_player()
@@ -122,6 +132,7 @@ func _on_option_pressed(option_name: String):
 	)
 	_load_tab_contents(current_tab)
 
+
 func _get_local_player() -> Node:
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -132,14 +143,17 @@ func _get_local_player() -> Node:
 				return child
 	return null
 
+
 func open():
 	visible = true
+
 
 func close():
 	visible = false
 	for node in get_tree().get_nodes_in_group("placed_blocks"):
 		if node.has_method("close_ui"):
 			node.close_ui()
+
 
 func _input(event):
 	if not visible:

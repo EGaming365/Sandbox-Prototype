@@ -8,12 +8,14 @@ var env_id: String = ""
 var trunk_base_y: float = 0.0
 @export var average_coal_per_rock: float = 3.0
 
+
 func _ready():
 	add_to_group("rocks")
 	z_index = 2
 	trunk_base_y = global_position.y
 	if has_meta("env_id"):
 		env_id = str(get_meta("env_id"))
+
 
 func _process(_delta):
 	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -52,6 +54,7 @@ func _process(_delta):
 			local_player.start_chop_cooldown(_get_mine_time(held_item))
 		do_mine(multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 1, held_item)
 
+
 func _get_mine_time(held_item: String) -> float:
 	match held_item:
 		"Stone Pickaxe":
@@ -60,6 +63,7 @@ func _get_mine_time(held_item: String) -> float:
 			return 2.0
 		_:
 			return 2.0
+
 
 func do_mine(miner_id: int = 1, held_item: String = ""):
 	var scene_node = get_tree().root.get_node("Scene")
@@ -74,6 +78,7 @@ func do_mine(miner_id: int = 1, held_item: String = ""):
 		scene_node.host_spawn_floor_item(drop_pos, "Stone", 1)
 	if hits >= max_hits:
 		_destroy_self(scene_node)
+
 
 func _destroy_self(scene_node: Node):
 	# Cave rocks use "caverock:" prefix — route to CaveWorldGen's rock tracker
@@ -102,6 +107,7 @@ func _destroy_self(scene_node: Node):
 	else:
 		queue_free()
 
+
 func _consume_pickaxe(miner_id: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	if multiplayer.has_multiplayer_peer() and miner_id != multiplayer.get_unique_id():
@@ -119,9 +125,11 @@ func _consume_pickaxe(miner_id: int):
 		else:
 			Inventory.inventory_changed.emit()
 
+
 func _on_area_2d_body_entered(body):
 	if body is CharacterBody2D:
 		player_in_range = true
+
 
 func _on_area_2d_body_exited(body):
 	if body is CharacterBody2D:

@@ -120,11 +120,13 @@ var _packed_cave_rock_scene: PackedScene = null
 var _packed_cave_exit_scene: PackedScene = null
 var _all_cave_rock_world_positions: Array = []
 
+
 func _ready() -> void:
 	await get_tree().process_frame
 	_resolve_refs()
 	_packed_cave_rock_scene = load(cave_rock_scene_path)
 	_packed_cave_exit_scene = load(cave_exit_scene_path)
+
 
 func _resolve_refs() -> void:
 	_tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
@@ -137,6 +139,7 @@ func _resolve_refs() -> void:
 				if child.get_script() and child.has_method("_unload_all_chunks"):
 					_env_spawner = child
 					break
+
 
 func enter_cave(player: CharacterBody2D) -> void:
 	if in_cave or _enter_cooldown > 0.0:
@@ -171,6 +174,7 @@ func enter_cave(player: CharacterBody2D) -> void:
 	_update_chunks_around_player()
 	for i: int in 6:
 		_paint_next_tiles()
+
 
 func exit_cave(player: CharacterBody2D) -> void:
 	if not in_cave or _enter_cooldown > 0.0:
@@ -214,11 +218,13 @@ func exit_cave(player: CharacterBody2D) -> void:
 	if scene and scene.has_method("_refresh_floor_item_visibility"):
 		scene._refresh_floor_item_visibility()
 
+
 func get_room_at_world_pos(world_pos: Vector2) -> RoomData:
 	var tc: Vector2i = world_to_tile(world_pos)
 	if _tile_to_room.has(tc):
 		return _rooms[_tile_to_room[tc]]
 	return null
+
 
 func _update_room_presence(delta: float) -> void:
 	if not in_cave:
@@ -238,7 +244,9 @@ func _update_room_presence(delta: float) -> void:
 		if room.is_locked or room.is_cleared:
 			_room_pending_timer.erase(room.id)
 			continue
-		if room.room_type != RoomType.NOVICE_FIGHT and room.room_type != RoomType.BASIC_FIGHT and room.room_type != RoomType.BOSS:
+		if room.room_type != RoomType.NOVICE_FIGHT \
+				and room.room_type != RoomType.BASIC_FIGHT \
+				and room.room_type != RoomType.BOSS:
 			continue
 		if _room_cooldown.has(room.id):
 			_room_cooldown[room.id] -= delta
@@ -271,6 +279,7 @@ func _update_room_presence(delta: float) -> void:
 				if _room_waiting.get(room.id, false):
 					_clear_boss_wait_message(room.id)
 
+
 func _send_boss_wait_message(room_id: int, occupants: Array, missing: int) -> void:
 	var scene_node: Node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node or not scene_node.has_method("set_boss_wait_ui"):
@@ -284,6 +293,7 @@ func _send_boss_wait_message(room_id: int, occupants: Array, missing: int) -> vo
 			scene_node.set_boss_wait_ui(true, missing)
 		else:
 			scene_node.set_boss_wait_ui.rpc_id(pid, true, missing)
+
 
 func _clear_boss_wait_message(room_id: int) -> void:
 	_room_waiting[room_id] = false
@@ -299,6 +309,7 @@ func _clear_boss_wait_message(room_id: int) -> void:
 		else:
 			scene_node.set_boss_wait_ui.rpc_id(pid, false, 0)
 
+
 func notify_enemy_died(world_pos: Vector2) -> void:
 	var room: RoomData = get_room_at_world_pos(world_pos)
 	if not room or not room.is_locked:
@@ -307,22 +318,27 @@ func notify_enemy_died(world_pos: Vector2) -> void:
 	if room.enemy_count <= 0:
 		_unlock_room(room)
 
+
 func set_room_enemy_count(room_id: int, count: int) -> void:
 	if room_id < _rooms.size():
 		_rooms[room_id].enemy_count = count
+
 
 func get_spawn_room() -> RoomData:
 	if _spawn_room_id >= 0:
 		return _rooms[_spawn_room_id]
 	return null
 
+
 func get_boss_room() -> RoomData:
 	if _boss_room_id >= 0:
 		return _rooms[_boss_room_id]
 	return null
 
+
 func get_all_rooms() -> Array[RoomData]:
 	return _rooms
+
 
 func get_room_center_world(room_id: int) -> Vector2:
 	if room_id < 0 or room_id >= _rooms.size():
@@ -331,6 +347,7 @@ func get_room_center_world(room_id: int) -> Vector2:
 	var half: int = room.tile_size / 2
 	var tc: Vector2i = room.tile_origin + Vector2i(half, half)
 	return _tile_to_world_center(tc)
+
 
 func get_room_floor_positions(room_id: int) -> Array[Vector2]:
 	var positions: Array[Vector2] = []
@@ -344,6 +361,7 @@ func get_room_floor_positions(room_id: int) -> Array[Vector2]:
 			if _carved_tiles.has(tc) and not _water_tiles.has(tc) and not _door_tile_data.has(tc):
 				positions.append(_tile_to_world_center(tc))
 	return positions
+
 
 func _carve_corridor_tiles(a: RoomData, b: RoomData) -> void:
 	var ac: Vector2i = a.tile_origin + Vector2i(a.tile_size / 2, a.tile_size / 2)
@@ -396,6 +414,7 @@ func _carve_corridor_tiles(a: RoomData, b: RoomData) -> void:
 			Vector2i(x_mid, door_a_y),
 			Vector2i(x_mid, door_b_y),
 			is_horizontal)
+
 
 func _generate_dungeon() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -452,7 +471,9 @@ func _generate_dungeon() -> void:
 		var best_dist: float = INF
 		for j: int in range(0, i):
 			var gd: Vector2i = placed_grid_positions[i] - placed_grid_positions[j]
-			var is_cardinal_adjacent: bool = (abs(gd.x) == 1 and gd.y == 0) or (gd.x == 0 and abs(gd.y) == 1)
+			var is_cardinal_adjacent: bool = (
+				(abs(gd.x) == 1 and gd.y == 0) or (gd.x == 0 and abs(gd.y) == 1)
+			)
 			if not is_cardinal_adjacent:
 				continue
 			var d: float = placed_grid_positions[i].distance_squared_to(placed_grid_positions[j])
@@ -566,7 +587,9 @@ func _generate_dungeon() -> void:
 
 	_spawn_room_id = spawn_idx
 	_boss_room_id = boss_idx
-	_cave_exit_tile = _rooms[spawn_idx].tile_origin + Vector2i(room_sizes[spawn_idx] / 2, room_sizes[spawn_idx] / 2)
+	_cave_exit_tile = _rooms[spawn_idx].tile_origin + Vector2i(
+		room_sizes[spawn_idx] / 2, room_sizes[spawn_idx] / 2,
+	)
 
 	for room: RoomData in _rooms:
 		_carve_room_tiles(room)
@@ -576,6 +599,7 @@ func _generate_dungeon() -> void:
 			if nb > i:
 				_carve_corridor_tiles(_rooms[i], _rooms[nb])
 
+
 func _activate(seed: int) -> void:
 	world_seed = seed
 	_find_tile_sources()
@@ -584,6 +608,7 @@ func _activate(seed: int) -> void:
 	_spawn_cave_exit()
 	_active = true
 	_update_chunks_around_player()
+
 
 func _clear_state() -> void:
 	_rooms.clear()
@@ -607,6 +632,7 @@ func _clear_state() -> void:
 	_boss_room_id = -1
 	_despawn_cave_exit()
 
+
 func _deactivate() -> void:
 	_active = false
 	_despawn_cave_exit()
@@ -614,6 +640,7 @@ func _deactivate() -> void:
 		_erase_chunk_tiles(cc)
 		_despawn_cave_rocks_for_chunk(cc)
 	_clear_state()
+
 
 func _get_size_multiplier(rt: RoomType) -> float:
 	match rt:
@@ -624,6 +651,7 @@ func _get_size_multiplier(rt: RoomType) -> float:
 		RoomType.BOSS:          return size_multiplier_boss
 	return 1.0
 
+
 func _room_size_for_type(rt: RoomType, rng: RandomNumberGenerator) -> int:
 	var base: int = rng.randi_range(room_tile_size_min, room_tile_size_max)
 	var mult: float = _get_size_multiplier(rt)
@@ -632,6 +660,7 @@ func _room_size_for_type(rt: RoomType, rng: RandomNumberGenerator) -> int:
 	if result % 2 != 0:
 		result += 1
 	return result
+
 
 func _bfs_depths(start: int, adj: Dictionary, _n: int) -> Dictionary:
 	var depth: Dictionary = {}
@@ -644,6 +673,7 @@ func _bfs_depths(start: int, adj: Dictionary, _n: int) -> Dictionary:
 				depth[nb] = depth[cur] + 1
 				queue.append(nb)
 	return depth
+
 
 func _carve_room_tiles(room: RoomData) -> void:
 	for dx: int in room.tile_size:
@@ -662,6 +692,7 @@ func _carve_room_tiles(room: RoomData) -> void:
 			if not _carved_tiles.has(tc):
 				_wall_tiles[tc] = true
 
+
 func _strip_lake_from_spawn_room() -> void:
 	if _spawn_room_id < 0 or _spawn_room_id >= _rooms.size():
 		return
@@ -671,6 +702,7 @@ func _strip_lake_from_spawn_room() -> void:
 			var tc: Vector2i = spawn_room.tile_origin + Vector2i(dx, dy)
 			if _water_tiles.has(tc):
 				_water_tiles.erase(tc)
+
 
 func _carve_lake_interior(room: RoomData) -> void:
 	var m: int = lake_inner_margin
@@ -689,6 +721,7 @@ func _carve_lake_interior(room: RoomData) -> void:
 				var tc: Vector2i = room.tile_origin + Vector2i(dx, dy)
 				_water_tiles[tc] = true
 
+
 func _get_corridor_entrance_wall_tiles(door_tc: Vector2i, is_horizontal: bool) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var half: int = corridor_width / 2
@@ -700,7 +733,14 @@ func _get_corridor_entrance_wall_tiles(door_tc: Vector2i, is_horizontal: bool) -
 			result.append(Vector2i(door_tc.x + offset, door_tc.y))
 	return result
 
-func _place_door_pair(a: RoomData, b: RoomData, tc_a: Vector2i, tc_b: Vector2i, is_horizontal: bool) -> void:
+
+func _place_door_pair(
+	a: RoomData,
+	b: RoomData,
+	tc_a: Vector2i,
+	tc_b: Vector2i,
+	is_horizontal: bool,
+) -> void:
 	for pair: Array in [[tc_a, a.id], [tc_b, b.id]]:
 		var tc: Vector2i = pair[0]
 		var rid: int = pair[1]
@@ -715,6 +755,7 @@ func _place_door_pair(a: RoomData, b: RoomData, tc_a: Vector2i, tc_b: Vector2i, 
 				if not room.wall_tiles_on_lock.has(wt):
 					room.wall_tiles_on_lock.append(wt)
 
+
 func _place_lock_walls(room: RoomData) -> void:
 	for tc: Vector2i in room.wall_tiles_on_lock:
 		if _carved_tiles.has(tc):
@@ -722,12 +763,14 @@ func _place_lock_walls(room: RoomData) -> void:
 			if _tilemap:
 				_tilemap.set_cell(0, tc, cave_source_id, cave_wall_atlas)
 
+
 func _remove_lock_walls(room: RoomData) -> void:
 	for tc: Vector2i in room.wall_tiles_on_lock:
 		if _locked_wall_tiles.has(tc):
 			_locked_wall_tiles.erase(tc)
 			if _tilemap:
 				_tilemap.set_cell(0, tc, cave_source_id, cave_atlas)
+
 
 func _lock_room(room: RoomData) -> void:
 	room.is_locked = true
@@ -746,6 +789,7 @@ func _lock_room(room: RoomData) -> void:
 	if room.enemy_count <= 0:
 		_unlock_room(room)
 
+
 func _unlock_room(room: RoomData) -> void:
 	room.is_locked = false
 	room.is_cleared = true
@@ -758,6 +802,7 @@ func _unlock_room(room: RoomData) -> void:
 			_tilemap.set_cell(0, tc, cave_source_id, cave_door_open_atlas)
 	_remove_lock_walls(room)
 	emit_signal("room_cleared", room.id, room.room_type)
+
 
 func _reset_room(room: RoomData, cooldown: float = 0.0) -> void:
 	room.is_locked = false
@@ -777,6 +822,7 @@ func _reset_room(room: RoomData, cooldown: float = 0.0) -> void:
 		_room_cooldown.erase(room.id)
 	emit_signal("room_cleared", room.id, room.room_type)
 
+
 func request_player_died(world_pos: Vector2) -> void:
 	if _is_host():
 		notify_player_died(world_pos)
@@ -784,6 +830,7 @@ func request_player_died(world_pos: Vector2) -> void:
 	var scene_node: Node = get_tree().root.get_node_or_null("Scene")
 	if scene_node and scene_node.has_method("request_room_death_reset"):
 		scene_node.request_room_death_reset.rpc_id(1, world_pos.x, world_pos.y)
+
 
 func notify_player_died(world_pos: Vector2) -> void:
 	if not _is_host():
@@ -801,6 +848,7 @@ func notify_player_died(world_pos: Vector2) -> void:
 	else:
 		_reset_room(room)
 
+
 func _process(delta: float) -> void:
 	if _enter_cooldown > 0.0:
 		_enter_cooldown -= delta
@@ -816,6 +864,7 @@ func _process(delta: float) -> void:
 	_chunk_update_timer = chunk_update_interval
 	_update_chunks_around_player()
 
+
 func _get_local_player() -> CharacterBody2D:
 	var scene: Node = get_tree().root.get_node_or_null("Scene")
 	if not scene:
@@ -829,10 +878,12 @@ func _get_local_player() -> CharacterBody2D:
 				return child
 	return null
 
+
 func _connected_player_count() -> int:
 	if not multiplayer.has_multiplayer_peer():
 		return 1
 	return multiplayer.get_peers().size() + 1
+
 
 func _update_chunks_around_player() -> void:
 	if not _tilemap:
@@ -842,8 +893,12 @@ func _update_chunks_around_player() -> void:
 		return
 	var player_chunk: Vector2i = tile_to_chunk(world_to_tile(player.global_position))
 	var to_queue: Array[Vector2i] = []
-	for cx: int in range(player_chunk.x - chunk_view_distance, player_chunk.x + chunk_view_distance + 1):
-		for cy: int in range(player_chunk.y - chunk_view_distance, player_chunk.y + chunk_view_distance + 1):
+	var cx_min := player_chunk.x - chunk_view_distance
+	var cx_max := player_chunk.x + chunk_view_distance + 1
+	var cy_min := player_chunk.y - chunk_view_distance
+	var cy_max := player_chunk.y + chunk_view_distance + 1
+	for cx: int in range(cx_min, cx_max):
+		for cy: int in range(cy_min, cy_max):
 			var cc: Vector2i = Vector2i(cx, cy)
 			if loaded_chunks.has(cc) or pending_chunks.has(cc) or _paint_chunk == cc:
 				continue
@@ -859,6 +914,7 @@ func _update_chunks_around_player() -> void:
 	pending_chunks = pending_chunks.filter(func(cc: Vector2i) -> bool:
 		return abs(cc.x - player_chunk.x) <= chunk_unload_distance and \
 			   abs(cc.y - player_chunk.y) <= chunk_unload_distance)
+
 
 func _paint_next_tiles() -> void:
 	var painted: int = 0
@@ -881,6 +937,7 @@ func _paint_next_tiles() -> void:
 		_paint_index += 1
 		painted += 1
 
+
 func _precompute_chunk(chunk_coord: Vector2i) -> void:
 	_paint_tiles.clear()
 	var start: Vector2i = chunk_to_start_tile(chunk_coord)
@@ -896,7 +953,9 @@ func _precompute_chunk(chunk_coord: Vector2i) -> void:
 
 	if not chunk_has_content:
 		for i: int in total:
-			_paint_tiles[i] = [Vector2i(start.x + i % chunk_size_tiles, start.y + i / chunk_size_tiles), null]
+			_paint_tiles[i] = [
+				Vector2i(start.x + i % chunk_size_tiles, start.y + i / chunk_size_tiles), null,
+			]
 		return
 
 	for i: int in total:
@@ -915,6 +974,7 @@ func _precompute_chunk(chunk_coord: Vector2i) -> void:
 
 	_spawn_cave_rocks_for_chunk(chunk_coord)
 
+
 func _apply_tile(tc: Vector2i, biome: BiomeType) -> void:
 	match biome:
 		BiomeType.WATER_LAKE:
@@ -929,6 +989,7 @@ func _apply_tile(tc: Vector2i, biome: BiomeType) -> void:
 		BiomeType.CAVE_FLOOR:
 			_tilemap.set_cell(0, tc, cave_source_id, cave_atlas)
 
+
 func _unload_chunk(cc: Vector2i) -> void:
 	pending_chunks.erase(cc)
 	if _paint_chunk == cc:
@@ -939,11 +1000,13 @@ func _unload_chunk(cc: Vector2i) -> void:
 	_despawn_cave_rocks_for_chunk(cc)
 	loaded_chunks.erase(cc)
 
+
 func _erase_chunk_tiles(cc: Vector2i) -> void:
 	var start: Vector2i = chunk_to_start_tile(cc)
 	for x: int in chunk_size_tiles:
 		for y: int in chunk_size_tiles:
 			_tilemap.erase_cell(0, Vector2i(start.x + x, start.y + y))
+
 
 func _spawn_cave_rocks_for_chunk(cc: Vector2i) -> void:
 	if not _packed_cave_rock_scene:
@@ -1009,6 +1072,7 @@ func _spawn_cave_rocks_for_chunk(cc: Vector2i) -> void:
 			_spawn_cave_rock(env_id, world_pos)
 			break
 
+
 func _spawn_cave_rock(env_id: String, world_pos: Vector2) -> void:
 	if _cave_active_rocks.has(env_id):
 		return
@@ -1021,6 +1085,7 @@ func _spawn_cave_rock(env_id: String, world_pos: Vector2) -> void:
 	scene_node.add_child(rock)
 	_cave_active_rocks[env_id] = rock
 
+
 func _despawn_cave_rocks_for_chunk(cc: Vector2i) -> void:
 	if not _cave_rock_positions.has(cc):
 		return
@@ -1030,6 +1095,7 @@ func _despawn_cave_rocks_for_chunk(cc: Vector2i) -> void:
 			if is_instance_valid(rock):
 				rock.queue_free()
 			_cave_active_rocks.erase(env_id)
+
 
 func _spawn_cave_exit() -> void:
 	if _cave_exit or not _packed_cave_exit_scene:
@@ -1045,10 +1111,12 @@ func _spawn_cave_exit() -> void:
 	_cave_exit.set_meta("cave_room_tile", _cave_exit_tile)
 	scene_node.add_child(_cave_exit)
 
+
 func _despawn_cave_exit() -> void:
 	if _cave_exit and is_instance_valid(_cave_exit):
 		_cave_exit.queue_free()
 	_cave_exit = null
+
 
 func _find_linked_overworld_entrance_tile(player_pos: Vector2) -> Vector2i:
 	if not _world_gen:
@@ -1063,14 +1131,17 @@ func _find_linked_overworld_entrance_tile(player_pos: Vector2) -> Vector2i:
 				best_pos = cave_pos
 	return _world_gen.world_to_tile(best_pos)
 
+
 func _cave_chunk_seed(cc: Vector2i, kind: String) -> int:
 	var kind_key: int = 7 if kind == "rock" else 0
 	return abs(world_seed ^ (cc.x * 374761393) ^ (cc.y * 1234567891) ^ (kind_key * 7919) ^ 99991)
+
 
 func world_to_tile(world_pos: Vector2) -> Vector2i:
 	if _tilemap:
 		return _tilemap.local_to_map(_tilemap.to_local(world_pos))
 	return Vector2i(floori(world_pos.x / 64), floori(world_pos.y / 64))
+
 
 func is_tile_solid(world_pos: Vector2) -> bool:
 	if not _active:
@@ -1084,26 +1155,32 @@ func is_tile_solid(world_pos: Vector2) -> bool:
 		return true
 	return false
 
+
 func _tile_to_world_center(tile: Vector2i) -> Vector2:
 	if _tilemap:
 		return _tilemap.to_global(_tilemap.map_to_local(tile))
 	return Vector2(tile) * 64.0 + Vector2(32.0, 32.0)
+
 
 func _get_tile_pixel_size() -> Vector2:
 	if _tilemap and _tilemap.tile_set:
 		return Vector2(_tilemap.tile_set.tile_size)
 	return Vector2(64.0, 64.0)
 
+
 func tile_to_chunk(tc: Vector2i) -> Vector2i:
 	return Vector2i(
 		floori(float(tc.x) / float(chunk_size_tiles)),
 		floori(float(tc.y) / float(chunk_size_tiles)))
 
+
 func chunk_to_start_tile(cc: Vector2i) -> Vector2i:
 	return Vector2i(cc.x * chunk_size_tiles, cc.y * chunk_size_tiles)
 
+
 func is_chunk_loaded(cc: Vector2i) -> bool:
 	return loaded_chunks.has(cc)
+
 
 func _find_tile_sources() -> void:
 	cave_source_id = -1
@@ -1140,8 +1217,10 @@ func _find_tile_sources() -> void:
 	if cave_source_id == -1:
 		push_error("CaveWorldGen: Could not find cave tile source '%s'" % cave_source_name)
 
+
 func _is_host() -> bool:
 	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
+
 
 func _check_locked_rooms_clear() -> void:
 	for room: RoomData in _rooms:
@@ -1163,8 +1242,11 @@ func _check_locked_rooms_clear() -> void:
 		if remaining <= 0:
 			_unlock_room(room)
 
+
 func _enemy_count_for_room(room: RoomData) -> int:
-	var count: int = combat_enemy_base_count + int(room.tile_size / 12) * combat_enemy_count_per_12_tiles
+	var count: int = (
+		combat_enemy_base_count + int(room.tile_size / 12) * combat_enemy_count_per_12_tiles
+	)
 	match room.room_type:
 		RoomType.NOVICE_FIGHT:
 			count += novice_fight_bonus_enemies
@@ -1175,6 +1257,7 @@ func _enemy_count_for_room(room: RoomData) -> int:
 		_:
 			count = 0
 	return max(0, count)
+
 
 func _spawn_room_enemies(room: RoomData, spawn_positions: Array) -> void:
 	if not _is_host():
@@ -1201,14 +1284,21 @@ func _spawn_room_enemies(room: RoomData, spawn_positions: Array) -> void:
 	if not animal_spawner.has_method("spawn_combat_night_enemy"):
 		room.enemy_count = 0
 		return
-	var selected_positions: Array[Vector2] = _pick_enemy_spawn_positions(room, spawn_positions, room.enemy_count)
+	var selected_positions: Array[Vector2] = _pick_enemy_spawn_positions(
+		room, spawn_positions, room.enemy_count,
+	)
 	room.enemy_count = selected_positions.size()
 	for spawn_pos: Vector2 in selected_positions:
 		var enemy: Node = animal_spawner.spawn_combat_night_enemy(spawn_pos, room.id)
 		if enemy and is_instance_valid(enemy):
 			room.spawned_enemy_ids.append(int(enemy.get("enemy_id")))
 
-func _pick_enemy_spawn_positions(room: RoomData, spawn_positions: Array, count: int) -> Array[Vector2]:
+
+func _pick_enemy_spawn_positions(
+	room: RoomData,
+	spawn_positions: Array,
+	count: int,
+) -> Array[Vector2]:
 	var selected: Array[Vector2] = []
 	if count <= 0 or spawn_positions.is_empty():
 		return selected
@@ -1238,6 +1328,7 @@ func _pick_enemy_spawn_positions(room: RoomData, spawn_positions: Array, count: 
 		selected.append(pos)
 	return selected
 
+
 func _is_spawn_position_clear(pos: Vector2) -> bool:
 	var tc: Vector2i = world_to_tile(pos)
 	if not _carved_tiles.has(tc):
@@ -1261,6 +1352,7 @@ func _is_spawn_position_clear(pos: Vector2) -> bool:
 	query.transform = Transform2D(0, pos)
 	query.collision_mask = 1
 	return space.intersect_shape(query).is_empty()
+
 
 func _find_night_enemy(enemy_id: int) -> Node:
 	for enemy: Node in get_tree().get_nodes_in_group("night_enemies"):

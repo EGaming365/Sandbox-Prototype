@@ -16,48 +16,12 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3gvfb"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.28627452, 0.6627451, 1, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m1t13"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
 content_margin_bottom = 4.0
 bg_color = Color(0.14509805, 0.84313726, 0.14509805, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gkbcv"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.8509804, 0.73333335, 0.06666667, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jllcs"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.8848507, 0.00063763617, 0.8868467, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
@@ -166,20 +130,6 @@ offset_right = 110.0
 offset_bottom = 91.00001
 color = Color(0.9137255, 0.015686275, 0.05882353, 1)
 
-[node name="Settings" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1557571044]
-custom_minimum_size = Vector2(110, 0)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_3gvfb")
-text = "Settings"
-
-[node name="SettingsMark" type="ColorRect" parent="PanelContainer/VBoxContainer/HBoxContainer/Settings" unique_id=731823402]
-z_index = 1
-layout_mode = 0
-offset_top = 66.00001
-offset_right = 110.0
-offset_bottom = 91.00001
-color = Color(0.28627452, 0.6627451, 1, 1)
-
 [node name="Collection" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1045155085]
 custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
@@ -193,34 +143,6 @@ offset_top = 66.00001
 offset_right = 110.0
 offset_bottom = 91.00001
 color = Color(0.14509805, 0.84313726, 0.14509805, 1)
-
-[node name="Mastery" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=1272633948]
-custom_minimum_size = Vector2(110, 0)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_gkbcv")
-text = "Mastery"
-
-[node name="MasteryMark" type="ColorRect" parent="PanelContainer/VBoxContainer/HBoxContainer/Mastery" unique_id=448154496]
-z_index = 1
-layout_mode = 0
-offset_top = 66.00001
-offset_right = 110.0
-offset_bottom = 91.00001
-color = Color(0.8509804, 0.73333335, 0.06666667, 1)
-
-[node name="Blank" type="Button" parent="PanelContainer/VBoxContainer/HBoxContainer" unique_id=21442252]
-custom_minimum_size = Vector2(110, 0)
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_jllcs")
-text = "Blank"
-
-[node name="BlankMark" type="ColorRect" parent="PanelContainer/VBoxContainer/HBoxContainer/Blank" unique_id=439073315]
-z_index = 1
-layout_mode = 0
-offset_top = 66.00001
-offset_right = 110.0
-offset_bottom = 91.00001
-color = Color(0.8862745, 0, 0.8862745, 1)
 
 [node name="Panel" type="Panel" parent="PanelContainer" unique_id=555028127]
 custom_minimum_size = Vector2(1500, 800)
@@ -238,11 +160,6 @@ offset_bottom = 872.0
 scale = Vector2(1.7124695, 0.83839905)
 
 [node name="GameSection" type="Control" parent="PanelContainer/MarginContainer" unique_id=195907522]
-anchors_preset = 0
-offset_right = 800.0
-offset_bottom = 800.0
-
-[node name="SettingsSection" type="Control" parent="PanelContainer/MarginContainer" unique_id=1933281212]
 anchors_preset = 0
 offset_right = 800.0
 offset_bottom = 800.0
@@ -284,20 +201,6 @@ offset_bottom = 105.59855
 scale = Vector2(1.2188665, 1.2188665)
 size_flags_horizontal = 0
 theme_override_constants/separation = 12
-
-[node name="Recipes" type="Button" parent="PanelContainer/MarginContainer/CollectionSection/HBoxContainer" unique_id=1933586050]
-custom_minimum_size = Vector2(60, 80)
-layout_mode = 2
-
-[node name="TextureRect" type="TextureRect" parent="PanelContainer/MarginContainer/CollectionSection/HBoxContainer/Recipes" unique_id=1469902294]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-texture = ExtResource("2_pnj3x")
-metadata/_edit_use_anchors_ = true
 
 [node name="Fish" type="Button" parent="PanelContainer/MarginContainer/CollectionSection/HBoxContainer" unique_id=1303737484]
 custom_minimum_size = Vector2(60, 80)
@@ -425,13 +328,3 @@ offset_left = 17.412048
 offset_top = 55.46353
 offset_right = 57.41205
 offset_bottom = 78.46353
-
-[node name="MasterySection" type="Control" parent="PanelContainer/MarginContainer" unique_id=1237271314]
-anchors_preset = 0
-offset_right = 800.0
-offset_bottom = 800.0
-
-[node name="BlankSection" type="Control" parent="PanelContainer/MarginContainer" unique_id=2021691386]
-anchors_preset = 0
-offset_right = 800.0
-offset_bottom = 800.0

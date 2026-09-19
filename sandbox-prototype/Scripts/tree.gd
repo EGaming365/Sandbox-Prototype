@@ -19,6 +19,7 @@ var _is_swaying: bool = false
 @export var sway_speed: float = 1.8
 @export var sway_enabled: bool = true
 
+
 func _ready():
 	add_to_group("trees")
 	z_index = 2
@@ -29,6 +30,7 @@ func _ready():
 	_inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	_hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	_setup_sway_shader()
+
 
 func _process(delta):
 	_update_sway(delta)
@@ -63,6 +65,7 @@ func _process(delta):
 			local_player.start_chop_cooldown(_get_chop_time(held_item))
 		do_chop(multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 1, held_item)
 
+
 func _get_chop_time(held_item: String) -> float:
 	match held_item:
 		"Stone Axe":
@@ -71,6 +74,7 @@ func _get_chop_time(held_item: String) -> float:
 			return 1.5
 		_:
 			return 2.0
+
 
 func do_chop(chopper_id: int = 1, held_item: String = ""):
 	var scene_node = get_tree().root.get_node("Scene")
@@ -96,6 +100,7 @@ func do_chop(chopper_id: int = 1, held_item: String = ""):
 		else:
 			queue_free()
 
+
 func _consume_axe(chopper_id: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	if multiplayer.has_multiplayer_peer() and chopper_id != multiplayer.get_unique_id():
@@ -113,15 +118,18 @@ func _consume_axe(chopper_id: int):
 		else:
 			Inventory.inventory_changed.emit()
 
+
 func _on_area_2d_body_entered(body):
 	if body is CharacterBody2D:
 		player_in_range = true
 		player_in_range_node = body
 
+
 func _on_area_2d_body_exited(body):
 	if body is CharacterBody2D:
 		player_in_range = false
 		player_in_range_node = null
+
 
 func _setup_sway_shader():
 	var shader := Shader.new()
@@ -156,6 +164,7 @@ void vertex() {
 
 	if sprite:
 		sprite.material = _sway_material
+
 
 func _update_sway(delta: float):
 	if not _sway_material or not sway_enabled:

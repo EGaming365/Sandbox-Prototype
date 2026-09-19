@@ -8,11 +8,13 @@ const ENABLED := true
 
 var _timer: float = 0.0
 
+
 func _ready() -> void:
 	if not ENABLED:
 		queue_free()
 		return
 	add_to_group("boss_eggs")
+
 
 func _process(delta: float) -> void:
 	if not ENABLED:
@@ -23,6 +25,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 	if _timer >= hatch_time:
 		_hatch()
+
 
 func _draw() -> void:
 	var pct := clampf(_timer / hatch_time, 0.0, 1.0)
@@ -35,10 +38,12 @@ func _draw() -> void:
 	draw_line(Vector2(-8, -8), Vector2(8, 8), web_col, 1.0)
 	draw_line(Vector2(8, -8), Vector2(-8, 8), web_col, 1.0)
 
+
 func take_damage(amount: int) -> void:
 	hp -= amount
 	if hp <= 0:
 		queue_free()
+
 
 func _hatch() -> void:
 	if enemy_scene:
