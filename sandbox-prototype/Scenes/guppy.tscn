@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ce6521paw1xl5"]
 
-[ext_resource type="Script" uid="uid://ds8d66by7ooc" path="res://Scenes/guppy.gd" id="1_nn5hy"]
+[ext_resource type="Script" uid="uid://ds8d66by7ooc" path="res://Scripts/guppy.gd" id="1_nn5hy"]
 [ext_resource type="Texture2D" uid="uid://yi4xh7s7b6sy" path="res://Assets/Fish_Guppy_Raw.png" id="2_ycc8v"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

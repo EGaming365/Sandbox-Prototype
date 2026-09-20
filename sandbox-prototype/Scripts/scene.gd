@@ -343,6 +343,14 @@ func _ready():
 	_spawn_player(1)
 	_show_steam_status_warning()
 	set_online_ui_visible(false)
+	_init_village()
+
+
+func _init_village() -> void:
+	var spawn_point = get_node_or_null("VillageSpawnPoint")
+	if spawn_point:
+		VillageManager.global_position = spawn_point.global_position
+	VillageManager.preload_village()
 
 
 func set_online_ui_visible(v: bool) -> void:

@@ -665,6 +665,7 @@ func lightning_strike_rpc(pos_x: float, pos_y: float):
 	var strike_pos = Vector2(pos_x, pos_y)
 	if lightning_flash_enabled:
 		lightning_alpha = rng.randf_range(0.55, 0.85)
+	SoundManager.play_thunder()
 	if _is_position_on_screen(strike_pos):
 		_show_lightning_strike(strike_pos)
 	_kill_players_hit_by_lightning(strike_pos)
@@ -691,6 +692,7 @@ func _set_weather(new_weather: WeatherType):
 	var raining: bool = current_weather == WeatherType.RAIN \
 		or current_weather == WeatherType.THUNDER \
 		or current_weather == WeatherType.THUNDERSTORM
+	SoundManager.set_raining(raining)
 	if rain_particles:
 		rain_particles.emitting = raining
 		rain_particles.set_storm_intensity(current_weather == WeatherType.THUNDERSTORM)

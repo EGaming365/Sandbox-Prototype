@@ -12,6 +12,7 @@ var _portrait_rect: TextureRect = null
 var _player_in_range: bool = false
 var _talking: bool = false
 var _reveal_chars: float = 0.0
+var _current_dialogue: String = ""
 
 
 func _ready() -> void:
@@ -30,8 +31,11 @@ func _process(delta: float) -> void:
 		_label.visible = _player_in_range and not _talking
 		_label.global_position = global_position + Vector2(-42, -92)
 	if _talking:
-		if _reveal_chars < dialogue_line.length():
-			_reveal_chars = min(_reveal_chars + chars_per_second * delta, dialogue_line.length())
+		if not _player_in_range:
+			_close_talk()
+			return
+		if _reveal_chars < _current_dialogue.length():
+			_reveal_chars = min(_reveal_chars + chars_per_second * delta, _current_dialogue.length())
 			_body_label.visible_characters = int(_reveal_chars)
 		if Input.is_action_just_pressed("exit"):
 			_close_talk()
@@ -40,7 +44,8 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if _talking:
-			_advance_talk()
+			if _player_in_range:
+				_advance_talk()
 		elif _player_in_range:
 			var player := _get_local_player()
 			if player and player.get("is_spectator") == true:
@@ -120,15 +125,37 @@ func _open_talk() -> void:
 		player.set("talking_to_npc", true)
 	_talking = true
 	_reveal_chars = 0.0
-	_body_label.text = dialogue_line
+	_current_dialogue = _build_dialogue()
+	_body_label.text = _current_dialogue
 	_body_label.visible_characters = 0
 	_talk_panel.visible = true
 	_talk_panel.global_position = global_position + Vector2(-220, -220)
 
 
+func _build_dialogue() -> String:
+	var achievements := _get_achievement_manager()
+	if not achievements:
+		return dialogue_line
+	var next_id: String = achievements.get_next_ordered_achievement()
+	if next_id == "":
+		return dialogue_line + " You've unlocked everything I know how to teach, well done!"
+	var data: Dictionary = achievements.ACHIEVEMENT_DATA.get(next_id, {})
+	var hint: String = data.get("hint", "")
+	if hint == "":
+		return dialogue_line
+	return dialogue_line + " Your next goal: " + hint
+
+
+func _get_achievement_manager() -> Node:
+	var scene := get_tree().root.get_node_or_null("Scene")
+	if not scene:
+		return null
+	return scene.get_node_or_null("Achivementmanager")
+
+
 func _advance_talk() -> void:
-	if _reveal_chars < dialogue_line.length():
-		_reveal_chars = dialogue_line.length()
+	if _reveal_chars < _current_dialogue.length():
+		_reveal_chars = _current_dialogue.length()
 		_body_label.visible_characters = int(_reveal_chars)
 		return
 	_close_talk()

@@ -5,14 +5,12 @@ extends Control
 	"PanelContainer/HBoxContainer/Left/ScrollContainer/MarginContainer/GridContainer",
 )
 
-var tabs = ["Body", "Accessories", "Hair", "Shirt", "Pants"]
-var current_tab: String = "Body"
+var tabs = ["Hair", "Shirt", "Pants"]
+var current_tab: String = "Hair"
 var selected_options: Dictionary = {
-	"Body": "Skin 1",
-	"Accessories": "None",
-	"Hair": "Basic",
-	"Shirt": "Basic",
-	"Pants": "Basic",
+	"Hair": "On",
+	"Shirt": "On",
+	"Pants": "On",
 }
 
 
@@ -33,7 +31,7 @@ func _setup_tabs():
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_tab_pressed.bind(tab_name))
 		tab_buttons.add_child(btn)
-	_on_tab_pressed("Body")
+	_on_tab_pressed("Hair")
 
 
 func _on_tab_pressed(tab_name: String):
@@ -61,17 +59,7 @@ func _highlight_active_tab():
 func _load_tab_contents(tab_name: String):
 	for child in grid.get_children():
 		child.queue_free()
-	match tab_name:
-		"Body":
-			_add_options(["Skin 1", "Skin 2", "Skin 3", "Skin 4"])
-		"Accessories":
-			_add_options(["None", "Hat", "Glasses", "Earring"])
-		"Hair":
-			_add_options(["None", "Basic"])
-		"Shirt":
-			_add_options(["None", "Basic"])
-		"Pants":
-			_add_options(["None", "Basic"])
+	_add_options(["On", "Off"])
 
 
 func _add_options(option_names: Array):
@@ -110,19 +98,19 @@ func _on_option_pressed(option_name: String):
 		"Hair":
 			var sprite = player.get_node_or_null("Hair_Sprite")
 			if sprite:
-				sprite.visible = option_name != "None"
+				sprite.visible = option_name == "On"
 				if sprite.visible:
 					sprite.play(player.anim.animation)
 		"Shirt":
 			var sprite = player.get_node_or_null("Shirt_Sprite")
 			if sprite:
-				sprite.visible = option_name != "None"
+				sprite.visible = option_name == "On"
 				if sprite.visible:
 					sprite.play(player.anim.animation)
 		"Pants":
 			var sprite = player.get_node_or_null("Pants_Sprite")
 			if sprite:
-				sprite.visible = option_name != "None"
+				sprite.visible = option_name == "On"
 				if sprite.visible:
 					sprite.play(player.anim.animation)
 	player.apply_cosmetics(

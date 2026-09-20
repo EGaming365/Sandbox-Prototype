@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ulgth6ds4w1h"]
 
-[ext_resource type="Script" uid="uid://cgxwkhvk486sc" path="res://Scenes/ghost_eel.gd" id="1_uj0sm"]
+[ext_resource type="Script" uid="uid://cgxwkhvk486sc" path="res://Scripts/ghost_eel.gd" id="1_uj0sm"]
 [ext_resource type="Texture2D" uid="uid://dd3itrvu74m2m" path="res://Assets/Fish_Ghost_Eel_Raw.png" id="2_u1b2g"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

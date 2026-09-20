@@ -34,13 +34,16 @@ func toggle():
 		show()
 		_just_opened = true
 		_switch_section(current_section)
-		_set_online_ui(true)
 
 
 func close_ui():
 	hide()
 	_close_info_panel()
-	_set_online_ui(false)
+	_sync_online_ui()
+
+
+func _sync_online_ui() -> void:
+	_set_online_ui(visible and current_section == "game")
 
 
 func _set_online_ui(v: bool) -> void:
@@ -282,6 +285,7 @@ func _switch_section(section: String):
 		marks[key].visible = (key == section)
 	if section == "collection":
 		_build_fish_panel()
+	_sync_online_ui()
 
 
 func _get_panel() -> Node:

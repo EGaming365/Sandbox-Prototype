@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bcw00q1443tqi"]
 
-[ext_resource type="Script" uid="uid://57whnlar4b04" path="res://Scenes/snapper.gd" id="1_teyth"]
+[ext_resource type="Script" uid="uid://57whnlar4b04" path="res://Scripts/snapper.gd" id="1_teyth"]
 [ext_resource type="Texture2D" uid="uid://dax55ib7mbrlt" path="res://Assets/Fish_Snapper_Raw.png" id="2_kswus"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

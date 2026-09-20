@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c6yu1kungelo7"]
 
-[ext_resource type="Script" uid="uid://bm4q6fwyt10b3" path="res://Scenes/crystal_creeper.gd" id="1_k8he5"]
+[ext_resource type="Script" uid="uid://bm4q6fwyt10b3" path="res://Scripts/crystal_creeper.gd" id="1_k8he5"]
 [ext_resource type="Texture2D" uid="uid://beedxdi2wmduo" path="res://Assets/Fish_Crystal_Creeper_Raw.png" id="2_8p24s"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xvnr3"]

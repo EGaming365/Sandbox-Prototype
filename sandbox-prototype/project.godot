@@ -24,6 +24,9 @@ AnimalSpawner="*uid://dngajdl8sw05c"
 Loading_Screens="*uid://bntvgvq510n6m"
 FishingManager="*uid://b8trf3tx7dses"
 BossManager="*uid://dofmtuaabrvhw"
+SettingsManager="*uid://dwwa7mrkbo0u6"
+VillageManager="*uid://b2e3bcosld5nu"
+SoundManager="*uid://dcl0jh87yviki"
 
 [display]
 
