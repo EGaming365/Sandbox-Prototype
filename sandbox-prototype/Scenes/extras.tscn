@@ -45,6 +45,12 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3gvfb"]
+bg_color = Color(0.41960785, 0.19607843, 0.007843138, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gkbcv"]
+bg_color = Color(0.8, 0.49019608, 0.23137255, 1)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pnj3x"]
 content_margin_left = 0.0
 content_margin_top = 0.0
@@ -163,6 +169,156 @@ scale = Vector2(1.7124695, 0.83839905)
 anchors_preset = 0
 offset_right = 800.0
 offset_bottom = 800.0
+
+[node name="Volume" type="Control" parent="PanelContainer/MarginContainer/GameSection" unique_id=1639623770]
+anchors_preset = 0
+offset_left = 2.335808
+offset_right = 42.335808
+offset_bottom = 40.0
+
+[node name="Panel2" type="Panel" parent="PanelContainer/MarginContainer/GameSection/Volume" unique_id=1679295033]
+custom_minimum_size = Vector2(450, 80)
+layout_mode = 0
+offset_left = -28.613647
+offset_top = 169.37044
+offset_right = 451.38635
+offset_bottom = 249.37045
+scale = Vector2(0.99861026, 1.2529223)
+theme_override_styles/panel = SubResource("StyleBoxFlat_3gvfb")
+
+[node name="Panel" type="Panel" parent="PanelContainer/MarginContainer/GameSection/Volume" unique_id=908011631]
+custom_minimum_size = Vector2(100, 80)
+layout_mode = 0
+offset_left = -18.686462
+offset_top = 183.68343
+offset_right = 461.31354
+offset_bottom = 263.68344
+scale = Vector2(0.9562636, 0.8438099)
+theme_override_styles/panel = SubResource("StyleBoxFlat_gkbcv")
+
+[node name="HSlider" type="HSlider" parent="PanelContainer/MarginContainer/GameSection/Volume" unique_id=708816462]
+custom_minimum_size = Vector2(450, 50)
+layout_mode = 0
+offset_left = -9.927185
+offset_top = 120.4677
+offset_right = 440.0728
+offset_bottom = 320.4677
+scale = Vector2(0.9846993, 1)
+
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/GameSection/Volume" unique_id=1059553136]
+texture_filter = 1
+texture_repeat = 1
+layout_mode = 0
+offset_left = -27.445744
+offset_top = 97.80546
+offset_right = 75.55426
+offset_bottom = 178.80545
+scale = Vector2(0.8596193, 1.6017203)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0.46618086, 0.4661808, 0.4661808, 1)
+theme_override_font_sizes/font_size = 28
+text = "Total Volume
+"
+
+[node name="Darkness" type="Control" parent="PanelContainer/MarginContainer/GameSection" unique_id=1090199291]
+anchors_preset = 0
+offset_left = 2.335808
+offset_top = 180.10516
+offset_right = 42.335808
+offset_bottom = 220.10516
+
+[node name="Panel2" type="Panel" parent="PanelContainer/MarginContainer/GameSection/Darkness" unique_id=329274093]
+custom_minimum_size = Vector2(450, 80)
+layout_mode = 0
+offset_left = -28.613647
+offset_top = 169.37044
+offset_right = 451.38635
+offset_bottom = 249.37045
+scale = Vector2(0.99861026, 1.2529223)
+theme_override_styles/panel = SubResource("StyleBoxFlat_3gvfb")
+
+[node name="Panel" type="Panel" parent="PanelContainer/MarginContainer/GameSection/Darkness" unique_id=1922636942]
+custom_minimum_size = Vector2(100, 80)
+layout_mode = 0
+offset_left = -18.686462
+offset_top = 183.68343
+offset_right = 461.31354
+offset_bottom = 263.68344
+scale = Vector2(0.9562636, 0.8438099)
+theme_override_styles/panel = SubResource("StyleBoxFlat_gkbcv")
+
+[node name="HSlider" type="HSlider" parent="PanelContainer/MarginContainer/GameSection/Darkness" unique_id=776608961]
+custom_minimum_size = Vector2(450, 50)
+layout_mode = 0
+offset_left = -9.927185
+offset_top = 120.4677
+offset_right = 440.0728
+offset_bottom = 320.4677
+scale = Vector2(0.9846993, 1)
+
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/GameSection/Darkness" unique_id=341482937]
+texture_filter = 1
+texture_repeat = 1
+layout_mode = 0
+offset_left = -27.445744
+offset_top = 97.80546
+offset_right = 75.55426
+offset_bottom = 178.80545
+scale = Vector2(0.8596193, 1.6017203)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0.46618086, 0.4661808, 0.4661808, 1)
+theme_override_font_sizes/font_size = 28
+text = "Darkness Thickness"
+
+[node name="Render" type="Control" parent="PanelContainer/MarginContainer/GameSection" unique_id=1261420002]
+anchors_preset = 0
+offset_left = 2.335808
+offset_top = 367.36682
+offset_right = 42.335808
+offset_bottom = 407.36682
+
+[node name="Panel2" type="Panel" parent="PanelContainer/MarginContainer/GameSection/Render" unique_id=873710666]
+custom_minimum_size = Vector2(450, 80)
+layout_mode = 0
+offset_left = -28.613647
+offset_top = 169.37044
+offset_right = 451.38635
+offset_bottom = 249.37045
+scale = Vector2(0.99861026, 1.2529223)
+theme_override_styles/panel = SubResource("StyleBoxFlat_3gvfb")
+
+[node name="Panel" type="Panel" parent="PanelContainer/MarginContainer/GameSection/Render" unique_id=1578120147]
+custom_minimum_size = Vector2(100, 80)
+layout_mode = 0
+offset_left = -18.686462
+offset_top = 183.68343
+offset_right = 461.31354
+offset_bottom = 263.68344
+scale = Vector2(0.9562636, 0.8438099)
+theme_override_styles/panel = SubResource("StyleBoxFlat_gkbcv")
+
+[node name="HSlider" type="HSlider" parent="PanelContainer/MarginContainer/GameSection/Render" unique_id=328855414]
+custom_minimum_size = Vector2(450, 50)
+layout_mode = 0
+offset_left = -9.927185
+offset_top = 120.4677
+offset_right = 440.0728
+offset_bottom = 320.4677
+scale = Vector2(0.9846993, 1)
+
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/GameSection/Render" unique_id=3844849]
+texture_filter = 1
+texture_repeat = 1
+layout_mode = 0
+offset_left = -27.445744
+offset_top = 97.80546
+offset_right = 75.55426
+offset_bottom = 178.80545
+scale = Vector2(0.8596193, 1.6017203)
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0.46618086, 0.4661808, 0.4661808, 1)
+theme_override_font_sizes/font_size = 28
+text = "Render Distance"
 
 [node name="CollectionSection" type="Control" parent="PanelContainer/MarginContainer" unique_id=148449411]
 custom_minimum_size = Vector2(0, 300)

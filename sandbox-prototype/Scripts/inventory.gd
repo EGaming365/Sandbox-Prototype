@@ -39,6 +39,16 @@ var lionfish_texture = preload("res://Assets/Fish_Lionfish_Raw.png")
 var blue_tang_texture = preload("res://Assets/Fish_Blue_Tang_Raw.png")
 var tire_texture = preload("res://Assets/Trash_Tire.png")
 var red_tang_texture = preload("res://Assets/Fish_Red_Tang_Raw.png")
+var guppy_texture = preload("res://Assets/Fish_Guppy_Raw.png")
+var snapper_texture = preload("res://Assets/Fish_Snapper_Raw.png")
+var muskie_texture = preload("res://Assets/Fish_Muskie_Raw.png")
+var ghost_eel_texture = preload("res://Assets/Fish_Ghost_Eel_Raw.png")
+var crystal_creeper_texture = preload("res://Assets/Fish_Crystal_Creeper_Raw.png")
+
+const FISHING_MANAGER_SCRIPT = preload("res://Scripts/FishingManager.gd")
+
+@export var icon_size: int = 64
+@export var fish_texture_path_format: String = "res://Assets/Fish_%s_Raw.png"
 
 var TEXTURE_MAP: Dictionary = {}
 
@@ -58,6 +68,11 @@ var non_stackable_items = [
 	"Blue Tang", "Albino Blue Tang",
 	"Tire", "Albino Tire",
 	"Red Tang", "Albino Red Tang",
+	"Guppy", "Albino Guppy",
+	"Snapper", "Albino Snapper",
+	"Muskie", "Albino Muskie",
+	"Ghost Eel", "Albino Ghost Eel",
+	"Crystal Creeper", "Albino Crystal Creeper",
 	"Copper Fishing Rod",
 ]
 var discovered_items: Dictionary = {}
@@ -112,16 +127,27 @@ func _ready():
 		"Albino Tire": tire_texture,
 		"Red Tang": red_tang_texture,
 		"Albino Red Tang": red_tang_texture,
+		"Guppy": guppy_texture,
+		"Albino Guppy": guppy_texture,
+		"Snapper": snapper_texture,
+		"Albino Snapper": snapper_texture,
+		"Muskie": muskie_texture,
+		"Albino Muskie": muskie_texture,
+		"Ghost Eel": ghost_eel_texture,
+		"Albino Ghost Eel": ghost_eel_texture,
+		"Crystal Creeper": crystal_creeper_texture,
+		"Albino Crystal Creeper": crystal_creeper_texture,
 		"Stone Fishing Rod": stone_fishing_rod_texture,
 		"Copper Fishing Rod": copper_fishing_rod_texture,
 	}
+	_auto_register_fish_textures(textures_to_resize)
 	TEXTURE_MAP = {}
 	for item_name in textures_to_resize:
 		var tex = textures_to_resize[item_name]
 		if tex:
 			var img = tex.get_image()
 			if img:
-				img.resize(64, 64, Image.INTERPOLATE_NEAREST)
+				img.resize(icon_size, icon_size, Image.INTERPOLATE_NEAREST)
 				TEXTURE_MAP[item_name] = ImageTexture.create_from_image(img)
 			else:
 				TEXTURE_MAP[item_name] = tex
@@ -131,6 +157,30 @@ func _ready():
 		slots.append({"item": "", "count": 0, "texture": null})
 	for i in max_inv_slots:
 		inv_slots.append({"item": "", "count": 0, "texture": null})
+
+
+func _auto_register_fish_textures(target: Dictionary) -> void:
+	for fish in FISHING_MANAGER_SCRIPT.FISH_TABLE:
+		var fish_name: String = fish.get("name", "")
+		if fish_name == "":
+			continue
+		var albino_name = "Albino " + fish_name
+		if not non_stackable_items.has(fish_name):
+			non_stackable_items.append(fish_name)
+		if not non_stackable_items.has(albino_name):
+			non_stackable_items.append(albino_name)
+		if target.has(fish_name) and target[fish_name] != null:
+			if not target.has(albino_name) or target[albino_name] == null:
+				target[albino_name] = target[fish_name]
+			continue
+		var path = fish_texture_path_format % fish_name.replace(" ", "_")
+		if not ResourceLoader.exists(path):
+			continue
+		var tex = load(path)
+		if tex == null:
+			continue
+		target[fish_name] = tex
+		target[albino_name] = tex
 
 
 func get_texture(item_name: String) -> Texture2D:

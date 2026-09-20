@@ -138,33 +138,6 @@ scale = Vector2(-3.2511845, -3.2511845)
 texture = ExtResource("6_r152n")
 script = ExtResource("6_f6sb3")
 
-[node name="Host_Button" type="Button" parent="CanvasLayer" unique_id=312288432]
-offset_left = 15.0
-offset_top = 62.0
-offset_right = 66.0
-offset_bottom = 93.0
-mouse_filter = 2
-text = "HOST"
-script = ExtResource("7_lnogb")
-
-[node name="Join_Button" type="Button" parent="CanvasLayer" unique_id=2066378626]
-offset_left = 15.0
-offset_top = 93.0
-offset_right = 58.0
-offset_bottom = 124.0
-mouse_filter = 2
-disabled = true
-text = "JOIN"
-script = ExtResource("8_20iik")
-
-[node name="id_prompt" type="LineEdit" parent="CanvasLayer" unique_id=1714424938]
-offset_left = 15.0
-offset_top = 124.0
-offset_right = 83.5
-offset_bottom = 155.0
-mouse_filter = 2
-script = ExtResource("9_rcvm1")
-
 [node name="Crafting_Menu" parent="CanvasLayer" unique_id=1623652309 instance=ExtResource("10_20iik")]
 mouse_filter = 2
 
@@ -206,6 +179,32 @@ mouse_filter = 2
 
 [node name="Extras" parent="CanvasLayer" unique_id=928061240 instance=ExtResource("19_u8y8g")]
 mouse_filter = 2
+
+[node name="Host_Button" type="Button" parent="CanvasLayer" unique_id=312288432]
+offset_left = 247.0
+offset_top = 872.0
+offset_right = 298.0
+offset_bottom = 903.0
+mouse_filter = 2
+text = "HOST"
+script = ExtResource("7_lnogb")
+
+[node name="Join_Button" type="Button" parent="CanvasLayer" unique_id=2066378626]
+offset_left = 305.0
+offset_top = 872.0
+offset_right = 348.0
+offset_bottom = 903.0
+mouse_filter = 2
+disabled = true
+text = "JOIN"
+script = ExtResource("8_20iik")
+
+[node name="id_prompt" type="LineEdit" parent="CanvasLayer" unique_id=1714424938]
+offset_left = 350.0
+offset_top = 872.0
+offset_right = 418.5
+offset_bottom = 903.0
+script = ExtResource("9_rcvm1")
 
 [node name="TileMap" type="TileMap" parent="." unique_id=1504340798]
 z_index = -4096
