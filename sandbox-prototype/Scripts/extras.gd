@@ -21,8 +21,32 @@ func _ready():
 	hide()
 	_connect_nav()
 	_cache_base_colors()
+	_setup_settings_sliders()
 	_switch_section("game")
 	get_viewport().gui_focus_changed.connect(func(_c): pass)
+
+
+func _setup_settings_sliders():
+	var volume_slider := $PanelContainer/MarginContainer/GameSection/Volume/HSlider as HSlider
+	volume_slider.min_value = 0.0
+	volume_slider.max_value = 100.0
+	volume_slider.step = 1.0
+	volume_slider.value = SettingsManager.master_volume
+	volume_slider.value_changed.connect(func(v): SettingsManager.set_master_volume(v))
+
+	var darkness_slider := $PanelContainer/MarginContainer/GameSection/Darkness/HSlider as HSlider
+	darkness_slider.min_value = 0.0
+	darkness_slider.max_value = 100.0
+	darkness_slider.step = 1.0
+	darkness_slider.value = SettingsManager.darkness
+	darkness_slider.value_changed.connect(func(v): SettingsManager.set_darkness(v))
+
+	var render_slider := $PanelContainer/MarginContainer/GameSection/Render/HSlider as HSlider
+	render_slider.min_value = 1.0
+	render_slider.max_value = 10.0
+	render_slider.step = 1.0
+	render_slider.value = float(SettingsManager.render_distance)
+	render_slider.value_changed.connect(func(v): SettingsManager.set_render_distance(int(v)))
 
 var _just_opened: bool = false
 
@@ -34,16 +58,13 @@ func toggle():
 		show()
 		_just_opened = true
 		_switch_section(current_section)
+		_set_online_ui(true)
 
 
 func close_ui():
 	hide()
 	_close_info_panel()
-	_sync_online_ui()
-
-
-func _sync_online_ui() -> void:
-	_set_online_ui(visible and current_section == "game")
+	_set_online_ui(false)
 
 
 func _set_online_ui(v: bool) -> void:
@@ -285,7 +306,6 @@ func _switch_section(section: String):
 		marks[key].visible = (key == section)
 	if section == "collection":
 		_build_fish_panel()
-	_sync_online_ui()
 
 
 func _get_panel() -> Node:

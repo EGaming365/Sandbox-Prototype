@@ -320,6 +320,13 @@ theme_override_colors/font_outline_color = Color(0.46618086, 0.4661808, 0.466180
 theme_override_font_sizes/font_size = 28
 text = "Render Distance"
 
+[node name="Dropdown" type="Panel" parent="PanelContainer/MarginContainer/GameSection" unique_id=424258934]
+layout_mode = 0
+offset_left = -31.533401
+offset_top = 771.70886
+offset_right = 115.62251
+offset_bottom = 831.70886
+
 [node name="CollectionSection" type="Control" parent="PanelContainer/MarginContainer" unique_id=148449411]
 custom_minimum_size = Vector2(0, 300)
 anchors_preset = 0
@@ -403,13 +410,6 @@ offset_right = 800.32544
 offset_bottom = 81.59763
 scale = Vector2(10.950758, 11.843295)
 color = Color(0.16924512, 0.16924536, 0.16924521, 1)
-
-[node name="Dropdown" type="Panel" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=424258934]
-layout_mode = 0
-offset_left = 19.07032
-offset_top = 760.4903
-offset_right = 219.07031
-offset_bottom = 820.4903
 
 [node name="Info" type="Control" parent="PanelContainer/MarginContainer/CollectionSection" unique_id=1379341296]
 anchors_preset = 0
