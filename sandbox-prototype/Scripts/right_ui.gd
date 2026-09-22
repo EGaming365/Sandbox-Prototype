@@ -1,5 +1,11 @@
+# Right hand HUD.
+# Shows the weather, time of day, season and event icons, and runs the hunger and thirst system.
+# Hunger and thirst drain over time, refill from water, slowly heal the player and eventually cause damage.
+
 extends Control
+# Icons and labels in the HUD that show the current weather, time, event and season.
 @onready var weather_icon: TextureRect = $WeatherIcon
+# Progress bars showing how full the player's hunger and thirst are.
 @onready var hunger_bar: ProgressBar = $HBoxContainer/HungerBar
 @onready var thirst_bar: ProgressBar = $HBoxContainer/ThirstBar
 @onready var time_icon: TextureRect = $TimeIcon
@@ -9,6 +15,7 @@ extends Control
 @onready var event_info: Label = $EventInfo
 @onready var weather_info: Label = $WeatherInfo
 
+# Pictures for each type of weather, in the same order as the weather system's types.
 var tex_clear = preload("res://Assets/Weather_Clear.png")
 var tex_rain = preload("res://Assets/Weather_Rain.png")
 var tex_thunder = preload("res://Assets/Weather_Thunder.png")
@@ -16,36 +23,58 @@ var tex_thunderstorm = preload("res://Assets/Weather_Thunderstorm.png")
 var tex_wind = preload("res://Assets/Weather_Wind.png")
 var tex_foggy = preload("res://Assets/Weather_Foggy.png")
 var tex_mist = preload("res://Assets/Weather_Mist.png")
+# Pictures for the time of day.
 var tex_day = preload("res://Assets/Time_Day.png")
 var tex_night = preload("res://Assets/Time_Night.png")
 var tex_morning = preload("res://Assets/Time_Morning.png")
 var tex_evening = preload("res://Assets/Time_Evening.png")
+# Picture for the aurora event.
 var tex_aurora_borealis = preload("res://Assets/Event_Aurora_Borealis.png")
+# Pictures for each season.
 var tex_spring = preload("res://Assets/Season_Spring.png")
 var tex_summer = preload("res://Assets/Season_Summer.png")
 var tex_autumn = preload("res://Assets/Season_Autumn.png")
 var tex_winter = preload("res://Assets/Season_Winter.png")
 
+# Current hunger from 0 to 100. The player starves at zero.
 var hunger: float = 100.0
+# Current thirst from 0 to 100. The player dehydrates at zero.
 var thirst: float = 100.0
+# How much hunger is lost per second while moving.
 var hunger_drain: float = 0.2
+# How much thirst is lost per second while moving.
 var thirst_drain: float = 0.25
+# Seconds since the player last took damage from hunger or thirst.
 var damage_timer: float = 0.0
+# Seconds between each point of starvation damage.
 var damage_interval: float = 3.0
+# How much thirst is regained per second while standing in water.
 var thirst_refill_rate: float = 18.0
+# Stops the death message being sent more than once.
 var death_message_sent: bool = false
+# Seconds between each point of natural healing.
 var regen_interval: float = 5.0
+# Health restored each time the player heals.
 var regen_amount: int = 1
+# Hunger must be at least this high for the player to heal.
 var regen_hunger_min: float = 30.0
+# Thirst must be at least this high for the player to heal.
 var regen_thirst_min: float = 20.0
+# Seconds since the player last healed.
 var regen_timer: float = 0.0
+# Health value used for regeneration. It is not currently used.
 var regen_max_health: float = 10.0
+# Hunger and thirst drain more slowly while standing still.
 var idle_drain_multiplier: float = 0.1
+# Hunger and thirst drain much faster while the player is healing.
 var healing_drain_multiplier: float = 10.0
+# Coloured overlay that glows during an aurora.
 var aurora_glow_rect: ColorRect
+# Position in the aurora colour cycle.
 var _aurora_glow_phase: float = 0.0
 
 
+# Fills the bars, hides the info labels and styles the text once the weather system is ready.
 func _ready():
 	hunger_bar.max_value = 100
 	hunger_bar.value = 100
@@ -57,6 +86,7 @@ func _ready():
 	weather_info.visible = false
 	$EventDisplay.visible = false
 	_setup_icon_hover()
+	# Wait one frame so the weather system exists before reading the season from it.
 	await get_tree().process_frame
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if weather:
@@ -73,6 +103,7 @@ func _ready():
 	$EffectLabel.visible = false
 
 
+# Shows an information label while the mouse is over the weather, event or season icon.
 func _setup_icon_hover():
 	weather_icon.mouse_filter = Control.MOUSE_FILTER_PASS
 	time_icon.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -93,6 +124,7 @@ func _setup_icon_hover():
 	$SeasonDisplay.mouse_exited.connect(func(): season_info.visible = false)
 
 
+# Shows the label with the given text, or hides it if the text is empty.
 func _show_info(label: Label, text: String):
 	if text == "":
 		label.visible = false
@@ -101,6 +133,7 @@ func _show_info(label: Label, text: String):
 	label.visible = true
 
 
+# Returns the name of the current weather. The numbers match the weather system's types.
 func _get_weather_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if not weather:
@@ -116,6 +149,7 @@ func _get_weather_text() -> String:
 	return ""
 
 
+# Returns the name of the current time of day from the time fraction.
 func _get_time_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if not weather:
@@ -130,6 +164,7 @@ func _get_time_text() -> String:
 	return "Night"
 
 
+# Returns the name of the current special event, or an empty string.
 func _get_event_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if weather and weather.aurora_active:
@@ -137,6 +172,7 @@ func _get_event_text() -> String:
 	return ""
 
 
+# Returns the name of the current season.
 func _get_season_text() -> String:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	if not weather:
@@ -149,9 +185,11 @@ func _get_season_text() -> String:
 	return ""
 
 
+# Every frame: updates the icons, drains and refills hunger and thirst, shows luck effects, heals the player and applies starvation damage.
 func _process(delta):
 	var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
 	if weather_node:
+		# Show the icon that matches the current weather.
 		match weather_node.current_weather:
 			0: weather_icon.texture = tex_clear
 			1: weather_icon.texture = tex_rain
@@ -169,29 +207,33 @@ func _process(delta):
 			time_icon.texture = tex_morning
 		else:
 			time_icon.texture = tex_night
+	# Show the event display only while an aurora is active.
 	var event_display = $EventDisplay
 	if event_display:
 		var weather = get_tree().root.get_node_or_null("Scene/Weather")
 		event_display.visible = weather != null and weather.aurora_active
 
+	# Find the local player, and check whether they are standing in water.
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 	var in_water = false
 	var player: CharacterBody2D = null
-	for p in get_tree().get_nodes_in_group("players"):
-		if p is CharacterBody2D:
-			if not multiplayer.has_multiplayer_peer() or p.is_multiplayer_authority():
-				player = p
+	for candidate_player in get_tree().get_nodes_in_group("players"):
+		if candidate_player is CharacterBody2D:
+			if not multiplayer.has_multiplayer_peer() or candidate_player.is_multiplayer_authority():
+				player = candidate_player
 				break
 
 	if player and world_gen and world_gen.has_method("is_water_at"):
 		in_water = world_gen.is_water_at(player.global_position)
 
+	# Work out whether the player is moving, and whether they are healing.
 	var is_moving = player != null and player.velocity.length() > 0
 	var is_healing = player != null \
 		and hunger >= regen_hunger_min \
 		and thirst >= regen_thirst_min \
 		and player.synced_health < player.max_health
 
+	# Hunger and thirst drain fastest while healing and slowest while standing still.
 	var drain_multiplier: float
 	if is_healing:
 		drain_multiplier = healing_drain_multiplier
@@ -200,6 +242,7 @@ func _process(delta):
 	else:
 		drain_multiplier = idle_drain_multiplier
 
+	# Lose hunger over time. Thirst is lost the same way, or regained while standing in water.
 	hunger -= hunger_drain * drain_multiplier * delta
 	if in_water:
 		thirst += thirst_refill_rate * delta
@@ -213,21 +256,23 @@ func _process(delta):
 	if is_instance_valid(thirst_bar):
 		thirst_bar.value = thirst
 
-	var w = get_tree().root.get_node_or_null("Scene/Weather")
+	# Work out the luck bonuses from the weather and events, and list them in the effects label.
+	var weather_system = get_tree().root.get_node_or_null("Scene/Weather")
 
 	var cave_gen_node = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	var player_in_cave: bool = cave_gen_node != null and cave_gen_node.get("in_cave") == true
 
+	# Luck is multiplied by an aurora, by rain and by a rainbow, but not by rain while in the cave.
 	var luck_multi: float = 1.0
-	if w:
-		if w.aurora_active:
+	if weather_system:
+		if weather_system.aurora_active:
 			luck_multi *= 9.0
 		if not player_in_cave:
-			if w.current_weather == w.WeatherType.RAIN or \
-			   w.current_weather == w.WeatherType.THUNDER or \
-			   w.current_weather == w.WeatherType.THUNDERSTORM:
+			if weather_system.current_weather == weather_system.WeatherType.RAIN or \
+			   weather_system.current_weather == weather_system.WeatherType.THUNDER or \
+			   weather_system.current_weather == weather_system.WeatherType.THUNDERSTORM:
 				luck_multi *= 1.5
-			if w.day_event == "Rainbow":
+			if weather_system.day_event == "Rainbow":
 				luck_multi *= 5.0
 
 	var effect_lines: Array = []
@@ -238,19 +283,21 @@ func _process(delta):
 		else:
 			luck_str = str(snappedf(luck_multi, 0.1))
 		effect_lines.append("Luck: " + luck_str + "x")
-	if w and w.day_event == "Divine Blessing":
+	if weather_system and weather_system.day_event == "Divine Blessing":
 		effect_lines.append("Mutations: 4x")
 
+	# Show the active effects in green, or gold for the divine blessing.
 	if effect_lines.size() > 0:
 		$EffectLabel.text = "\n".join(effect_lines)
 		$EffectLabel.visible = true
-		if w and w.day_event == "Divine Blessing":
+		if weather_system and weather_system.day_event == "Divine Blessing":
 			$EffectLabel.add_theme_color_override("font_color", Color(1.0, 0.82, 0.1, 1.0))
 		else:
 			$EffectLabel.add_theme_color_override("font_color", Color.GREEN)
 	else:
 		$EffectLabel.visible = false
 
+	# Heal the player at regular intervals while they are well fed and hydrated.
 	if hunger >= regen_hunger_min and thirst >= regen_thirst_min:
 		regen_timer += delta
 		if regen_timer >= regen_interval:
@@ -260,6 +307,7 @@ func _process(delta):
 	else:
 		regen_timer = 0.0
 
+	# Nothing more to do while the player is not starving, so reset the damage timer.
 	if hunger > 0.0 and thirst > 0.0:
 		damage_timer = 0.0
 		death_message_sent = false
@@ -273,6 +321,7 @@ func _process(delta):
 		return
 
 	damage_timer = 0.0
+	# Work out what the player is suffering from, for the death message.
 	var death_cause := ""
 	if hunger <= 0.0 and thirst <= 0.0:
 		death_cause = "hunger and thirst"
@@ -281,12 +330,14 @@ func _process(delta):
 	else:
 		death_cause = "hunger"
 
-	var prev_health = player.synced_health
+	# Hurt the player, and announce the cause if the damage killed them.
+	var health_before_damage = player.synced_health
 	player.take_damage(1)
-	if not death_message_sent and (player.synced_health <= 0 or prev_health <= 1):
+	if not death_message_sent and (player.synced_health <= 0 or health_before_damage <= 1):
 		death_message_sent = true
 		_send_death_message(death_cause)
 
+	# Animate the aurora glow. This is only reached after a starvation damage tick because of the returns above.
 	if aurora_glow_rect:
 		var weather = get_tree().root.get_node_or_null("Scene/Weather")
 		var aurora_on = weather and weather.aurora_active
@@ -298,32 +349,34 @@ func _process(delta):
 				Color(0.0, 0.7, 0.6, 0.5),
 				Color(0.5, 0.0, 1.0, 0.5),
 			]
-			var idx_a = int(_aurora_glow_phase) % glow_tints.size()
-			var idx_b = (idx_a + 1) % glow_tints.size()
+			var current_tint_index = int(_aurora_glow_phase) % glow_tints.size()
+			var next_tint_index = (current_tint_index + 1) % glow_tints.size()
 			var t = fmod(_aurora_glow_phase, 1.0)
 			var pulse = 0.3 + 0.2 * sin(_aurora_glow_phase * 3.0)
-			var blended = glow_tints[idx_a].lerp(glow_tints[idx_b], t)
+			var blended = glow_tints[current_tint_index].lerp(glow_tints[next_tint_index], t)
 			aurora_glow_rect.color = Color(blended.r, blended.g, blended.b, pulse)
 		else:
 			aurora_glow_rect.color = aurora_glow_rect.color.lerp(Color(0, 0, 0, 0), delta * 2.0)
 
 
+# Announces in the chat that the player died, using their Steam name when playing online.
 func _send_death_message(cause: String):
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if not chat:
+	var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if not chat_box:
 		return
 	var player_name = (
 		Steam.getFriendPersonaName(Steam.getSteamID())
 		if (multiplayer.has_multiplayer_peer() and Steam != null)
 		else "Player"
 	)
-	var msg = player_name + " died of " + cause
+	var death_message = player_name + " died of " + cause
 	if multiplayer.has_multiplayer_peer():
-		chat._broadcast_message.rpc(msg)
+		chat_box._broadcast_message.rpc(death_message)
 	else:
-		chat._add_message(msg)
+		chat_box._add_message(death_message)
 
 
+# Refills hunger and thirst, for example after respawning.
 func reset_stats():
 	hunger = 100.0
 	thirst = 100.0
@@ -331,6 +384,7 @@ func reset_stats():
 	thirst_bar.value = 100.0
 
 
+# Creates the full screen glow rectangle behind the event display.
 func _create_aurora_glow():
 	aurora_glow_rect = ColorRect.new()
 	aurora_glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -342,12 +396,14 @@ func _create_aurora_glow():
 	aurora_glow_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 
+# Shows or hides the aurora icon, creating the glow the first time it is needed.
 func set_aurora_icon(active: bool):
 	event_icon.texture = tex_aurora_borealis if active else null
 	if active and not aurora_glow_rect:
 		_create_aurora_glow()
 
 
+# Shows the icon for the given season number.
 func set_season_icon(season: int):
 	match season:
 		0: season_icon.texture = tex_spring

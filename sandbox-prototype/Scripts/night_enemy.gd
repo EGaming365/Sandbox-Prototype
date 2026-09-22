@@ -1,78 +1,144 @@
+# Night enemy.
+# A hostile creature that waits until a player comes close, chases them with pathfinding, charges up and then dashes at them to deal damage.
+# The host controls the enemy and the other players receive its state. Enemies disappear at day and in water they slowly drown.
+
 extends Node2D
 
+# The enemy's behaviours: waiting, chasing, charging up, dashing, recovering and dead.
 enum State { PASSIVE, CHASE, CHARGING, DASHING, COOLDOWN, DEAD }
 
+# ID that lets every player refer to the same enemy.
 @export var enemy_id: int = -1
+# Walking speed in pixels per second.
 @export var speed: float = 170.0
+# Health points. It dies when they reach zero.
 @export var health: int = 10
+# Damage dealt by a successful dash.
 @export var attack_damage: int = 1
+# Distance at which the enemy starts charging an attack.
 @export var attack_range: float = 200.0
+# Seconds to recover after a dash that hit.
 @export var attack_cooldown_max: float = 3.5
+# Seconds spent charging before a dash.
 @export var charge_time: float = 1.2
+# Speed of the dash.
 @export var dash_speed: float = 520.0
+# Seconds a dash lasts.
 @export var dash_duration: float = 0.32
+# Distance within which a dash hits a player.
 @export var dash_hit_radius: float = 44.0
+# Extra pause after an attack.
 @export var post_attack_cooldown: float = 0.9
+# If true the enemy disappears when the day begins.
 @export var despawn_when_day: bool = true
+# Distance at which the enemy notices a player.
 @export var detection_radius: float = 650.0
+# Grid step size used when planning a path.
 @export var path_step_size: int = 2
+# Seconds between new paths on the surface.
 @export var path_replan_interval: float = 0.4
+# Seconds between new paths in the cave, which are slower to calculate.
 @export var cave_path_replan_interval: float = 1.1
+# Seconds between looking for the nearest player.
 @export var sense_interval: float = 0.25
+# Seconds between checks for being stuck inside something solid.
 @export var physics_check_interval: float = 0.12
 
+# Seconds spent in water.
 var drowning_timer: float = 0.0
+# True once the enemy has drowned, so it only dies once.
 var drowning_dead: bool = false
+# Seconds in water before the enemy drowns.
 const DROWN_TIME: float = 5.0
+# How far the sprite sinks while drowning.
 const DROWN_SINK_PIXELS: float = 14.0
+# The sprite's normal position, restored after sinking.
 var _base_sprite_position: Vector2
+# The normal speed, restored after slowing in water.
 var _base_speed: float
 
+# The behaviour the enemy is currently in.
 var state: State = State.PASSIVE
+# Seconds until the enemy can attack again.
 var attack_cooldown: float = 0.0
+# Seconds spent charging so far.
 var charge_timer: float = 0.0
+# Seconds spent dashing so far.
 var dash_timer: float = 0.0
+# Direction of the current dash.
 var dash_direction: Vector2 = Vector2.ZERO
+# Where the current dash started.
 var dash_origin: Vector2 = Vector2.ZERO
+# Seconds the enemy has been stuck.
 var _blocked_escape_timer: float = 0.0
+# Random number generator for this enemy.
 var rng := RandomNumberGenerator.new()
 
+# Points of the current path towards the target.
 var _path: Array = []
+# Seconds until a new path is planned.
 var _path_timer: float = 0.0
+# Spot the enemy is wandering to while waiting.
 var _wander_target: Vector2 = Vector2.ZERO
+# Seconds left standing still while waiting.
 var _wander_idle_timer: float = 0.0
+# Seconds stuck while wandering.
 var _passive_stuck_timer: float = 0.0
+# Seconds until the next search for a player.
 var _sense_timer: float = 0.0
+# Seconds until the next stuck check.
 var _physics_timer: float = 0.0
+# The player currently being chased.
 var _cached_target: CharacterBody2D = null
+# Remembers which small squares of the map are free, to save physics queries.
 var _cached_position_clear: Dictionary = {}
+# List of other enemies, used to keep enemies apart.
 var _cached_enemies: Array = []
+# Seconds until the list of enemies is refreshed.
 var _enemies_cache_timer: float = 0.0
+# Seconds between refreshing the list of enemies.
 const ENEMIES_CACHE_INTERVAL: float = 0.5
 
+# The cave generator, used to find paths in the cave.
 var _cave_gen: Node = null
+# The weather system, used to tell whether it is night.
 var _weather: Node = null
+# The overworld generator, used to check for water.
 var _world_gen: Node = null
+# The main scene, used for damage and drops.
 var _scene_node: Node = null
+# The tile map, used to convert tile positions to world positions.
 var _tilemap: Node = null
 
+# Distance the enemy tries to keep before charging.
 const PREFERRED_DISTANCE: float = 72.0
+# Seconds stuck before the enemy jumps to a free spot.
 const BLOCKED_ESCAPE_TIME: float = 1.0
+# Furthest distance to look for a free spot.
 const ESCAPE_SEARCH_RADIUS: float = 120.0
+# Number of random spots to try.
 const ESCAPE_ATTEMPTS: int = 12
+# Enemies closer than this push each other apart.
 const SEPARATION_RADIUS: float = 52.0
+# Strength of that push.
 const SEPARATION_FORCE: float = 600.0
+# How close the enemy must get to a path point before moving on to the next.
 const PATH_NODE_REACH_DIST: float = 24.0
+# How far the enemy wanders while waiting.
 const PASSIVE_WANDER_RANGE: float = 160.0
 
+# Animated picture of the enemy.
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+# Solid body that stops things walking through the enemy.
 @onready var staticbody: StaticBody2D = $StaticBody2D
 
 
+# Returns true for the host or in a single player game. Only the host controls the enemy.
 func _is_host() -> bool:
 	return not multiplayer.has_multiplayer_peer() or multiplayer.is_server()
 
 
+# Sets up the enemy, joins the night enemies group and finds the other systems it needs.
 func _ready() -> void:
 	rng.randomize()
 	_base_speed = speed
@@ -91,6 +157,7 @@ func _ready() -> void:
 	_tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
 
 
+# Runs the enemy's behaviour each frame: senses players, moves, charges, dashes and syncs its state.
 func _process(delta: float) -> void:
 	_update_drowning(delta)
 	if state == State.DEAD:
@@ -191,6 +258,7 @@ func _process(delta: float) -> void:
 				)
 
 
+# Waits and wanders until a player comes within detection range, then starts chasing.
 func _do_passive(delta: float, target: CharacterBody2D) -> void:
 	if target and global_position.distance_to(target.global_position) <= detection_radius:
 		state = State.CHASE
@@ -221,17 +289,19 @@ func _do_passive(delta: float, target: CharacterBody2D) -> void:
 	sprite.play("walk_down")
 
 
+# Chooses a clear spot nearby to wander to.
 func _pick_passive_wander_target() -> void:
 	for _attempt in 10:
 		var angle := rng.randf_range(0.0, TAU)
-		var dist := rng.randf_range(40.0, PASSIVE_WANDER_RANGE)
-		var candidate := global_position + Vector2(cos(angle), sin(angle)) * dist
+		var distance := rng.randf_range(40.0, PASSIVE_WANDER_RANGE)
+		var candidate := global_position + Vector2(cos(angle), sin(angle)) * distance
 		if _is_position_clear(candidate):
 			_wander_target = candidate
 			return
 	_wander_target = global_position
 
 
+# Moves along the current path and drops points as it reaches them.
 func _follow_path(delta: float) -> void:
 	if _path.is_empty():
 		return
@@ -248,6 +318,7 @@ func _follow_path(delta: float) -> void:
 	sprite.play("walk_down")
 
 
+# Plans a path to the target. In the cave it uses A star search, otherwise it steers directly.
 func _build_path_to(target_pos: Vector2) -> Array:
 	if _cave_gen and is_instance_valid(_cave_gen) \
 			and _cave_gen.get("in_cave") and _cave_gen._carved_tiles.size() > 0:
@@ -257,6 +328,7 @@ func _build_path_to(target_pos: Vector2) -> Array:
 	return _steer_path(target_pos)
 
 
+# Finds a route through the carved cave tiles using A star search.
 func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
 	if not _tilemap or not is_instance_valid(_tilemap):
 		_tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
@@ -329,6 +401,7 @@ func _astar_cave(target_pos: Vector2, cave_gen: Node) -> Array:
 	return []
 
 
+# Adds an entry to the priority queue used by the search, keeping the lowest cost first.
 func _heap_push(heap: Array, entry: Array) -> void:
 	heap.append(entry)
 	var i: int = heap.size() - 1
@@ -342,6 +415,7 @@ func _heap_push(heap: Array, entry: Array) -> void:
 		i = parent
 
 
+# Restores the order of the priority queue after the first entry is removed.
 func _heap_sift_down(heap: Array, i: int) -> void:
 	var size: int = heap.size()
 	while true:
@@ -360,6 +434,7 @@ func _heap_sift_down(heap: Array, i: int) -> void:
 		i = smallest
 
 
+# Creates a straight line path to the target made of evenly spaced points.
 func _steer_path(target_pos: Vector2) -> Array:
 	var path: Array = []
 	var steps := 12
@@ -372,6 +447,7 @@ func _steer_path(target_pos: Vector2) -> Array:
 	return path
 
 
+# Removes unnecessary points from a path where a straight line is clear.
 func _simplify_path(path: Array) -> Array:
 	if path.size() <= 2:
 		return path
@@ -388,9 +464,10 @@ func _simplify_path(path: Array) -> Array:
 	return simplified
 
 
+# Returns true if a straight line between two points is free of obstacles.
 func _path_segment_clear(from: Vector2, to: Vector2) -> bool:
-	var dist: float = from.distance_to(to)
-	var steps := int(dist / 24.0) + 1
+	var distance: float = from.distance_to(to)
+	var steps := int(distance / 24.0) + 1
 	var inv_steps: float = 1.0 / float(steps)
 	for i in range(1, steps + 1):
 		if not _is_position_clear(from.lerp(to, i * inv_steps)):
@@ -398,12 +475,14 @@ func _path_segment_clear(from: Vector2, to: Vector2) -> bool:
 	return true
 
 
+# Starts charging an attack at the target.
 func _begin_charge(target: CharacterBody2D) -> void:
 	state = State.CHARGING
 	charge_timer = 0.0
 	sprite.play("idle")
 
 
+# Starts the dash and tells the other players.
 func _begin_dash() -> void:
 	state = State.DASHING
 	dash_timer = 0.0
@@ -413,6 +492,7 @@ func _begin_dash() -> void:
 		_sync_begin_dash_rpc.rpc(dash_direction.x, dash_direction.y)
 
 
+# The dash reached a player, so damage them and recover.
 func _on_dash_hit(target: CharacterBody2D) -> void:
 	state = State.COOLDOWN
 	attack_cooldown = attack_cooldown_max
@@ -433,6 +513,7 @@ func _on_dash_hit(target: CharacterBody2D) -> void:
 		_reset_visuals()
 
 
+# The dash missed, so recover for a shorter time and tell the other players.
 func _on_dash_miss() -> void:
 	state = State.COOLDOWN
 	attack_cooldown = attack_cooldown_max * 0.5
@@ -447,6 +528,7 @@ func _on_dash_miss() -> void:
 		_reset_visuals()
 
 
+# Briefly tints the enemy red to show the miss.
 func _play_miss_stumble() -> void:
 	sprite.modulate = Color(1, 0.3, 0.3, 1.0)
 	await get_tree().create_timer(0.25).timeout
@@ -454,34 +536,38 @@ func _play_miss_stumble() -> void:
 		_reset_visuals()
 
 
+# Returns the enemy to its normal colour.
 func _reset_visuals() -> void:
 	sprite.modulate = Color(1, 1, 1, 1)
 
 
+# Pushes the enemy away from other enemies that are too close.
 func _apply_separation(delta: float) -> void:
 	for other in _cached_enemies:
 		if other == self or not is_instance_valid(other):
 			continue
-		var diff := global_position - (other as Node2D).global_position
-		var dist := diff.length()
-		if dist < SEPARATION_RADIUS and dist > 0.01:
-			var push := diff.normalized() * SEPARATION_FORCE * delta
+		var offset_to_other := global_position - (other as Node2D).global_position
+		var distance := offset_to_other.length()
+		if distance < SEPARATION_RADIUS and distance > 0.01:
+			var push := offset_to_other.normalized() * SEPARATION_FORCE * delta
 			global_position += push
 			(other as Node2D).global_position -= push
 
 
-func _is_position_clear_for_dash(pos: Vector2) -> bool:
+# Returns true if the position is free for a dash, using a small circle physics test.
+# Returns true if a small circle at the position touches nothing solid. Results are remembered to save work.
+func _is_position_clear_for_dash(world_position: Vector2) -> bool:
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsShapeQueryParameters2D.new()
 	var shape := CircleShape2D.new()
 	shape.radius = 10.0
 	query.shape = shape
-	query.transform = Transform2D(0, pos)
+	query.transform = Transform2D(0, world_position)
 	query.collision_mask = 1
 	query.exclude = [staticbody.get_rid()]
-	for p in get_tree().get_nodes_in_group("players"):
-		if p is CollisionObject2D:
-			query.exclude.append(p.get_rid())
+	for player_node in get_tree().get_nodes_in_group("players"):
+		if player_node is CollisionObject2D:
+			query.exclude.append(player_node.get_rid())
 	for enemy in _cached_enemies:
 		if enemy == self or not is_instance_valid(enemy):
 			continue
@@ -491,6 +577,7 @@ func _is_position_clear_for_dash(pos: Vector2) -> bool:
 	return hits.size() == 0
 
 
+# Moves the enemy out of solid objects it has become stuck in.
 func _resolve_overlap() -> void:
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsShapeQueryParameters2D.new()
@@ -500,9 +587,9 @@ func _resolve_overlap() -> void:
 	query.transform = Transform2D(0, global_position)
 	query.collision_mask = 1
 	query.exclude = [staticbody.get_rid()]
-	for p in get_tree().get_nodes_in_group("players"):
-		if p is CollisionObject2D:
-			query.exclude.append(p.get_rid())
+	for player_node in get_tree().get_nodes_in_group("players"):
+		if player_node is CollisionObject2D:
+			query.exclude.append(player_node.get_rid())
 	for enemy in _cached_enemies:
 		if enemy == self or not is_instance_valid(enemy):
 			continue
@@ -520,14 +607,17 @@ func _resolve_overlap() -> void:
 		global_position += push_dir.normalized() * 4.0
 
 
+# Colours the enemy from dark red to yellow as its charge builds.
 func _set_charge_glow(pct: float) -> void:
 	sprite.modulate = Color(0.55, 0.1, 0.1, 1.0).lerp(Color(1.0, 1.0, 0.0, 1.0), pct)
 
 
+# Removes the charge colour.
 func _clear_charge_glow() -> void:
 	_reset_visuals()
 
 
+# Reduces the enemy's health, flashes it and kills it at zero. Only the host does this.
 func take_damage(amount: int) -> void:
 	if state == State.DEAD:
 		return
@@ -544,6 +634,7 @@ func take_damage(amount: int) -> void:
 		_die()
 
 
+# Ends the enemy's life on every player's game, optionally dropping loot.
 func _die(drop_loot: bool = true) -> void:
 	if state == State.DEAD:
 		return
@@ -555,6 +646,7 @@ func _die(drop_loot: bool = true) -> void:
 		_play_die_sequence()
 
 
+# Drops one or two pieces of string where the enemy died.
 func _drop_string() -> void:
 	if not _is_host():
 		return
@@ -568,6 +660,7 @@ func _drop_string() -> void:
 		_scene_node.host_spawn_floor_item(drop_pos, "String", 1)
 
 
+# Flashes the enemy red.
 func _flash_hit() -> void:
 	sprite.modulate = Color(1, 0.1, 0.1, 1)
 	await get_tree().create_timer(0.08).timeout
@@ -575,6 +668,7 @@ func _flash_hit() -> void:
 		_reset_visuals()
 
 
+# Shrinks and fades the enemy, then removes it.
 func _play_die_sequence() -> void:
 	state = State.DEAD
 	sprite.modulate = Color(1, 0.1, 0.1, 1)
@@ -585,28 +679,32 @@ func _play_die_sequence() -> void:
 	queue_free()
 
 
+# Returns the closest player, or null.
 func _get_nearest_player() -> CharacterBody2D:
 	var nearest: CharacterBody2D = null
 	var nearest_dist := INF
-	for p in get_tree().get_nodes_in_group("players"):
-		if p is CharacterBody2D and is_instance_valid(p):
-			var d := global_position.distance_to(p.global_position)
-			if d < nearest_dist:
-				nearest_dist = d
-				nearest = p
+	for player_node in get_tree().get_nodes_in_group("players"):
+		if player_node is CharacterBody2D and is_instance_valid(player_node):
+			var player_distance := global_position.distance_to(player_node.global_position)
+			if player_distance < nearest_dist:
+				nearest_dist = player_distance
+				nearest = player_node
 	return nearest
 
 
+# Returns true if it is night. With no weather system it counts as night.
 func _is_night() -> bool:
 	if not _weather or not is_instance_valid(_weather):
 		return true
 	return not _weather.has_method("is_night") or _weather.is_night()
 
 
+# Returns true if the player is in the cave world.
 func _is_in_cave() -> bool:
 	return _cave_gen != null and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave")
 
 
+# Moves the enemy if the way is clear, otherwise slides sideways or jumps to a free spot.
 func _try_move(delta: Vector2) -> void:
 	if delta.length() <= 0.001:
 		return
@@ -635,8 +733,8 @@ func _try_move(delta: Vector2) -> void:
 		_blocked_escape_timer = 0.0
 
 
-func _is_position_clear(pos: Vector2) -> bool:
-	var key := Vector2i(floori(pos.x / 16.0), floori(pos.y / 16.0))
+func _is_position_clear(world_position: Vector2) -> bool:
+	var key := Vector2i(floori(world_position.x / 16.0), floori(world_position.y / 16.0))
 	if _cached_position_clear.has(key):
 		return _cached_position_clear[key]
 	var space := get_world_2d().direct_space_state
@@ -644,12 +742,12 @@ func _is_position_clear(pos: Vector2) -> bool:
 	var shape := CircleShape2D.new()
 	shape.radius = 10.0
 	query.shape = shape
-	query.transform = Transform2D(0, pos)
+	query.transform = Transform2D(0, world_position)
 	query.collision_mask = 1
 	query.exclude = [staticbody.get_rid()]
-	for p in get_tree().get_nodes_in_group("players"):
-		if p is CollisionObject2D:
-			query.exclude.append(p.get_rid())
+	for player_node in get_tree().get_nodes_in_group("players"):
+		if player_node is CollisionObject2D:
+			query.exclude.append(player_node.get_rid())
 	var hits := space.intersect_shape(query)
 	for hit in hits:
 		if hit["collider"] != staticbody:
@@ -659,17 +757,19 @@ func _is_position_clear(pos: Vector2) -> bool:
 	return true
 
 
+# Tries random spots around the enemy and moves to the first clear one.
 func _escape_from_blocked_position() -> bool:
 	for i in ESCAPE_ATTEMPTS:
 		var angle = rng.randf_range(0.0, TAU)
-		var dist = rng.randf_range(36.0, ESCAPE_SEARCH_RADIUS)
-		var candidate = global_position + Vector2(cos(angle), sin(angle)) * dist
+		var distance = rng.randf_range(36.0, ESCAPE_SEARCH_RADIUS)
+		var candidate = global_position + Vector2(cos(angle), sin(angle)) * distance
 		if _is_position_clear(candidate):
 			global_position = candidate
 			return true
 	return false
 
 
+# Host only. Sinks and slows the enemy in water and kills it if it stays too long.
 func _update_drowning(delta: float) -> void:
 	if state == State.DEAD:
 		return
@@ -691,43 +791,54 @@ func _update_drowning(delta: float) -> void:
 		drowning_dead = false
 
 
+# Returns true if the enemy is standing on water in the cave or on the surface.
 func _is_current_world_water() -> bool:
 	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave"):
-		var tc: Vector2i = _cave_gen.world_to_tile(global_position)
-		return _cave_gen._water_tiles.has(tc)
+		var tile_position: Vector2i = _cave_gen.world_to_tile(global_position)
+		return _cave_gen._water_tiles.has(tile_position)
 	return _world_gen != null and is_instance_valid(_world_gen) \
 		and _world_gen.has_method("is_water_at") \
 		and _world_gen.is_water_at(global_position)
 
+# Sent often by the host to show the charge glow. It does not matter if one is lost.
 @rpc("authority", "call_remote", "unreliable_ordered")
 
 
+# Shows the charge glow on the other players' games.
 func _sync_charge_glow_rpc(pct: float) -> void:
 	_set_charge_glow(pct)
 
+# Sent by the host when a dash begins.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Starts the dash on the other players' games.
 func _sync_begin_dash_rpc(dir_x: float, dir_y: float) -> void:
 	dash_direction = Vector2(dir_x, dir_y)
 	dash_timer = 0.0
 	_clear_charge_glow()
 	sprite.play("idle")
 
+# Sent by the host when a dash misses.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Plays the miss reaction on the other players' games.
 func _sync_dash_miss_rpc() -> void:
 	_play_miss_stumble()
 
+# Sent by the host so every player sees the enemy flash.
 @rpc("authority", "call_local", "reliable")
 
 
+# Flashes the enemy.
 func _sync_flash_hit_rpc() -> void:
 	_flash_hit()
 
+# Sent by the host so every player sees the enemy die.
 @rpc("authority", "call_local", "reliable")
 
 
+# Plays the death sequence.
 func _sync_die_rpc() -> void:
 	_play_die_sequence()

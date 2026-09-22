@@ -1,32 +1,45 @@
+# Wardrobe.
+# Acts as a floor item that is picked up when walked over, and as a placed block that opens the wardrobe menu with a right click and breaks with a left click.
+
 extends StaticBody2D
 
+# ID used to refer to this block across the network once it is placed.
 var block_id: int = -1
+# ID used to refer to this item across the network while it lies on the floor.
 var item_id: int = -1
+# True when placed as a block, false when lying on the floor as a pickup.
 var is_placed: bool = false
+# True while the wardrobe menu is open.
 var is_open: bool = false
+# Closed wardrobe picture.
 var wardrobe_texture: Texture2D = preload("res://Assets/Wardrobe.png")
+# Open wardrobe picture.
 var wardrobe_open_texture: Texture2D = preload("res://Assets/Wardrobe_Open.png")
 
 
+# Sets up the picture and collision shapes, then reveals the wardrobe after one frame.
 func _ready():
 	visible = false
+	# Join the block and tree groups, which other systems use to find blocking objects.
 	add_to_group("placed_blocks")
 	add_to_group("trees")
 	$Sprite2D.texture = wardrobe_texture
-	var col_shape = RectangleShape2D.new()
-	col_shape.size = Vector2(30, 8)
-	$CollisionShape2D.shape = col_shape
+	var collision_rectangle = RectangleShape2D.new()
+	collision_rectangle.size = Vector2(30, 8)
+	$CollisionShape2D.shape = collision_rectangle
 	$CollisionShape2D.position = Vector2(0, 24)
-	var area_shape = RectangleShape2D.new()
-	area_shape.size = Vector2(72, 72)
-	$Area2D/CollisionShape2D.shape = area_shape
+	var pickup_area_rectangle = RectangleShape2D.new()
+	pickup_area_rectangle.size = Vector2(72, 72)
+	$Area2D/CollisionShape2D.shape = pickup_area_rectangle
 	$Area2D/CollisionShape2D.position = Vector2.ZERO
+	# Configure the collision after the scene has finished loading.
 	call_deferred("_setup_area")
 	z_index = 2
 	await get_tree().process_frame
 	visible = true
 
 
+# Placed wardrobes are solid and cannot be walked over. Floor wardrobes are not solid and are picked up when a player touches them.
 func _setup_area():
 	if is_placed:
 		$CollisionShape2D.disabled = false
@@ -39,27 +52,31 @@ func _setup_area():
 		$Area2D.body_entered.connect(_on_body_entered)
 
 
-func setup_placed(b_id: int):
-	block_id = b_id
+# Turns this wardrobe into a placed block with the given ID.
+func setup_placed(new_block_id: int):
+	block_id = new_block_id
 	is_placed = true
 	$Sprite2D.scale = Vector2(3.2, 3.2)
 	$Sprite2D.offset = Vector2.ZERO
 	call_deferred("_setup_area")
 
 
-func setup_floor(i_id: int):
-	item_id = i_id
+# Turns this wardrobe into a floor pickup with the given ID.
+func setup_floor(new_item_id: int):
+	item_id = new_item_id
 	is_placed = false
 	$Sprite2D.scale = Vector2(1.5, 1.5)
 
 
+# Right click opens or closes the menu and left click breaks the wardrobe, when the player is close enough.
 func _input(event):
 	if not is_placed:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-		var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-		if (inv and inv.visible) or (chat and chat.is_open):
+		# Ignore clicks while the inventory or chat is open.
+		var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+		var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+		if (inventory_ui and inventory_ui.visible) or (chat_box and chat_box.is_open):
 			return
 		if not _get_rect().has_point(get_global_mouse_position()):
 			return
@@ -70,9 +87,9 @@ func _input(event):
 			return
 		_toggle_wardrobe_ui()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-		var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-		if (inv and inv.visible) or (chat and chat.is_open):
+		var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+		var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+		if (inventory_ui and inventory_ui.visible) or (chat_box and chat_box.is_open):
 			return
 		if not _get_rect().has_point(get_global_mouse_position()):
 			return
@@ -84,6 +101,7 @@ func _input(event):
 		_hit_wardrobe()
 
 
+# Opens or closes the wardrobe menu and swaps between the open and closed picture.
 func _toggle_wardrobe_ui():
 	var wardrobe_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Wardrobe_UI")
 	if not wardrobe_ui:
@@ -96,6 +114,7 @@ func _toggle_wardrobe_ui():
 		wardrobe_ui.close()
 
 
+# Closes the menu and shows the closed picture.
 func close_ui():
 	is_open = false
 	$Sprite2D.texture = wardrobe_texture
@@ -104,6 +123,7 @@ func close_ui():
 		wardrobe_ui.visible = false
 
 
+# Flashes red, then breaks the wardrobe and drops it as an item. Clients ask the host to do this.
 func _hit_wardrobe():
 	$Sprite2D.modulate = Color(1, 0.5, 0.5, 1)
 	await get_tree().create_timer(0.1).timeout
@@ -124,24 +144,27 @@ func _hit_wardrobe():
 		_remove_self()
 
 
+# Removes the wardrobe on every player's game, or just this one when playing alone.
 func _remove_self():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node and multiplayer.has_multiplayer_peer():
 		remove_wardrobe_rpc.rpc(block_id)
 	else:
-		var s = get_tree().root.get_node_or_null("Scene")
-		if s:
-			s.remove_placed_block(block_id)
+		var scene_fallback = get_tree().root.get_node_or_null("Scene")
+		if scene_fallback:
+			scene_fallback.remove_placed_block(block_id)
 		else:
 			queue_free()
 
+# Sent by the host so the wardrobe is removed on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
-func remove_wardrobe_rpc(_b_id: int):
+func remove_wardrobe_rpc(_removed_block_id: int):
 	queue_free()
 
 
+# A floor wardrobe is picked up when the local player walks into it.
 func _on_body_entered(body):
 	if is_placed:
 		return
@@ -150,6 +173,7 @@ func _on_body_entered(body):
 			_pickup()
 
 
+# Adds the wardrobe to the inventory and removes the floor item.
 func _pickup():
 	Inventory.add_item("Wardrobe", wardrobe_texture)
 	var scene_node = get_tree().root.get_node_or_null("Scene")
@@ -163,10 +187,12 @@ func _pickup():
 			scene_node.remove_floor_item(item_id)
 
 
+# Returns a 64 by 64 pixel box around the wardrobe, used for mouse hit tests.
 func _get_rect() -> Rect2:
 	return Rect2(global_position - Vector2(32, 32), Vector2(64, 64))
 
 
+# Returns the player controlled by this game instance, or null.
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -178,6 +204,7 @@ func _get_local_player():
 	return null
 
 
+# Returns true when the item has nowhere to go in the inventory. This function is not currently called.
 func _is_inventory_full(item_name: String) -> bool:
 	if Inventory.non_stackable_items.has(item_name):
 		for slot in Inventory.slots:

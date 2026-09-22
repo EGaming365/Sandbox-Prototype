@@ -1,23 +1,44 @@
+# Player character.
+# Handles movement, animation, the camera, the held item, sword attacks, blocking and parrying, rolling, health, drowning, death and respawning, and the clothing layers.
+# Each player controls their own character and sends its position and state to the other players.
+
 extends CharacterBody2D
 
+# Walking speed in pixels per second.
 @export var speed = 350
+# Current velocity, shared with the other players.
 @export var synced_velocity : Vector2 = Vector2.ZERO
+# Name of the held item, shared so others can see it.
 @export var synced_held_item: String = ""
+# Current health, shared with the other players.
 @export var synced_health: int = 10
+# Animated picture of the character's body.
 @onready var anim = $AnimatedSprite2D
+# Animated picture of the hair layer.
 @onready var hair_sprite: AnimatedSprite2D = $Hair_Sprite
+# Animated picture of the shirt layer.
 @onready var shirt_sprite: AnimatedSprite2D = $Shirt_Sprite
+# Animated picture of the pants layer.
 @onready var pants_sprite: AnimatedSprite2D = $Pants_Sprite
 
+# Whether the hair layer is shown, shared with the other players.
 @export var synced_hair: bool = true
+# Whether the shirt layer is shown, shared with the other players.
 @export var synced_shirt: bool = true
+# Whether the pants layer is shown, shared with the other players.
 @export var synced_pants: bool = true
+# Seconds before the player respawns after dying.
 @export var respawn_delay: float = 1.2
+# Seconds the character takes to shrink when dying.
 @export var death_shrink_time: float = 0.65
 
+# True while the player is fishing.
 var is_fishing: bool = false
+# Animation that flashes the player red when hurt.
 var damage_flash_tween: Tween = null
+# Animation played when the player dies.
 var death_tween: Tween = null
+# Normal size and position of each sprite, restored after effects such as sinking.
 var base_anim_scale: Vector2
 var base_hair_scale: Vector2
 var base_shirt_scale: Vector2
@@ -26,49 +47,85 @@ var base_anim_position: Vector2
 var base_hair_position: Vector2
 var base_shirt_position: Vector2
 var base_pants_position: Vector2
+# Seconds left before the player can chop or mine again.
 var chop_cooldown_timer: float = 0.0
+# Length of the current chopping or mining cooldown.
 var chop_cooldown_max: float = 1.5
+# Picture of the held item in the player's hand.
 var hand_sprite: Sprite2D = null
+# Most health the player can have.
 var max_health: int = 10
+# True while the player is dead.
 var is_dead: bool = false
+# Seconds left before the player can attack again.
 var attack_cooldown: float = 0.0
+# Seconds between sword attacks.
 const ATTACK_COOLDOWN_MAX: float = 1.5
+# Distance in pixels a sword attack reaches.
 const ATTACK_RANGE: float = 120.0
+# Damage dealt by a wooden sword.
 const SWORD_DAMAGE: int = 2
+# Damage dealt by a stone sword.
 const STONE_SWORD_DAMAGE: int = 4
 
+# Seconds after starting to block in which a hit counts as a parry.
 const PARRY_WINDOW: float = 0.16
+# Sword durability used by a parry.
 const PARRY_DURABILITY_COST: int = 1
+# Sword durability used by a normal block.
 const BLOCK_DURABILITY_COST: int = 4
+# Damage dealt back to an enemy that is parried.
 const PARRY_COUNTER_DAMAGE: int = 9999
 
+# Seconds before the player can block again.
 const BLOCK_COOLDOWN_MAX: float = 0.6
 
+# Speed of a roll.
 const ROLL_SPEED: float = 900.0
+# Seconds a roll lasts.
 const ROLL_DURATION: float = 0.22
+# Seconds before the player can roll again.
 const ROLL_COOLDOWN: float = 0.8
 
+# True during a roll.
 var is_rolling: bool = false
+# True while the player cannot be hurt, such as during a roll.
 var is_invulnerable: bool = false
+# Seconds left in the current roll.
 var roll_timer: float = 0.0
+# Seconds left before the next roll.
 var roll_cooldown: float = 0.0
+# Direction of the current roll.
 var roll_direction: Vector2 = Vector2.ZERO
 
+# Offset used to find the point at the player's feet.
 const FEET_OFFSET: float = 1.0
+# The camera that follows the local player.
 var camera: Camera2D = null
+# True while the player is holding a block.
 var is_blocking: bool = false
+# Seconds left in the parry window.
 var parry_timer: float = 0.0
+# Seconds left before the player can block again.
 var block_cooldown: float = 0.0
+# True right after a successful parry.
 var _parry_just_landed: bool = false
+# Picture of the offhand item.
 var offhand_sprite: Sprite2D = null
 
+# Seconds spent in deep water.
 var drowning_timer: float = 0.0
+# True once the player has drowned, so they only die once.
 var drowning_dead: bool = false
+# Seconds in water before the player drowns.
 const DROWN_TIME: float = 8.0
+# How much the player is slowed at the point of drowning.
 const DROWN_SLOW_MAX: float = 0.45
+# How far the character sinks while drowning.
 const DROWN_SINK_PIXELS: float = 18.0
 
 
+# Gives control of this character to the player whose ID is in its name.
 func _enter_tree():
 	if multiplayer.has_multiplayer_peer():
 		set_multiplayer_authority(name.to_int())
@@ -76,10 +133,11 @@ func _enter_tree():
 		set_multiplayer_authority(1)
 
 
+# Sets up the light, sprites, camera, hand items and Steam ID registration.
 func _ready():
-	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
-	if lighting:
-		lighting.add_light_source(self, 0.0, 0.0)
+	var lighting_system = get_tree().root.get_node_or_null("Scene/LightingSystem")
+	if lighting_system:
+		lighting_system.add_light_source(self, 0.0, 0.0)
 	z_index = 2
 	add_to_group("players")
 	hair_sprite.visible = true
@@ -110,6 +168,7 @@ func _ready():
 		_register_steam_id_when_ready.call_deferred()
 
 
+# Tells the host which Steam account owns this character, retrying until the connection is ready.
 func _register_steam_id_when_ready():
 	var attempts = 0
 	while attempts < 20:
@@ -137,6 +196,7 @@ func _register_steam_id_when_ready():
 			scene_node.register_steam_id.rpc_id(1, Steam.getSteamID())
 
 
+# Plays an animation on the body and every visible clothing layer.
 func _play_anim(anim_name: String):
 	anim.play(anim_name)
 	if hair_sprite.visible:
@@ -146,9 +206,11 @@ func _play_anim(anim_name: String):
 	if pants_sprite.visible:
 		pants_sprite.play(anim_name)
 
+# Custom picture size for each item held in the hand.
 var _hand_scales: Dictionary = {}
 
 
+# Creates the sprite that shows the held item.
 func _setup_hand():
 	hand_sprite = Sprite2D.new()
 	hand_sprite.position = Vector2(-7, -19)
@@ -167,17 +229,18 @@ func _setup_hand():
 	offhand_sprite.modulate = Color(1, 1, 1, 0)
 	add_child(offhand_sprite)
 	for item_name in Inventory.TEXTURE_MAP:
-		var tex = Inventory.TEXTURE_MAP[item_name]
-		if tex:
-			var s = tex.get_size()
+		var item_texture = Inventory.TEXTURE_MAP[item_name]
+		if item_texture:
+			var s = item_texture.get_size()
 			if s.x > 0 and s.y > 0:
 				_hand_scales[item_name] = Vector2(12.0 / s.x, 12.0 / s.y)
 
 
-func _apply_hand_texture(tex: Texture2D):
+# Sets the picture and size of the held item.
+func _apply_hand_texture(item_texture: Texture2D):
 	var scale = _hand_scales.get(synced_held_item, Vector2(0.017, 0.017))
 	hand_sprite.scale = scale
-	hand_sprite.texture = tex
+	hand_sprite.texture = item_texture
 	hand_sprite.visible = false
 	hand_sprite.modulate = Color(1, 1, 1, 0)
 	RenderingServer.force_draw()
@@ -185,6 +248,7 @@ func _apply_hand_texture(tex: Texture2D):
 	hand_sprite.modulate = Color(1, 1, 1, 1)
 
 
+# Attaches the camera to the local player only.
 func _setup_camera():
 	var is_local = not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()
 	if not is_local:
@@ -199,11 +263,13 @@ func _setup_camera():
 	camera.global_position = global_position
 
 
+# Does nothing while a menu is open. The main per frame work happens in _physics_process.
 func _process(delta):
 	if _is_inventory_open():
 		return
 
 
+# Every physics frame: moves the camera, reads movement keys, walks, rolls, blocks, animates and sends the player's position to others.
 func _physics_process(delta):
 	if camera and (not multiplayer.has_multiplayer_peer() or is_multiplayer_authority()):
 		camera.global_position = global_position
@@ -324,6 +390,7 @@ func _physics_process(delta):
 		return
 
 
+# Handles attack, block and roll input for the local player.
 func _input(event):
 	if is_dead:
 		return
@@ -346,6 +413,7 @@ func _input(event):
 			_stop_blocking()
 
 
+# Swings the sword at the nearest enemy, boss, egg or chicken in range and starts the attack cooldown.
 func _try_attack():
 	var scene_node = get_tree().root.get_node("Scene")
 	var mouse_world_pos = get_global_mouse_position()
@@ -418,6 +486,7 @@ func _try_attack():
 			return
 
 
+# Starts the attack cooldown and shows it on the cursor.
 func _apply_attack_cooldown() -> void:
 	attack_cooldown = ATTACK_COOLDOWN_MAX
 	var cursor = get_tree().root.get_node_or_null("Scene/CanvasLayer/Cursor")
@@ -425,6 +494,7 @@ func _apply_attack_cooldown() -> void:
 		cursor.show_cooldown(1.0)
 
 
+# Uses up sword durability and removes the sword when it breaks. Returns false if there was no sword.
 func _consume_sword_durability(amount: int = 1) -> bool:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
@@ -441,6 +511,7 @@ func _consume_sword_durability(amount: int = 1) -> bool:
 	return false
 
 
+# Kills a chicken with a burst of feathers.
 func _kill_chicken(chicken: Node2D) -> void:
 	_spawn_feather_burst(chicken.global_position)
 	if chicken.has_method("take_damage"):
@@ -449,10 +520,11 @@ func _kill_chicken(chicken: Node2D) -> void:
 		chicken.queue_free()
 
 
-func _spawn_feather_burst(pos: Vector2) -> void:
+# Creates a short burst of feather particles at a position.
+func _spawn_feather_burst(world_position: Vector2) -> void:
 	var particles := CPUParticles2D.new()
 	get_tree().root.get_node("Scene").add_child(particles)
-	particles.global_position = pos
+	particles.global_position = world_position
 	particles.emitting = true
 	particles.one_shot = true
 	particles.explosiveness = 0.95
@@ -472,10 +544,12 @@ func _spawn_feather_burst(pos: Vector2) -> void:
 	timer.timeout.connect(func(): if is_instance_valid(particles): particles.queue_free())
 
 
+# Returns true if the held item is a sword.
 func _is_holding_sword() -> bool:
 	return synced_held_item == "Sword" or synced_held_item == "Stone Sword"
 
 
+# Returns true if the held item is a fish.
 func _is_holding_raw_fish() -> bool:
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node and scene_node.has_method("_is_fish_item_name"):
@@ -483,9 +557,10 @@ func _is_holding_raw_fish() -> bool:
 	return false
 
 
+# Sends a random fish joke to the chat.
 func _send_fish_pun() -> void:
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if not chat:
+	var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if not chat_box:
 		return
 	var puns := [
 		"This conversation is getting a little fishy.",
@@ -495,17 +570,19 @@ func _send_fish_pun() -> void:
 	]
 	var msg: String = puns[randi() % puns.size()]
 	if multiplayer.has_multiplayer_peer():
-		chat._broadcast_message.rpc(msg)
+		chat_box._broadcast_message.rpc(msg)
 	else:
-		chat._add_message(msg)
+		chat_box._add_message(msg)
 
 
+# Returns the damage of the held sword.
 func _get_sword_damage() -> int:
 	if synced_held_item == "Stone Sword":
 		return STONE_SWORD_DAMAGE
 	return SWORD_DAMAGE
 
 
+# Flashes the screen white to show a successful parry.
 func _parry_success_flash() -> void:
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if canvas:
@@ -531,6 +608,7 @@ func _parry_success_flash() -> void:
 	pants_sprite.modulate = orig_c
 
 
+# Raises the sword to block and opens the parry window.
 func _start_blocking() -> void:
 	is_blocking = true
 	parry_timer = PARRY_WINDOW
@@ -539,14 +617,16 @@ func _start_blocking() -> void:
 	_set_parry_highlight(true)
 
 
+# Brightens or resets the character's colour to show the parry window.
 func _set_parry_highlight(on: bool) -> void:
-	var c := Color(1.8, 1.8, 1.8, 1.0) if on else Color(1, 1, 1, 1)
-	anim.modulate = c
-	hair_sprite.modulate = c
-	shirt_sprite.modulate = c
-	pants_sprite.modulate = c
+	var tint_colour := Color(1.8, 1.8, 1.8, 1.0) if on else Color(1, 1, 1, 1)
+	anim.modulate = tint_colour
+	hair_sprite.modulate = tint_colour
+	shirt_sprite.modulate = tint_colour
+	pants_sprite.modulate = tint_colour
 
 
+# Lowers the sword and starts the block cooldown.
 func _stop_blocking() -> void:
 	if is_blocking and not _parry_just_landed:
 		block_cooldown = BLOCK_COOLDOWN_MAX
@@ -558,19 +638,20 @@ func _stop_blocking() -> void:
 	_set_parry_highlight(false)
 
 
+# Starts a roll in the direction the player is pressing, becoming invulnerable.
 func _start_roll() -> void:
-	var dir := Vector2.ZERO
+	var move_direction := Vector2.ZERO
 	if Input.is_action_pressed("move_left"):
-		dir.x -= 1
+		move_direction.x -= 1
 	if Input.is_action_pressed("move_right"):
-		dir.x += 1
+		move_direction.x += 1
 	if Input.is_action_pressed("move_up"):
-		dir.y -= 1
+		move_direction.y -= 1
 	if Input.is_action_pressed("move_down"):
-		dir.y += 1
-	if dir.length() < 0.01:
-		dir = velocity if velocity.length() > 0.01 else Vector2(0, 1)
-	roll_direction = dir.normalized()
+		move_direction.y += 1
+	if move_direction.length() < 0.01:
+		move_direction = velocity if velocity.length() > 0.01 else Vector2(0, 1)
+	roll_direction = move_direction.normalized()
 	is_rolling = true
 	is_invulnerable = true
 	roll_timer = ROLL_DURATION
@@ -581,6 +662,7 @@ func _start_roll() -> void:
 	_play_anim("walk_down")
 
 
+# Lets the player roll through enemies without being blocked by them.
 func _add_roll_collision_exceptions() -> void:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if not is_instance_valid(enemy):
@@ -593,6 +675,7 @@ func _add_roll_collision_exceptions() -> void:
 			add_collision_exception_with(boss)
 
 
+# Makes enemies solid again after the roll.
 func _remove_roll_collision_exceptions() -> void:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if not is_instance_valid(enemy):
@@ -605,6 +688,7 @@ func _remove_roll_collision_exceptions() -> void:
 			remove_collision_exception_with(boss)
 
 
+# Moves the player during a roll and ends it when the time is up.
 func _process_roll(delta: float) -> void:
 	roll_timer -= delta
 	velocity = roll_direction * ROLL_SPEED
@@ -624,6 +708,7 @@ func _process_roll(delta: float) -> void:
 		_end_roll()
 
 
+# Finishes the roll and removes invulnerability.
 func _end_roll() -> void:
 	is_rolling = false
 	is_invulnerable = false
@@ -631,6 +716,7 @@ func _end_roll() -> void:
 	_remove_roll_collision_exceptions()
 
 
+# Called when an enemy hits the player. A well timed block parries it, a normal block reduces the damage and otherwise the player takes damage.
 func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
 	if is_dead:
 		return
@@ -654,6 +740,7 @@ func defend_enemy_attack(amount: int, enemy: Node = null) -> void:
 	take_damage(amount)
 
 
+# Reduces the player's health, flashes them red and starts death at zero. Rolling players ignore damage.
 func take_damage(amount: int):
 	if is_invulnerable:
 		return
@@ -671,6 +758,7 @@ func take_damage(amount: int):
 		_flash_damage()
 
 
+# Adds health, up to the maximum.
 func heal(amount: int):
 	if not is_multiplayer_authority() and multiplayer.has_multiplayer_peer():
 		return
@@ -679,6 +767,7 @@ func heal(amount: int):
 	synced_health = min(synced_health + amount, max_health)
 
 
+# Handles death: drops items, sends a message and starts the respawn sequence.
 func die():
 	is_dead = true
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
@@ -768,9 +857,11 @@ func die():
 			Inventory.remove_item(i, true)
 	await _play_death_respawn_sequence(scene_node)
 
+# The item that was last shown in the hand.
 var _last_hand_item: String = ""
 
 
+# Shows the held item in the hand when the selected slot changes.
 func _update_hand_sprite():
 	if not hand_sprite:
 		return
@@ -785,28 +876,30 @@ func _update_hand_sprite():
 		return
 	hand_sprite.visible = false
 	hand_sprite.modulate = Color(1, 1, 1, 0)
-	var tex = Inventory.get_texture(synced_held_item)
-	if tex == null:
+	var item_texture = Inventory.get_texture(synced_held_item)
+	if item_texture == null:
 		for slot in Inventory.slots:
 			if slot["item"] == synced_held_item and slot["texture"] != null:
-				tex = slot["texture"]
+				item_texture = slot["texture"]
 				break
-	if tex == null:
+	if item_texture == null:
 		for slot in Inventory.inv_slots:
 			if slot["item"] == synced_held_item and slot["texture"] != null:
-				tex = slot["texture"]
+				item_texture = slot["texture"]
 				break
-	if tex == null:
+	if item_texture == null:
 		return
-	var tex_size = tex.get_size()
+	var tex_size = item_texture.get_size()
 	if tex_size.x <= 0 or tex_size.y <= 0:
 		return
 	_last_hand_item = synced_held_item
-	_apply_hand_texture(tex)
+	_apply_hand_texture(item_texture)
 
+# The item that was last shown in the offhand.
 var _last_offhand_item: String = ""
 
 
+# Shows the offhand item when it changes.
 func _update_offhand_sprite():
 	if not offhand_sprite:
 		return
@@ -820,41 +913,46 @@ func _update_offhand_sprite():
 		return
 	if offhand_item == _last_offhand_item:
 		return
-	var tex = Inventory.get_texture(offhand_item)
-	if tex == null:
-		tex = Inventory.offhand_slot.get("texture", null)
-	if tex == null:
+	var item_texture = Inventory.get_texture(offhand_item)
+	if item_texture == null:
+		item_texture = Inventory.offhand_slot.get("texture", null)
+	if item_texture == null:
 		return
-	var tex_size = tex.get_size()
+	var tex_size = item_texture.get_size()
 	if tex_size.x <= 0 or tex_size.y <= 0:
 		return
 	_last_offhand_item = offhand_item
-	offhand_sprite.texture = tex
+	offhand_sprite.texture = item_texture
 	offhand_sprite.scale = _hand_scales.get(offhand_item, Vector2(0.017, 0.017))
 	offhand_sprite.visible = true
 	offhand_sprite.modulate = Color(1, 1, 1, 1)
 
 
+# Starts the cooldown after chopping or mining.
 func start_chop_cooldown(duration: float):
 	chop_cooldown_max = duration
 	chop_cooldown_timer = duration
 
 
+# Returns true if the inventory, chat or wardrobe is open.
 func _is_inventory_open() -> bool:
-	var inv = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	var wardrobe = get_tree().root.get_node_or_null("Scene/CanvasLayer/Wardrobe_UI")
-	var chat_open = chat != null and chat.get("is_open")
-	return (inv != null and inv.visible) or chat_open or (wardrobe != null and wardrobe.visible)
+	var chat_open = chat_box != null and chat_box.get("is_open")
+	return (inventory_ui != null and inventory_ui.visible) or chat_open or (wardrobe != null and wardrobe.visible)
 
 
+# Returns true if the chat is open.
 func _is_chat_open() -> bool:
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	return chat != null and chat.is_open
+	var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	return chat_box != null and chat_box.is_open
 
+# Sent when a player changes their clothing so everyone sees it.
 @rpc("any_peer", "call_local", "reliable")
 
 
+# Shows or hides the hair, shirt and pants layers.
 func sync_cosmetics_rpc(hair: bool, shirt: bool, pants: bool):
 	synced_hair = hair
 	synced_shirt = shirt
@@ -864,6 +962,7 @@ func sync_cosmetics_rpc(hair: bool, shirt: bool, pants: bool):
 	pants_sprite.visible = pants
 
 
+# Shares the clothing choice with every player, or applies it directly in single player.
 func apply_cosmetics(hair: bool, shirt: bool, pants: bool):
 	if multiplayer.has_multiplayer_peer():
 		sync_cosmetics_rpc.rpc(hair, shirt, pants)
@@ -871,6 +970,7 @@ func apply_cosmetics(hair: bool, shirt: bool, pants: bool):
 		sync_cosmetics_rpc(hair, shirt, pants)
 
 
+# Slows and sinks the player in deep water and kills them if they stay too long.
 func _update_drowning(delta: float):
 	if is_dead:
 		return
@@ -909,6 +1009,7 @@ func _update_drowning(delta: float):
 		drowning_dead = false
 
 
+# Sinks the sprites into the water by an amount that grows with the drowning progress.
 func _set_drowning_alpha(progress: float):
 	var sink: float = DROWN_SINK_PIXELS * clamp(progress, 0.0, 1.0)
 	anim.position = base_anim_position + Vector2(0, sink)
@@ -920,29 +1021,33 @@ func _set_drowning_alpha(progress: float):
 	if offhand_sprite:
 		offhand_sprite.position.y = -19 + sink
 
+# Sent often to show other players how far this player has sunk.
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 
 
+# Shows another player's sinking on this game.
 func sync_drowning_alpha_rpc(alpha: float):
 	if is_multiplayer_authority():
 		return
 	_set_drowning_alpha(alpha)
 
 
+# Announces in the chat how the player died.
 func _send_death_message(cause: String):
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if not chat:
+	var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if not chat_box:
 		return
 	var player_name = "Player"
 	if multiplayer.has_multiplayer_peer():
 		player_name = Steam.getFriendPersonaName(Steam.getSteamID())
 	var msg = player_name + " " + cause
 	if multiplayer.has_multiplayer_peer():
-		chat._broadcast_message.rpc(msg)
+		chat_box._broadcast_message.rpc(msg)
 	else:
-		chat._add_message(msg)
+		chat_box._add_message(msg)
 
 
+# Shrinks the character, waits, then respawns them.
 func _play_death_respawn_sequence(scene_node):
 	drowning_timer = 0.0
 	drowning_dead = false
@@ -992,9 +1097,11 @@ func _play_death_respawn_sequence(scene_node):
 			scene_node._preload_spawn_area(spawn_pos)
 		_do_respawn(spawn_pos)
 
+# Sent by a player to ask the host for a respawn position.
 @rpc("any_peer", "call_remote", "reliable")
 
 
+# Host only. Works out a respawn position and sends it back.
 func request_respawn_position_rpc():
 	if not multiplayer.is_server():
 		return
@@ -1005,13 +1112,16 @@ func request_respawn_position_rpc():
 	var sender = multiplayer.get_remote_sender_id()
 	receive_respawn_position_rpc.rpc_id(sender, spawn_pos.x, spawn_pos.y)
 
+# Sent by the host with the position to respawn at.
 @rpc("any_peer", "call_remote", "reliable")
 
 
+# Respawns the player at the position sent by the host.
 func receive_respawn_position_rpc(px: float, py: float):
 	_do_respawn(Vector2(px, py))
 
 
+# Moves the player to the spawn position and restores their health.
 func _do_respawn(spawn_pos: Vector2):
 	drowning_timer = 0.0
 	drowning_dead = false
@@ -1043,6 +1153,7 @@ func _do_respawn(spawn_pos: Vector2):
 	is_dead = false
 
 
+# Flashes the character red briefly.
 func _flash_damage():
 	if damage_flash_tween:
 		damage_flash_tween.kill()
@@ -1062,9 +1173,11 @@ func _flash_damage():
 		pants_sprite.modulate = Color(1, 1, 1, 1)
 	)
 
+# Sent often to tell other players where this player is.
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 
 
+# Updates another player's position, velocity and held item on this game.
 func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String):
 	if is_multiplayer_authority():
 		return
@@ -1072,19 +1185,21 @@ func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String)
 	synced_velocity = Vector2(vx, vy)
 	synced_held_item = held
 
+# ID of the light created when holding a torch.
 var _torch_light_id: int = -1
 
 
+# Adds or removes a light when the player holds a torch in the offhand.
 func _update_torch_light():
-	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
-	if not lighting:
+	var lighting_system = get_tree().root.get_node_or_null("Scene/LightingSystem")
+	if not lighting_system:
 		return
 	var offhand_torch := false
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		offhand_torch = Inventory.offhand_slot.get("item", "") == "Torch"
 	var holding_torch = synced_held_item == "Torch" or offhand_torch
 	if holding_torch and _torch_light_id == -1:
-		_torch_light_id = lighting.add_light_source(self, 22, 1.35, true)
+		_torch_light_id = lighting_system.add_light_source(self, 22, 1.35, true)
 	elif not holding_torch and _torch_light_id != -1:
-		lighting.remove_light_source(_torch_light_id)
+		lighting_system.remove_light_source(_torch_light_id)
 		_torch_light_id = -1

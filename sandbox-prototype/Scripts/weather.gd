@@ -1,5 +1,10 @@
+# Weather, time and season system.
+# Runs the day and night cycle, picks random weather, and creates the visual effects for rain, thunder and lightning, fog, mist, wind and the aurora.
+# It also handles daily events and the four seasons. The host decides everything and the other players are sent the results.
+
 extends Node2D
 
+# The kinds of weather. Other scripts use the numbers in this order.
 enum WeatherType {
 	CLEAR,
 	RAIN,
@@ -10,80 +15,148 @@ enum WeatherType {
 	MISTY
 }
 
+# Extra distance beyond the screen edge in which lightning is still drawn.
 @export var lightning_render_padding: float = 500.0
+# Turns the screen flash during lightning on or off.
 @export var lightning_flash_enabled: bool = true
+# Shortest time between lightning strikes.
 @export var lightning_min_seconds: float = 25.0
+# Longest time between lightning strikes.
 @export var lightning_max_seconds: float = 60.0
+# Players this close to a strike are hit.
 @export var lightning_hit_radius: float = 36.0
+# Damage dealt to a player who is hit.
 @export var lightning_kill_damage: int = 9999
+# How far from a player a strike can land.
 @export var lightning_spawn_radius: float = 1500.0
+# Height of the drawn bolt.
 @export var lightning_bolt_height: float = 2200.0
+# Minimum distance between strikes in the same storm.
 @export var lightning_min_strike_gap: float = 50.0
+# Fewest strikes in one storm.
 @export var min_strike_count: float = 1
+# Most strikes in one storm.
 @export var max_strike_count: float = 3
 
+# Number of raindrops.
 @export var rain_drop_count: int = 420
+# Slowest raindrop speed.
 @export var rain_min_speed: float = 620.0
+# Fastest raindrop speed.
 @export var rain_max_speed: float = 900.0
+# Sideways tilt of the rain.
 @export var rain_slant: float = -12.0
+# How see through the rain is.
 @export var rain_alpha: float = 0.62
+# Radius around the player that stays clear in fog.
 @export var fog_clear_radius: float = 170.0
+# Radius over which the fog fades in.
 @export var fog_fade_radius: float = 430.0
+# Strongest fog opacity.
 @export var fog_max_alpha: float = 1.0
+# Radius around the player that stays clear in mist.
 @export var mist_clear_radius: float = 250.0
+# Radius over which the mist fades in.
 @export var mist_fade_radius: float = 620.0
+# Strongest mist opacity.
 @export var mist_max_alpha: float = 0.62
+# Number of wind particles.
 @export var wind_particle_count: int = 950
+# Slowest wind particle speed.
 @export var wind_min_speed: float = 650.0
+# Fastest wind particle speed.
 @export var wind_max_speed: float = 1200.0
+# Seconds each wind particle lasts.
 @export var wind_particle_lifetime: float = 3.0
+# How far the wind direction sways.
 @export var wind_sway_degrees: float = 10.0
+# How quickly the wind direction drifts.
 @export var wind_direction_drift_speed: float = 0.25
 
+# Real seconds in one full day.
 @export var day_length_seconds: float = 1350.0
+# Shortest time a weather type lasts.
 @export var weather_min_seconds: float = 450.0
+# Longest time a weather type lasts.
 @export var weather_max_seconds: float = 900.0
+# Weather at the start of the game.
 @export var initial_weather: WeatherType = WeatherType.CLEAR
+# Clear days in a row that make a special event more likely.
 @export var clear_days_before_event: int = 5
 
+# The weather right now.
 var current_weather: WeatherType = WeatherType.CLEAR
+# Time as a fraction of the day. 0 is midnight and 0.5 is noon.
 var time_of_day: float = 0.5
+# Seconds until the weather changes.
 var weather_timer: float = 0.0
+# Seconds until the next lightning strike.
 var lightning_timer: float = 0.0
+# Brightness of the current lightning flash.
 var lightning_alpha: float = 0.0
+# Number of clear days in a row.
 var clear_day_count: int = 0
+# The day number that was last counted.
 var last_day_integer: int = 0
+# True while an aurora is happening.
 var aurora_active: bool = false
+# Name of the current daily event, or an empty string.
 var day_event: String = ""
+# Seconds left in the daily event.
 var day_event_timer: float = 0.0
+# Whether it was night on the last update, to detect dusk and dawn.
 var _was_night: bool = false
+# Position in the aurora colour animation.
 var _aurora_phase: float = 0.0
+# How strongly the aurora is currently shown.
 var _aurora_fade: float = 0.0
+# True once the starting weather has been set.
 var _weather_initialized: bool = false
 
+# Random number generator for weather.
 var rng := RandomNumberGenerator.new()
+# Tints the whole scene to show the time of day.
 var canvas_modulate: CanvasModulate
+# Full screen rectangle used for the lightning flash.
 var lightning_flash: ColorRect
+# Layer that draws the lightning flash.
 var lightning_flash_layer: CanvasLayer
+# The rain particle effect.
 var rain_particles: GPUParticles2D = null
+# Coloured overlay used for the aurora.
 var aurora_overlay: ColorRect
+# Layer that draws the aurora overlay.
 var aurora_overlay_layer: CanvasLayer
+# Full screen rectangle that draws the fog.
 var fog_overlay: ColorRect
+# Layer that draws the fog.
 var fog_overlay_layer: CanvasLayer
+# Shader material that draws the fog around the player.
 var fog_material: ShaderMaterial
+# The wind particle effect.
 var wind_particles: GPUParticles2D
+# Layer that draws the wind particles.
 var wind_layer: CanvasLayer
+# Seconds until the wind changes strength.
 var wind_gust_timer: float = 0.0
+# Direction the wind is blowing.
 var wind_direction: Vector2 = Vector2.RIGHT
+# Average direction of the wind.
 var _wind_base_angle: float = 0.0
+# Current sideways sway of the wind.
 var _wind_sway_angle: float = 0.0
+# Whether the sway is currently increasing or decreasing.
 var _wind_sway_dir: float = 1.0
 
+# Current season: 0 spring, 1 summer, 2 autumn, 3 winter.
 var current_season: int = 0
+# Days passed since the game started.
 var total_days_elapsed: int = 0
+# Days each season lasts.
 const DAYS_PER_SEASON: int = 20
 
 
+# Creates every visual effect and starts the first weather and season.
 func _ready():
 	rng.randomize()
 	current_season = rng.randi() % 4
@@ -101,6 +174,7 @@ func _ready():
 	_weather_initialized = true
 
 
+# Creates the overlay that shows the aurora.
 func _create_aurora_overlay():
 	aurora_overlay_layer = CanvasLayer.new()
 	aurora_overlay_layer.layer = 109
@@ -112,6 +186,7 @@ func _create_aurora_overlay():
 	get_tree().root.add_child(aurora_overlay_layer)
 
 
+# Creates a full screen fog effect using a shader. The shader keeps a circle around the player clear.
 func _create_fog_overlay():
 	fog_overlay_layer = CanvasLayer.new()
 	fog_overlay_layer.layer = 0
@@ -151,6 +226,7 @@ void fragment() {
 	get_tree().root.add_child(fog_overlay_layer)
 
 
+# Creates the particle effect for wind.
 func _create_wind_particles():
 	wind_layer = CanvasLayer.new()
 	wind_layer.layer = 0
@@ -184,6 +260,7 @@ func _create_wind_particles():
 	get_tree().root.add_child(wind_layer)
 
 
+# Every frame the host updates the time and weather, and every player updates the visual effects.
 func _process(delta):
 	if not multiplayer.has_multiplayer_peer() or multiplayer.is_server():
 		_update_day_night(delta)
@@ -213,6 +290,7 @@ func _process(delta):
 	_update_day_event(delta)
 
 
+# Fades the aurora in and out and animates its colours.
 func _update_aurora_overlay(delta):
 	if not aurora_overlay:
 		return
@@ -240,6 +318,7 @@ func _update_aurora_overlay(delta):
 		)
 
 
+# Sets how strong the fog or mist is and keeps the clear circle on the player.
 func _update_fog_overlay(delta):
 	if not fog_overlay or not fog_material:
 		return
@@ -272,6 +351,7 @@ func _update_fog_overlay(delta):
 	fog_material.set_shader_parameter("time", Time.get_ticks_msec() / 1000.0)
 
 
+# Turns the wind particles on during wind and slowly changes their direction.
 func _update_wind_particles(delta):
 	if not wind_particles:
 		return
@@ -303,6 +383,7 @@ func _update_wind_particles(delta):
 		mat.emission_box_extents = Vector3(64, max_dim * 0.7, 1)
 
 
+# Counts down the daily event and ends it when the time is up.
 func _update_day_event(delta):
 	if day_event_timer <= 0.0:
 		return
@@ -311,6 +392,7 @@ func _update_day_event(delta):
 		day_event = ""
 
 
+# Counts days in a row with clear weather and advances the season at the right time.
 func _track_clear_days():
 	var day_integer = int(time_of_day)
 	if day_integer != last_day_integer:
@@ -324,6 +406,7 @@ func _track_clear_days():
 			_advance_season()
 
 
+# Moves to the next season and tells the other players.
 func _advance_season():
 	current_season = (current_season + 1) % 4
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
@@ -335,9 +418,11 @@ func _advance_season():
 	if multiplayer.has_multiplayer_peer():
 		_sync_season.rpc(current_season)
 
+# Sent by the host to tell players the season.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Sets the season and the HUD icon from the host's value.
 func _sync_season(season: int):
 	current_season = season
 	var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
@@ -345,12 +430,14 @@ func _sync_season(season: int):
 		hud.set_season_icon(season)
 
 
+# Creates the node that tints the scene for day and night.
 func _create_day_night():
 	canvas_modulate = CanvasModulate.new()
 	canvas_modulate.name = "DayNightTint"
 	get_tree().root.get_node("Scene").add_child.call_deferred(canvas_modulate)
 
 
+# Finds the rain particle effect in the scene.
 func _create_rain():
 	rain_particles = get_tree().root.get_node_or_null("Scene/RainCanvas/RainParticles")
 	if not rain_particles:
@@ -361,6 +448,7 @@ func _create_rain():
 		or current_weather == WeatherType.THUNDERSTORM
 
 
+# Creates the full screen rectangle used for lightning flashes.
 func _create_lightning_flash():
 	lightning_flash_layer = CanvasLayer.new()
 	lightning_flash_layer.name = "LightningFlashLayer"
@@ -375,6 +463,7 @@ func _create_lightning_flash():
 	get_tree().root.add_child.call_deferred(lightning_flash_layer)
 
 
+# Advances the time of day and reacts when night begins or ends.
 func _update_day_night(delta):
 	time_of_day += delta / day_length_seconds
 	if time_of_day >= 1.0:
@@ -391,10 +480,12 @@ func _update_day_night(delta):
 	_apply_day_night_color()
 
 
+# Returns true between just before midnight and early morning.
 func is_night() -> bool:
 	return time_of_day < 0.05 or time_of_day >= 0.97
 
 
+# Starts an aurora. It sometimes brings rain with it.
 func _start_aurora():
 	aurora_active = true
 	if rng.randf() < 0.20:
@@ -408,6 +499,7 @@ func _start_aurora():
 		_sync_aurora.rpc(true)
 
 
+# Ends the aurora and tells the Extras menu.
 func _end_aurora():
 	aurora_active = false
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
@@ -416,9 +508,11 @@ func _end_aurora():
 	if multiplayer.has_multiplayer_peer():
 		_sync_aurora.rpc(false)
 
+# Sent by the host to tell players whether the aurora is on.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Sets the aurora state from the host's value.
 func _sync_aurora(state: bool):
 	aurora_active = state
 	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
@@ -426,6 +520,7 @@ func _sync_aurora(state: bool):
 		extras.set_aurora(state)
 
 
+# Sets the scene tint for the time of day, blending between morning, day, evening and night.
 func _apply_day_night_color():
 	if not canvas_modulate:
 		return
@@ -464,12 +559,14 @@ func _apply_day_night_color():
 	canvas_modulate.color = tint
 
 
+# Counts down and picks new weather when the timer ends.
 func _update_weather_timer(delta):
 	weather_timer -= delta
 	if weather_timer <= 0.0:
 		_pick_next_weather()
 
 
+# Chooses the next weather at random, and sometimes starts a special event after many clear days.
 func _pick_next_weather():
 	if aurora_active:
 		weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
@@ -505,6 +602,7 @@ func _pick_next_weather():
 	weather_timer = rng.randf_range(weather_min_seconds, weather_max_seconds)
 
 
+# Handles the timing of lightning strikes and the fading of the flash during thunder weather.
 func _update_lightning(delta):
 	var is_electric: bool = current_weather == WeatherType.THUNDER \
 		or current_weather == WeatherType.THUNDERSTORM
@@ -552,9 +650,11 @@ func _update_lightning(delta):
 	if lightning_flash and lightning_flash_enabled:
 		lightning_flash.color = Color(1, 1, 1, lightning_alpha)
 
+# Sent to players to copy the host's weather and time.
 @rpc("any_peer", "call_remote", "reliable")
 
 
+# Copies the host's weather, time and timer. The host ignores it.
 func sync_weather_state(weather: int, synced_time: float, timer: float):
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		return
@@ -565,6 +665,7 @@ func sync_weather_state(weather: int, synced_time: float, timer: float):
 	_apply_day_night_color()
 
 
+# Chooses a strike position near a random player.
 func _get_random_lightning_world_position() -> Vector2:
 	var players = get_tree().get_nodes_in_group("players")
 	players = players.filter(func(p): return is_instance_valid(p))
@@ -579,6 +680,7 @@ func _get_random_lightning_world_position() -> Vector2:
 	return Vector2.ZERO
 
 
+# Draws a lightning bolt at the position for a short time.
 func _show_lightning_strike(world_pos: Vector2):
 	var bolt = Line2D.new()
 	bolt.width = 7.0
@@ -598,6 +700,7 @@ func _show_lightning_strike(world_pos: Vector2):
 		bolt.queue_free()
 
 
+# Host only. Damages any player close to the strike.
 func _kill_players_hit_by_lightning(world_pos: Vector2):
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
@@ -645,6 +748,7 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 			chicken.take_damage(9999)
 
 
+# Returns the player controlled by this game instance, or null.
 func _get_local_player():
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if not scene_node:
@@ -658,9 +762,11 @@ func _get_local_player():
 				return child
 	return null
 
+# Sent by the host so every player sees and hears the strike.
 @rpc("authority", "call_local", "reliable")
 
 
+# Flashes the screen, plays thunder and draws the bolt.
 func lightning_strike_rpc(pos_x: float, pos_y: float):
 	var strike_pos = Vector2(pos_x, pos_y)
 	if lightning_flash_enabled:
@@ -671,6 +777,7 @@ func lightning_strike_rpc(pos_x: float, pos_y: float):
 	_kill_players_hit_by_lightning(strike_pos)
 
 
+# Returns true if the world position is visible, plus the padding.
 func _is_position_on_screen(world_pos: Vector2) -> bool:
 	var camera = get_viewport().get_camera_2d()
 	if not camera:
@@ -684,6 +791,7 @@ func _is_position_on_screen(world_pos: Vector2) -> bool:
 	return screen_rect.has_point(world_pos)
 
 
+# Changes the weather, starts or stops the rain and its sound, and shows a message when rain begins.
 func _set_weather(new_weather: WeatherType):
 	var was_raining: bool = current_weather == WeatherType.RAIN \
 		or current_weather == WeatherType.THUNDER \
@@ -718,6 +826,7 @@ func _set_weather(new_weather: WeatherType):
 			lightning_timer = 0.0
 
 
+# Starts a daily event, such as the divine blessing, with a random length.
 func _start_day_event(event_name: String):
 	day_event = event_name
 	day_event_timer = rng.randf_range(90.0, 180.0)
@@ -732,33 +841,40 @@ func _start_day_event(event_name: String):
 		_show_rain_notification(event_name + " has begun.")
 
 
+# Starts a daily event and tells the other players.
 func start_day_event(event_name: String):
 	_start_day_event(event_name)
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		_sync_day_event.rpc(event_name, day_event_timer)
 
 
+# Ends the daily event and tells the other players.
 func clear_day_event():
 	day_event = ""
 	day_event_timer = 0.0
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		_sync_clear_day_event.rpc()
 
+# Sent by the host to start a daily event on other players' games.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Starts the event with the host's remaining time.
 func _sync_day_event(event_name: String, timer: float):
 	_start_day_event(event_name)
 	day_event_timer = timer
 
+# Sent by the host to end a daily event on other players' games.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Ends the daily event.
 func _sync_clear_day_event():
 	day_event = ""
 	day_event_timer = 0.0
 
 
+# Shows a message on screen that fades away.
 func _show_rain_notification(msg: String):
 	var canvas = get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if not canvas:
@@ -781,6 +897,7 @@ func _show_rain_notification(msg: String):
 	tween.tween_callback(label.queue_free)
 
 
+# Returns true if the player is in the cave world.
 func _is_in_cave() -> bool:
 	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	return cave_gen != null and cave_gen.get("in_cave") == true

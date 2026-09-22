@@ -229,39 +229,6 @@ script = ExtResource("20_b0t05")
 
 [node name="Weather" type="Node2D" parent="." unique_id=1376705338]
 script = ExtResource("19_l8vl3")
-lightning_render_padding = null
-lightning_flash_enabled = null
-lightning_min_seconds = null
-lightning_max_seconds = null
-lightning_hit_radius = null
-lightning_kill_damage = null
-lightning_spawn_radius = null
-lightning_bolt_height = null
-lightning_min_strike_gap = null
-min_strike_count = null
-max_strike_count = null
-rain_drop_count = null
-rain_min_speed = null
-rain_max_speed = null
-rain_slant = null
-rain_alpha = null
-fog_clear_radius = null
-fog_fade_radius = null
-fog_max_alpha = null
-mist_clear_radius = null
-mist_fade_radius = null
-mist_max_alpha = null
-wind_particle_count = null
-wind_min_speed = null
-wind_max_speed = null
-wind_particle_lifetime = null
-wind_sway_degrees = null
-wind_direction_drift_speed = null
-day_length_seconds = null
-weather_min_seconds = null
-weather_max_seconds = null
-initial_weather = null
-clear_days_before_event = null
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=167471078]
 process_callback = 0

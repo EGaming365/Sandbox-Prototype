@@ -1,12 +1,23 @@
+# Chat box and command console.
+# Shows chat messages, sends them to the other players, and runs slash commands such as /help, /give, /weather, /tp, /time, /spawn, /kill, /event, /season, /world, /boss and /tpboss.
+# Most commands can only be used by the admin's Steam account. /help lists every command for any player.
+
 extends Control
 
+# Steam ID of the account that is allowed to use the admin commands.
 const ADMIN_STEAM_ID: int = 76561199247129478
+# Most messages kept in the chat history.
 const MAX_MESSAGES: int = 20
+# Seconds after closing the chat before the history fades away.
 const HIDE_DELAY: float = 5.0
 
+# The chat history.
 var messages: Array = []
+# Seconds until the chat history is hidden.
 var hide_timer: float = 0.0
+# True while the player is typing.
 var is_open: bool = false
+# Pictures used when items are given with the /give command.
 var wood_texture: Texture2D = preload("res://Assets/Wood.png")
 var axe_texture: Texture2D = preload("res://Assets/Axe.png")
 var sword_texture: Texture2D = preload("res://Assets/Sword.png")
@@ -20,6 +31,7 @@ var fishing_rod_texture: Texture2D = preload("res://Assets/Fishing_Rod.png")
 var stone_fishing_rod_texture: Texture2D = preload("res://Assets/Stone_Fishing_Rod.png")
 var tophat_fish_texture: Texture2D = preload("res://Assets/Fish_Tophat_Raw.png")
 
+# Alternative names players can type for items, mapped to the real item names.
 const ITEM_ALIASES: Dictionary = {
 	"wood": "Wood",
 	"log": "Wood",
@@ -88,22 +100,28 @@ const ITEM_ALIASES: Dictionary = {
 	"copper fishing rod": "Copper Fishing Rod",
 }
 
+# Scrolling area that holds the chat history.
 @onready var scroll_container: ScrollContainer = $ChatContainer/ScrollContainer
+# List of message labels.
 @onready var messages_container: VBoxContainer = $ChatContainer/ScrollContainer/Messages
+# Row that holds the text box.
 @onready var input_row: HBoxContainer = $ChatContainer/InputRow
+# Text box the player types into.
 @onready var input_field: LineEdit = $ChatContainer/InputRow/InputField
 
+# Short delay after closing the chat, so the same key press is not reused.
 var _chat_close_cooldown: float = 0.0
 
 
+# Returns the Steam name of a player from their network ID, or a numbered name if it is not known.
 func _get_steam_name_for_peer(peer_id: int) -> String:
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node:
 		var steam_id = scene_node.peer_to_steam_id.get(peer_id, 0)
 		if steam_id != 0:
-			var name = Steam.getFriendPersonaName(steam_id)
-			if name != "" and name != null:
-				return name
+			var steam_player_name = Steam.getFriendPersonaName(steam_id)
+			if steam_player_name != "" and steam_player_name != null:
+				return steam_player_name
 			Steam.requestUserInformation(steam_id, true)
 			var persona = Steam.getFriendPersonaName(steam_id)
 			if persona != "" and persona != null:
@@ -114,48 +132,49 @@ func _get_steam_name_for_peer(peer_id: int) -> String:
 	return "Player_" + str(peer_id)
 
 
+# Runs a slash command. Each command is checked for the admin's Steam ID where required, except /help, which anyone can use.
 func _handle_command(text: String):
-	var parts = text.split(" ")
-	var cmd = parts[0].to_lower()
+	var command_parts = text.split(" ")
+	var command_name = command_parts[0].to_lower()
 	var my_steam_id = Steam.getSteamID()
-	match cmd:
+	match command_name:
 		"/give":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 3:
+			if command_parts.size() < 3:
 				_add_message("[System] Usage: /give <player_name> <item_name> [amount_or_weight_kg]")
 				return
 			var amount: int = 1
 			var weight_kg: float = 0.0
 			var item_name: String
-			var target_name = parts[1]
-			var last = parts[parts.size() - 1]
-			if parts.size() >= 4 and last.is_valid_float() and not last.is_valid_int():
+			var target_name = command_parts[1]
+			var last = command_parts[command_parts.size() - 1]
+			if command_parts.size() >= 4 and last.is_valid_float() and not last.is_valid_int():
 				weight_kg = last.to_float()
-				item_name = " ".join(parts.slice(2, parts.size() - 1))
-			elif parts.size() >= 4 and last.is_valid_int():
+				item_name = " ".join(command_parts.slice(2, command_parts.size() - 1))
+			elif command_parts.size() >= 4 and last.is_valid_int():
 				amount = last.to_int()
 				if amount <= 0:
 					_add_message("[System] Amount must be greater than 0.")
 					return
-				item_name = " ".join(parts.slice(2, parts.size() - 1))
+				item_name = " ".join(command_parts.slice(2, command_parts.size() - 1))
 			else:
-				item_name = " ".join(parts.slice(2))
+				item_name = " ".join(command_parts.slice(2))
 			item_name = _canonical_item_name(item_name)
 			_give_item_to_player(target_name, item_name, amount, weight_kg)
 		"/weather":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /weather <clear|rain|thunder|thunderstorm|wind|foggy|misty>")
 				return
 			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
 			if not weather_node:
 				_add_message("[System] WeatherSystem not found.")
 				return
-			match parts[1].to_lower():
+			match command_parts[1].to_lower():
 				"clear":
 					weather_node._set_weather(weather_node.WeatherType.CLEAR)
 				"rain":
@@ -180,12 +199,12 @@ func _handle_command(text: String):
 				weather_node.sync_weather_state.rpc(
 					weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
 				)
-			_add_message("[System] Weather set to: " + parts[1].to_lower())
+			_add_message("[System] Weather set to: " + command_parts[1].to_lower())
 		"/tp", "/teleport":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 3:
+			if command_parts.size() < 3:
 				_add_message(
 					"[System] Usage: /tp <player> <x> <y>  OR  /tp <player> here  OR  "
 					+ "/tp <player> <target_player>"
@@ -197,10 +216,10 @@ func _handle_command(text: String):
 				if child is CharacterBody2D and child.is_in_group("players"):
 					var peer_id = child.get_multiplayer_authority()
 					var sname = _get_steam_name_for_peer(peer_id)
-					if sname.to_lower().begins_with(parts[1].to_lower()):
+					if sname.to_lower().begins_with(command_parts[1].to_lower()):
 						subject_matches.append({"node": child, "peer_id": peer_id, "name": sname})
 			if subject_matches.size() == 0:
-				_add_message("[System] Player '" + parts[1] + "' not found.")
+				_add_message("[System] Player '" + command_parts[1] + "' not found.")
 				return
 			elif subject_matches.size() > 1:
 				var names = ""
@@ -212,16 +231,16 @@ func _handle_command(text: String):
 				return
 			var subject = subject_matches[0]
 			var dest: Vector2
-			if parts[2].to_lower() == "here":
+			if command_parts[2].to_lower() == "here":
 				var local_player = _get_local_player()
 				if not local_player:
 					_add_message("[System] Could not find your position.")
 					return
 				dest = local_player.global_position
-			elif parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
-				dest = Vector2((parts[2].to_float() * 100), (parts[3].to_float()) * -100)
+			elif command_parts.size() >= 4 and command_parts[2].is_valid_float() and command_parts[3].is_valid_float():
+				dest = Vector2((command_parts[2].to_float() * 100), (command_parts[3].to_float()) * -100)
 			else:
-				var target_name = " ".join(parts.slice(2))
+				var target_name = " ".join(command_parts.slice(2))
 				var target_matches = []
 				for child in scene_node.get_children():
 					if child is CharacterBody2D and child.is_in_group("players"):
@@ -252,14 +271,14 @@ func _handle_command(text: String):
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /time <morning|day|evening|night>")
 				return
 			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
 			if not weather_node:
 				_add_message("[System] WeatherSystem not found.")
 				return
-			match parts[1].to_lower():
+			match command_parts[1].to_lower():
 				"morning":
 					weather_node.time_of_day = 0.25
 				"day":
@@ -269,8 +288,8 @@ func _handle_command(text: String):
 				"night":
 					weather_node.time_of_day = 0
 				_:
-					var val = parts[1].to_float()
-					if parts[1].is_valid_float() and val >= 0.0 and val < 1.0:
+					var val = command_parts[1].to_float()
+					if command_parts[1].is_valid_float() and val >= 0.0 and val < 1.0:
 						weather_node.time_of_day = val
 					else:
 						_add_message("[System] Unknown time. Use: morning, day, evening, night, or a number below 1")
@@ -279,15 +298,15 @@ func _handle_command(text: String):
 				weather_node.sync_weather_state.rpc(
 					weather_node.current_weather, weather_node.time_of_day, weather_node.weather_timer,
 				)
-			_add_message("[System] Time set to: " + parts[1].to_lower())
+			_add_message("[System] Time set to: " + command_parts[1].to_lower())
 		"/spawn":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /spawn <chicken> [x] [y]")
 				return
-			if parts[1].to_lower() != "chicken":
+			if command_parts[1].to_lower() != "chicken":
 				_add_message("[System] Can only spawn: chicken")
 				return
 			var scene_node = get_tree().root.get_node_or_null("Scene")
@@ -295,8 +314,8 @@ func _handle_command(text: String):
 				_add_message("[System] Scene not found.")
 				return
 			var spawn_pos = Vector2.ZERO
-			if parts.size() >= 4 and parts[2].is_valid_float() and parts[3].is_valid_float():
-				spawn_pos = Vector2((parts[2].to_float() * 100), (parts[3].to_float()) * -100)
+			if command_parts.size() >= 4 and command_parts[2].is_valid_float() and command_parts[3].is_valid_float():
+				spawn_pos = Vector2((command_parts[2].to_float() * 100), (command_parts[3].to_float()) * -100)
 			else:
 				var local_player = _get_local_player()
 				if local_player:
@@ -315,11 +334,11 @@ func _handle_command(text: String):
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /kill <player_name>")
 				return
 			var scene_node = get_tree().root.get_node("Scene")
-			var target_name = " ".join(parts.slice(1))
+			var target_name = " ".join(command_parts.slice(1))
 			var matches = []
 			for child in scene_node.get_children():
 				if child is CharacterBody2D and child.is_in_group("players"):
@@ -351,15 +370,15 @@ func _handle_command(text: String):
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /event <none|aurora|rainbow|divine blessing>")
 				return
-			var event_name = " ".join(parts.slice(1)).strip_edges().to_lower()
+			var event_name = " ".join(command_parts.slice(1)).strip_edges().to_lower()
 			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
 			if not weather_node:
 				_add_message("[System] WeatherSystem not found.")
 				return
-			match parts[1].to_lower():
+			match command_parts[1].to_lower():
 				"aurora":
 					weather_node.time_of_day = 0.97
 					weather_node._was_night = true
@@ -403,7 +422,7 @@ func _handle_command(text: String):
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /season <spring|summer|autumn|winter>")
 				return
 			var weather_node = get_tree().root.get_node_or_null("Scene/Weather")
@@ -411,7 +430,7 @@ func _handle_command(text: String):
 				_add_message("[System] WeatherSystem not found.")
 				return
 			var season_index: int = -1
-			match parts[1].to_lower():
+			match command_parts[1].to_lower():
 				"spring": season_index = 0
 				"summer": season_index = 1
 				"autumn": season_index = 2
@@ -426,12 +445,12 @@ func _handle_command(text: String):
 				hud.set_season_icon(season_index)
 			if multiplayer.has_multiplayer_peer():
 				weather_node._sync_season.rpc(season_index)
-			_add_message("[System] Season set to: " + parts[1].to_lower())
+			_add_message("[System] Season set to: " + command_parts[1].to_lower())
 		"/world":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /world <overworld|cave>")
 				return
 			var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
@@ -439,7 +458,7 @@ func _handle_command(text: String):
 				_add_message("[System] CaveWorldGen not found.")
 				return
 			var in_cave: bool = cave_gen.get("in_cave")
-			match parts[1].to_lower():
+			match command_parts[1].to_lower():
 				"cave":
 					if in_cave:
 						_add_message("[System] You are already in the cave.")
@@ -484,11 +503,11 @@ func _handle_command(text: String):
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
 				return
-			if parts.size() < 2:
+			if command_parts.size() < 2:
 				_add_message("[System] Usage: /boss <spider_queen>")
 				return
 			BossManager.handle_command(text)
-			_add_message("[System] Spawning boss: " + parts[1].to_lower())
+			_add_message("[System] Spawning boss: " + command_parts[1].to_lower())
 		"/tpboss":
 			if my_steam_id != ADMIN_STEAM_ID:
 				_add_message("[System] No permission.")
@@ -518,10 +537,27 @@ func _handle_command(text: String):
 			var dest: Vector2 = cave_gen.get_room_center_world(boss_room.id)
 			local_player.global_position = dest
 			_add_message("[System] Teleported to the boss room.")
+		# Lists every command and its usage. Available to any player, since it is only information.
+		"/help":
+			_add_message("[System] Available commands:")
+			_add_message("/help - Show this list of commands")
+			_add_message("/give <player> <item> [amount|weight_kg] - Give an item to a player (admin)")
+			_add_message("/weather <clear|rain|thunder|thunderstorm|wind|foggy|misty> - Set the weather (admin)")
+			_add_message("/tp <player> <x> <y> | here | <target_player> - Teleport a player (admin)")
+			_add_message("/time <morning|day|evening|night|0-1> - Set the time of day (admin)")
+			_add_message("/spawn chicken [x] [y] - Spawn a chicken (admin)")
+			_add_message("/kill <player> - Kill a player (admin)")
+			_add_message("/event <none|aurora|rainbow|divine blessing> - Start or clear a daily event (admin)")
+			_add_message("/season <spring|summer|autumn|winter> - Set the season (admin)")
+			_add_message("/world <overworld|cave> - Move yourself between worlds (admin)")
+			_add_message("/boss <spider_queen> - Spawn a boss (admin)")
+			_add_message("/tpboss - Teleport to the boss room (admin)")
+			_add_message("[System] Commands marked (admin) only work on the admin Steam account.")
 		_:
-			_add_message("[System] Unknown command: " + cmd)
+			_add_message("[System] Unknown command: " + command_name)
 
 
+# Gives items to the named player, either directly or by asking their game to do it.
 func _give_item_to_player(
 	target_name: String,
 	item_name: String,
@@ -564,13 +600,16 @@ func _give_item_to_player(
 		_rpc_give_item.rpc_id(target_peer_id, item_name, amount, weight_kg)
 	_add_message("[System] Gave " + str(amount) + "x " + item_name + " to " + found_name)
 
+# Sent by the host to give items to a player.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Gives the items on this player's game.
 func _rpc_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 	_do_give_item(item_name, amount, weight_kg)
 
 
+# Converts an item name to lower case with single spaces so names can be compared.
 func _normalize_item_key(item_name: String) -> String:
 	var key := item_name.strip_edges().to_lower().replace("_", " ")
 	while key.contains("  "):
@@ -578,6 +617,7 @@ func _normalize_item_key(item_name: String) -> String:
 	return key
 
 
+# Finds the real item name for whatever the player typed, using the aliases and the fish names.
 func _canonical_item_name(raw_item_name: String) -> String:
 	var key := _normalize_item_key(raw_item_name)
 	if ITEM_ALIASES.has(key):
@@ -591,16 +631,17 @@ func _canonical_item_name(raw_item_name: String) -> String:
 	return raw_item_name.strip_edges()
 
 
+# Returns the picture for an item name.
 func _get_item_texture(item_name: String) -> Texture2D:
-	var tex := Inventory.get_texture(item_name)
-	if tex != null:
-		return tex
+	var item_texture := Inventory.get_texture(item_name)
+	if item_texture != null:
+		return item_texture
 	if item_name in FISH_ITEM_NAMES:
-		return tex if tex != null else tophat_fish_texture
+		return item_texture if item_texture != null else tophat_fish_texture
 	if Crafting.has_method("get_item_texture"):
-		tex = Crafting.get_item_texture(item_name)
-		if tex != null:
-			return tex
+		item_texture = Crafting.get_item_texture(item_name)
+		if item_texture != null:
+			return item_texture
 	match item_name.to_lower():
 		"wood": return wood_texture
 		"wood plank": return Crafting.plank_texture
@@ -623,6 +664,7 @@ func _get_item_texture(item_name: String) -> Texture2D:
 		"copper fishing rod": return Inventory.copper_fishing_rod_texture
 	return null
 
+# Names of every fish that can be given.
 const FISH_ITEM_NAMES: Array = [
 	"Tophat Fish", "Albino Tophat Fish",
 	"Minnow", "Albino Minnow",
@@ -639,6 +681,7 @@ const FISH_ITEM_NAMES: Array = [
 	"Tire", "Albino Tire",
 ]
 
+# Usual weight in kilograms of each fish, used when no weight is given.
 const FISH_BASE_WEIGHTS: Dictionary = {
 	"Minnow": 0.08, "Perch": 0.3, "Bass": 1.2, "Pike": 2.5,
 	"Catfish": 4.0, "Sturgeon": 12.0, "Tophat Fish": 0.6,
@@ -647,13 +690,14 @@ const FISH_BASE_WEIGHTS: Dictionary = {
 }
 
 
+# Adds items to this player's inventory. Tools get their full durability and fish get a weight.
 func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 	item_name = _canonical_item_name(item_name)
-	var tex = _get_item_texture(item_name)
-	if tex == null:
-		var img = Image.create(32, 32, false, Image.FORMAT_RGB8)
-		img.fill(Color.WHITE)
-		tex = ImageTexture.create_from_image(img)
+	var item_texture = _get_item_texture(item_name)
+	if item_texture == null:
+		var placeholder_image = Image.create(32, 32, false, Image.FORMAT_RGB8)
+		placeholder_image.fill(Color.WHITE)
+		item_texture = ImageTexture.create_from_image(placeholder_image)
 	Inventory.discover(item_name)
 	if item_name in FISH_ITEM_NAMES:
 		var base_name := item_name.replace("Albino ", "")
@@ -666,7 +710,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				if slot["item"] == "":
 					slot["item"] = item_name
 					slot["count"] = grams
-					slot["texture"] = tex
+					slot["texture"] = item_texture
 					placed = true
 					break
 			if not placed:
@@ -674,7 +718,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 					if Inventory.inv_slots[j]["item"] == "":
 						Inventory.inv_slots[j]["item"] = item_name
 						Inventory.inv_slots[j]["count"] = grams
-						Inventory.inv_slots[j]["texture"] = tex
+						Inventory.inv_slots[j]["texture"] = item_texture
 						break
 		Inventory.inventory_changed.emit()
 		return
@@ -687,7 +731,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				if slot["item"] == "":
 					slot["item"] = item_name
 					slot["count"] = item_count
-					slot["texture"] = tex
+					slot["texture"] = item_texture
 					added = true
 					break
 			if not added:
@@ -696,7 +740,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 					if slot["item"] == "":
 						slot["item"] = item_name
 						slot["count"] = item_count
-						slot["texture"] = tex
+						slot["texture"] = item_texture
 						break
 	else:
 		var remaining = amount
@@ -722,7 +766,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				var add = min(99, remaining)
 				slot["item"] = item_name
 				slot["count"] = add
-				slot["texture"] = tex
+				slot["texture"] = item_texture
 				remaining -= add
 		for j in UNLOCKED_INV_SLOTS:
 			if remaining <= 0:
@@ -732,11 +776,12 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				var add = min(99, remaining)
 				slot["item"] = item_name
 				slot["count"] = add
-				slot["texture"] = tex
+				slot["texture"] = item_texture
 				remaining -= add
 	Inventory.inventory_changed.emit()
 
 
+# Returns the starting durability of a tool, or one for other items that do not stack.
 func _get_non_stackable_start_count(item_name: String) -> int:
 	match item_name:
 		"Axe":
@@ -761,6 +806,7 @@ func _get_non_stackable_start_count(item_name: String) -> int:
 			return 1
 
 
+# Returns the player controlled by this game instance, or null.
 func _get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -772,6 +818,7 @@ func _get_local_player():
 	return null
 
 
+# Briefly opens and closes the chat so it is set up, then leaves it hidden.
 func _ready():
 	input_row.visible = false
 	scroll_container.visible = false
@@ -781,6 +828,7 @@ func _ready():
 	_close_chat()
 
 
+# Shows the text box and history and starts typing, with optional starting text.
 func _open_chat(prefill: String):
 	is_open = true
 	input_row.visible = true
@@ -791,6 +839,7 @@ func _open_chat(prefill: String):
 	input_field.caret_column = input_field.text.length()
 
 
+# Hides the text box and starts the delay before the history fades.
 func _close_chat():
 	is_open = false
 	input_row.visible = false
@@ -802,14 +851,15 @@ func _close_chat():
 		scroll_container.visible = false
 
 
-func _add_message(msg: String):
-	messages.append(msg)
+# Adds a message to the history and removes the oldest when there are too many.
+func _add_message(message_text: String):
+	messages.append(message_text)
 	if messages.size() > MAX_MESSAGES:
 		messages.pop_front()
 		if messages_container.get_child_count() > 0:
 			messages_container.get_child(0).queue_free()
 	var label = Label.new()
-	label.text = msg
+	label.text = message_text
 	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -821,6 +871,7 @@ func _add_message(msg: String):
 	_scroll_to_latest_message.call_deferred()
 
 
+# Scrolls the history to the newest message.
 func _scroll_to_latest_message():
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -829,6 +880,7 @@ func _scroll_to_latest_message():
 		scroll_container.scroll_vertical = int(bar.max_value)
 
 
+# Runs when the player presses enter. Slash messages are commands, everything else is sent as chat.
 func _on_input_submitted(text: String):
 	var trimmed = text.strip_edges()
 	if trimmed == "":
@@ -841,22 +893,26 @@ func _on_input_submitted(text: String):
 	_close_chat()
 
 
+# Sends a chat message to every player, with the sender's Steam name in front.
 func _send_chat(text: String):
 	var steam_id = Steam.getSteamID()
 	var steam_name = Steam.getFriendPersonaName(steam_id)
-	var msg = steam_name + ": " + text
+	var message_text = steam_name + ": " + text
 	if multiplayer.has_multiplayer_peer():
-		_broadcast_message.rpc(msg)
+		_broadcast_message.rpc(message_text)
 	else:
-		_add_message(msg)
+		_add_message(message_text)
 
+# Sent by any player so everyone receives the message, including the sender.
 @rpc("any_peer", "call_local", "reliable")
 
 
-func _broadcast_message(msg: String):
-	_add_message(msg)
+# Shows a received message.
+func _broadcast_message(message_text: String):
+	_add_message(message_text)
 
 
+# Hides the history after the delay, opens the chat with the chat key and closes it with the exit key.
 func _process(delta: float):
 	if not is_open:
 		if hide_timer > 0.0:
@@ -875,6 +931,7 @@ func _process(delta: float):
 			get_viewport().set_input_as_handled()
 
 
+# Opens the chat with a slash already typed when the slash key is pressed, ready for a command.
 func _input(event):
 	if not is_open:
 		if event is InputEventKey and event.pressed and not event.echo:
@@ -884,61 +941,68 @@ func _input(event):
 				return
 
 
-func _add_system_message(msg: String):
+# Shows a system message. Only the admin sees these.
+func _add_system_message(message_text: String):
 	var my_steam_id = Steam.getSteamID()
 	if my_steam_id != ADMIN_STEAM_ID:
 		return
-	_add_message("[System] " + msg)
+	_add_message("[System] " + message_text)
 
+# Sent by the host to move a player.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Moves this player to the given position.
 func _rpc_teleport(dest: Vector2):
 	var local_player = _get_local_player()
 	if local_player:
 		local_player.global_position = dest
 
+# Sent by the host to kill a player.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Kills this player.
 func _rpc_kill_player():
 	var local_player = _get_local_player()
 	if local_player:
 		local_player.take_damage(local_player.synced_health)
 
 
+# Searches in growing circles for a free cave floor position near the target.
 func _find_safe_cave_pos(cave_gen: Node, near: Vector2) -> Vector2:
 	var tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
 	for radius in [0, 64, 128, 256, 512]:
 		var attempts := 1 if radius == 0 else 16
 		for i in attempts:
-			var pos: Vector2
+			var safe_position: Vector2
 			if radius == 0:
-				pos = near
+				safe_position = near
 			else:
 				var angle := (float(i) / float(attempts)) * TAU
-				pos = near + Vector2(cos(angle), sin(angle)) * radius
-			var tc: Vector2i = cave_gen.world_to_tile(pos)
+				safe_position = near + Vector2(cos(angle), sin(angle)) * radius
+			var tc: Vector2i = cave_gen.world_to_tile(safe_position)
 			if cave_gen._carved_tiles.has(tc) \
 				and not cave_gen._water_tiles.has(tc) \
 				and not cave_gen._wall_tiles.has(tc):
 				if tilemap:
-					pos = tilemap.to_global(tilemap.map_to_local(tc))
-				return pos
+					safe_position = tilemap.to_global(tilemap.map_to_local(tc))
+				return safe_position
 	return Vector2.ZERO
 
 
+# Searches in growing circles for a position on land near the target.
 func _find_safe_overworld_pos(world_gen: Node, near: Vector2) -> Vector2:
 	for radius in [0, 64, 128, 256, 512]:
 		var attempts := 1 if radius == 0 else 16
 		for i in attempts:
-			var pos: Vector2
+			var safe_position: Vector2
 			if radius == 0:
-				pos = near
+				safe_position = near
 			else:
 				var angle := (float(i) / float(attempts)) * TAU
-				pos = near + Vector2(cos(angle), sin(angle)) * radius
-			if world_gen.has_method("is_water_at") and world_gen.is_water_at(pos):
+				safe_position = near + Vector2(cos(angle), sin(angle)) * radius
+			if world_gen.has_method("is_water_at") and world_gen.is_water_at(safe_position):
 				continue
-			return pos
+			return safe_position
 	return Vector2.ZERO

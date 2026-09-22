@@ -1,37 +1,69 @@
+# Main scene script.
+# The heart of the game. It connects to Steam, hosts and joins lobbies, spawns and removes players, and keeps every player's game in step with the host.
+# It stores the floor items, trees, rocks and placed blocks, and holds the network functions used for damage, respawning, enemies, chickens and bosses.
+# The host decides what happens and clients send requests to it.
+
 extends Node2D
 
+# Steam ID of each connected player, stored by network ID.
+# The Steam network connection.
 var peer_to_steam_id: Dictionary = {}
+# ID of the Steam lobby, or 0 if there is none.
 var lobby_id: int = 0
 var peer: SteamMultiplayerPeer
+# Scene created for each player.
 @export var player_scene: PackedScene
+# True if this game is hosting.
 var is_host: bool = false
+# True while joining a lobby.
 var is_joining: bool = false
+# True once the network signals have been connected.
 var signals_connected: bool = false
+# The player controlled by this game instance.
 var local_player: CharacterBody2D = null
 
+# World seed shared by all players.
 var synced_world_seed: int = 0
+# IDs of trees and rocks that have been destroyed.
 var destroyed_env_objects: Dictionary = {}
+# Hits taken by damaged trees and rocks, stored by ID.
 var env_object_hits: Dictionary = {}
 
+# Items lying on the floor, stored by ID.
 var floor_items: Dictionary = {}
+# ID given to the next floor item.
 var next_item_id: int = 0
+# Loose trees, stored by ID.
 var trees: Dictionary = {}
+# ID given to the next tree.
 var next_tree_id: int = 0
+# Loose rocks, stored by ID.
 var rocks: Dictionary = {}
+# ID given to the next rock.
 var next_rock_id: int = 0
+# Blocks placed by players, stored by ID.
 var placed_blocks: Dictionary = {}
+# ID given to the next placed block.
 var next_block_id: int = 0
+# Picture of the block that was placed last.
 var last_placed_texture: Texture2D = null
 
+# Button that starts hosting.
 @onready var host_button: Button = $CanvasLayer/Host_Button
+# Button that joins a lobby.
 @onready var join_button: Button = $CanvasLayer/Join_Button
+# Text box for the lobby ID.
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
 
+# Which world the player is in: overworld or cave.
 var current_world_layer: String = "overworld"
+# Which world each floor item belongs to.
 var floor_item_layers: Dictionary = {}
+# True if Steam started correctly.
 var steam_connected: bool = false
 
 
+# Returns cave or overworld depending on where the player is.
 func _get_current_world_layer() -> String:
 	var cave_gen = get_node_or_null("CaveWorldGen")
 	if cave_gen and cave_gen.get("in_cave"):
@@ -39,6 +71,7 @@ func _get_current_world_layer() -> String:
 	return "overworld"
 
 
+# Shows floor items that belong to the current world and hides the others.
 func _refresh_floor_item_visibility():
 	var layer = _get_current_world_layer()
 	for item_id in floor_items:
@@ -52,7 +85,8 @@ func _refresh_floor_item_visibility():
 					child.disabled = not matches
 
 
-func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
+# Host function. Drops an item on the floor, joining an existing pile if one is close, and tells the other players.
+func host_spawn_floor_item(world_position: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
 	var layer = _get_current_world_layer()
 	if not item_type in NON_STACKABLE_FLOOR_ITEMS and not _is_fish_item_name(item_type):
 		for item_id in floor_items:
@@ -63,7 +97,7 @@ func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability:
 				continue
 			if item.get("item_type") != item_type:
 				continue
-			if item.global_position.distance_to(pos) > 48.0:
+			if item.global_position.distance_to(world_position) > 48.0:
 				continue
 			if item.get("stack_count") >= 99:
 				continue
@@ -77,12 +111,13 @@ func host_spawn_floor_item(pos: Vector2, item_type: String = "Wood", durability:
 	next_item_id += 1
 	floor_item_layers[id] = layer
 	if multiplayer.has_multiplayer_peer():
-		spawn_floor_item_rpc.rpc(id, pos.x, pos.y, item_type, durability, layer)
+		spawn_floor_item_rpc.rpc(id, world_position.x, world_position.y, item_type, durability, layer)
 	else:
-		_do_spawn_floor_item(id, pos.x, pos.y, item_type, durability, layer)
+		_do_spawn_floor_item(id, world_position.x, world_position.y, item_type, durability, layer)
 	return id
 
 
+# Creates the floor item scene that matches the item type and sets it up.
 func _do_spawn_floor_item(
 	item_id: int,
 	pos_x: float,
@@ -197,6 +232,7 @@ func _do_spawn_floor_item(
 	item.visible = (layer == _get_current_world_layer())
 
 
+# Removes a floor item from the world.
 func remove_floor_item(item_id: int):
 	floor_item_layers.erase(item_id)
 	if floor_items.has(item_id):
@@ -204,6 +240,7 @@ func remove_floor_item(item_id: int):
 			floor_items[item_id].queue_free()
 		floor_items.erase(item_id)
 
+# Creates a floor item on every player's game.
 @rpc("any_peer", "call_local", "reliable")
 
 
@@ -218,6 +255,7 @@ func spawn_floor_item_rpc(
 	_do_spawn_floor_item(item_id, pos_x, pos_y, item_type, durability, layer)
 
 
+# Sends every floor item to a player who has just joined.
 func sync_floor_items_to_peer(peer_id: int):
 	if not multiplayer.get_peers().has(peer_id):
 		return
@@ -225,7 +263,7 @@ func sync_floor_items_to_peer(peer_id: int):
 		var item = floor_items[item_id]
 		if not is_instance_valid(item):
 			continue
-		var pos = item.global_position
+		var world_position = item.global_position
 		var script_path = item.get_script().resource_path
 		var item_type: String
 		if item.has_meta("item_name"):
@@ -268,8 +306,9 @@ func sync_floor_items_to_peer(peer_id: int):
 			item_type = "Wood"
 		var dur: int = item.durability if item.get("durability") != null else 1
 		var layer = floor_item_layers.get(item_id, "overworld")
-		spawn_floor_item_rpc.rpc_id(peer_id, item_id, pos.x, pos.y, item_type, dur, layer)
+		spawn_floor_item_rpc.rpc_id(peer_id, item_id, world_position.x, world_position.y, item_type, dur, layer)
 
+# Names of every fish item.
 const FISH_ITEM_NAMES: Array = [
 	"Tophat Fish", "Albino Tophat Fish",
 	"Minnow", "Albino Minnow",
@@ -291,6 +330,7 @@ const FISH_ITEM_NAMES: Array = [
 	"Crystal Creeper", "Albino Crystal Creeper",
 ]
 
+# Items that always make their own pile and never join another.
 const NON_STACKABLE_FLOOR_ITEMS: Array = [
 	"Axe", "Sword", "Pickaxe", "Stone Axe", "Stone Sword", "Stone Pickaxe",
 	"Wardrobe", "Fishing Rod", "Stone Fishing Rod",
@@ -316,6 +356,7 @@ const NON_STACKABLE_FLOOR_ITEMS: Array = [
 ]
 
 
+# Returns true if the item is a fish.
 func _is_fish_item_name(item_name: String) -> bool:
 	if item_name in FISH_ITEM_NAMES:
 		return true
@@ -328,6 +369,7 @@ func _is_fish_item_name(item_name: String) -> bool:
 	return false
 
 
+# Starts Steam, connects the buttons and network signals and prepares the village and UI.
 func _ready():
 	y_sort_enabled = true
 	get_tree().set_auto_accept_quit(false)
@@ -346,6 +388,7 @@ func _ready():
 	_init_village()
 
 
+# Places the village at its spawn point and builds it.
 func _init_village() -> void:
 	var spawn_point = get_node_or_null("VillageSpawnPoint")
 	if spawn_point:
@@ -353,15 +396,19 @@ func _init_village() -> void:
 	VillageManager.preload_village()
 
 
-func set_online_ui_visible(v: bool) -> void:
+# Shows or hides the host and join controls, but keeps them hidden once already connected to a lobby, regardless of what is asked for.
+func set_online_ui_visible(should_show: bool) -> void:
+	# Only actually show the controls if the game is not already in a lobby.
+	var show_it: bool = should_show and lobby_id == 0
 	if host_button:
-		host_button.visible = v
+		host_button.visible = show_it
 	if join_button:
-		join_button.visible = v
+		join_button.visible = show_it
 	if id_prompt:
-		id_prompt.visible = v
+		id_prompt.visible = show_it
 
 
+# Shows a warning on screen if Steam did not connect.
 func _show_steam_status_warning() -> void:
 	if steam_connected:
 		return
@@ -381,6 +428,7 @@ func _show_steam_status_warning() -> void:
 	canvas.add_child(label)
 
 
+# Runs Steam callbacks, finds the local player and updates floor items each frame.
 func _process(_delta):
 	Steam.run_callbacks()
 	local_player = null
@@ -392,6 +440,7 @@ func _process(_delta):
 	_update_floor_item_water_sinking(_delta)
 
 
+# Sends the world seed, settings and destroyed objects to a joining player.
 func _sync_world_to_peer(peer_id: int):
 	var world_gen = get_node_or_null("WorldGen")
 	var env_gen = get_node_or_null("EnvironmentGen")
@@ -412,11 +461,12 @@ func _sync_world_to_peer(peer_id: int):
 	if env_gen:
 		env_gen.set_world_seed(synced_world_seed)
 
+# Receives the host's world settings and generates the same world.
 @rpc("any_peer", "call_remote", "reliable")
 
 
 func sync_world_rpc(
-	seed: int,
+	new_seed: int,
 	synced_tile_size: int,
 	frequency: float,
 	threshold: float,
@@ -428,14 +478,15 @@ func sync_world_rpc(
 	var world_gen = get_node_or_null("WorldGen")
 	var env_gen = get_node_or_null("EnvironmentGen")
 	if world_gen:
-		world_gen.set_world_settings(seed, synced_tile_size, frequency, threshold)
+		world_gen.set_world_settings(new_seed, synced_tile_size, frequency, threshold)
 	if env_gen:
-		env_gen.set_world_seed(seed)
+		env_gen.set_world_seed(new_seed)
 		await get_tree().process_frame
 		await get_tree().process_frame
 		await get_tree().process_frame
 		env_gen.apply_env_state(destroyed, hits)
 
+# Host function. Adds damage to a tree or rock and destroys it when it has taken enough.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -451,6 +502,7 @@ func request_hit_env_object(env_id: String, damage: int, max_hits: int):
 		env_object_hits[env_id] = current_hits
 		sync_env_object_hits.rpc(env_id, current_hits)
 
+# Removes a destroyed tree or rock on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -461,6 +513,7 @@ func sync_destroy_env_object(env_id: String):
 	if env_gen:
 		env_gen.mark_destroyed(env_id)
 
+# Updates the hits a tree or rock has taken on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -471,11 +524,13 @@ func sync_env_object_hits(env_id: String, hits: int):
 		env_gen.set_object_hits(env_id, hits)
 
 
+# Starts joining the Steam lobby with the given ID.
 func join_lobby(new_lobby_id: int):
 	is_joining = true
 	Steam.joinLobby(new_lobby_id)
 
 
+# Creates a Steam lobby and starts hosting.
 func host_lobby():
 	if is_host:
 		return
@@ -485,6 +540,7 @@ func host_lobby():
 	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, 4)
 
 
+# Called when the lobby exists. Starts the network host and shows the lobby ID.
 func _on_lobby_created(result: int, new_lobby_id: int):
 	if result != 1:
 		is_host = false
@@ -521,6 +577,7 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 	peer_to_steam_id[multiplayer.get_unique_id()] = Steam.getSteamID()
 
 
+# Called when the lobby has been joined. Connects to the host.
 func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, response: int):
 	print("Lobby joined response: ", response)
 	if not is_joining:
@@ -557,6 +614,7 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 		print("ERROR: never connected after 15 seconds")
 
 
+# Host function. A player connected, so spawn them and send them the world.
 func _on_peer_connected(id: int):
 	print("Peer connected on host: ", id)
 	_spawn_player(id)
@@ -592,10 +650,12 @@ func _on_peer_connected(id: int):
 		chat._broadcast_message.rpc(player_name + " joined the world")
 
 
+# Quits the game when the host leaves.
 func _on_host_disconnected():
 	get_tree().quit()
 
 
+# Removes all items, trees, rocks and blocks, for example when joining a new game.
 func _clear_world_state():
 	for item_id in floor_items:
 		if is_instance_valid(floor_items[item_id]):
@@ -617,6 +677,7 @@ func _clear_world_state():
 	env_object_hits.clear()
 
 
+# Empties the hotbar and backpack.
 func _clear_inventory():
 	for i in Inventory.slots.size():
 		Inventory.slots[i] = {"item": "", "count": 0, "texture": null}
@@ -624,6 +685,7 @@ func _clear_inventory():
 		Inventory.inv_slots[i] = {"item": "", "count": 0, "texture": null}
 	Inventory.inventory_changed.emit()
 
+# Spawns the players who were already in the game for a joining player.
 @rpc("authority", "call_remote", "reliable")
 
 
@@ -632,6 +694,7 @@ func sync_players_to_client(ids: Array[int]):
 		_spawn_player(id)
 
 
+# Creates a player character with the given network ID.
 func _spawn_player(id: int):
 	if has_node(str(id)):
 		return
@@ -645,11 +708,13 @@ func _spawn_player(id: int):
 	player.global_position = _find_safe_spawn(Vector2(0, 0))
 
 
+# Removes a player who left.
 func _remove_player(id: int):
 	if not has_node(str(id)):
 		return
 	get_node(str(id)).queue_free()
 
+# Removes a player who left on every other player's game.
 @rpc("authority", "call_remote", "reliable")
 
 
@@ -658,24 +723,28 @@ func remove_player_on_clients(id: int):
 		get_node(str(id)).queue_free()
 
 
-func spawn_tree_with_id(pos: Vector2) -> int:
+# Returns a new ID for a tree.
+func spawn_tree_with_id(world_position: Vector2) -> int:
 	var id = next_tree_id
 	next_tree_id += 1
 	return id
 
 
-func spawn_rock_with_id(pos: Vector2) -> int:
+# Returns a new ID for a rock.
+func spawn_rock_with_id(world_position: Vector2) -> int:
 	var id = next_rock_id
 	next_rock_id += 1
 	return id
 
 
+# Removes a tree from the world.
 func remove_tree(tree_id: int):
 	if trees.has(tree_id):
 		if is_instance_valid(trees[tree_id]):
 			trees[tree_id].queue_free()
 		trees.erase(tree_id)
 
+# Removes a tree on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -683,18 +752,21 @@ func sync_remove_tree(tree_id: int):
 	remove_tree(tree_id)
 
 
+# Removes a rock from the world.
 func remove_rock(rock_id: int):
 	if rocks.has(rock_id):
 		if is_instance_valid(rocks[rock_id]):
 			rocks[rock_id].queue_free()
 		rocks.erase(rock_id)
 
+# Removes a rock on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
 func sync_remove_rock(rock_id: int):
 	remove_rock(rock_id)
 
+# Creates a placed block on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -703,55 +775,59 @@ func place_block_rpc(
 	item_name: String,
 	pos_x: float,
 	pos_y: float,
-	rot: float = 0.0,
+	rotation_angle: float = 0.0,
 ):
-	_do_place_block(block_id, item_name, pos_x, pos_y, rot)
+	_do_place_block(block_id, item_name, pos_x, pos_y, rotation_angle)
 
 
+# Host function. Gives a new block an ID and tells everyone to create it.
 func host_place_block(
 	item_name: String,
-	pos: Vector2,
-	rot: float = 0.0,
+	world_position: Vector2,
+	rotation_angle: float = 0.0,
 	tex: Texture2D = null,
 ) -> int:
 	var id = next_block_id
 	next_block_id += 1
 	if item_name == "Wardrobe":
 		if multiplayer.has_multiplayer_peer():
-			place_wardrobe_rpc.rpc(id, pos.x, pos.y)
+			place_wardrobe_rpc.rpc(id, world_position.x, world_position.y)
 		else:
-			_do_place_wardrobe(id, pos.x, pos.y)
+			_do_place_wardrobe(id, world_position.x, world_position.y)
 		return id
 	if multiplayer.has_multiplayer_peer():
-		place_block_rpc.rpc(id, item_name, pos.x, pos.y, rot)
+		place_block_rpc.rpc(id, item_name, world_position.x, world_position.y, rotation_angle)
 	else:
-		_do_place_block(id, item_name, pos.x, pos.y, rot)
+		_do_place_block(id, item_name, world_position.x, world_position.y, rotation_angle)
 	return id
 
+# Creates a placed wardrobe on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
-func place_wardrobe_rpc(b_id: int, pos_x: float, pos_y: float):
-	_do_place_wardrobe(b_id, pos_x, pos_y)
+func place_wardrobe_rpc(block_number: int, pos_x: float, pos_y: float):
+	_do_place_wardrobe(block_number, pos_x, pos_y)
 
 
-func _do_place_wardrobe(b_id: int, pos_x: float, pos_y: float):
-	if placed_blocks.has(b_id):
+# Creates a wardrobe block.
+func _do_place_wardrobe(block_number: int, pos_x: float, pos_y: float):
+	if placed_blocks.has(block_number):
 		return
 	var wardrobe_scene = preload("res://Scenes/wardrobe.tscn")
 	var wardrobe = wardrobe_scene.instantiate()
-	wardrobe.setup_placed(b_id)
-	placed_blocks[b_id] = wardrobe
+	wardrobe.setup_placed(block_number)
+	placed_blocks[block_number] = wardrobe
 	add_child(wardrobe)
 	wardrobe.global_position = Vector2(pos_x, pos_y)
 
 
+# Creates a block of the right kind at a position.
 func _do_place_block(
 	block_id: int,
 	item_name: String,
 	pos_x: float,
 	pos_y: float,
-	rot: float = 0.0,
+	rotation_angle: float = 0.0,
 ):
 	if placed_blocks.has(block_id):
 		return
@@ -771,6 +847,7 @@ func _do_place_block(
 	add_child(block)
 
 
+# Finds the picture of an item from the inventory.
 func _get_item_texture(item_name: String) -> Texture2D:
 	for slot in Inventory.slots:
 		if slot["item"] == item_name and slot["texture"] != null:
@@ -781,26 +858,30 @@ func _get_item_texture(item_name: String) -> Texture2D:
 	return Inventory.get_texture(item_name)
 
 
+# Removes a placed block from the world.
 func remove_placed_block(block_id: int):
 	if placed_blocks.has(block_id):
 		if is_instance_valid(placed_blocks[block_id]):
 			placed_blocks[block_id].queue_free()
 		placed_blocks.erase(block_id)
 
+# Removes a placed block on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
 func sync_remove_placed_block(block_id: int):
 	remove_placed_block(block_id)
 
+# Sent by a client. The host places the block.
 @rpc("any_peer", "call_remote", "reliable")
 
 
-func request_place_block(item_name: String, pos_x: float, pos_y: float, rot: float = 0.0):
+func request_place_block(item_name: String, pos_x: float, pos_y: float, rotation_angle: float = 0.0):
 	if not is_host:
 		return
-	host_place_block(item_name, Vector2(pos_x, pos_y), rot)
+	host_place_block(item_name, Vector2(pos_x, pos_y), rotation_angle)
 
+# Sent by a client. The host breaks the block.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -810,6 +891,7 @@ func request_break_block(block_id: int):
 	process_block_hit(block_id)
 
 
+# Sends every placed block to a player who has just joined.
 func sync_placed_blocks_to_peer(peer_id: int):
 	if not multiplayer.get_peers().has(peer_id):
 		return
@@ -825,6 +907,7 @@ func sync_placed_blocks_to_peer(peer_id: int):
 				)
 
 
+# Host function. Adds a hit to a block and breaks it when it has taken enough.
 func process_block_hit(block_id: int):
 	if not placed_blocks.has(block_id):
 		return
@@ -841,6 +924,7 @@ func process_block_hit(block_id: int):
 		else:
 			remove_placed_block(block_id)
 
+# Sent by a client. The host processes the hit.
 @rpc("any_peer", "call_local", "reliable")
 
 
@@ -849,6 +933,7 @@ func register_block_hit(block_id: int):
 		return
 	process_block_hit(block_id)
 
+# Adds one to a floor pile's count on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -857,6 +942,7 @@ func increment_floor_item_rpc(item_id: int):
 		floor_items[item_id].stack_count += 1
 		floor_items[item_id]._update_label()
 
+# Sent by a client. The host drops the item.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -870,12 +956,14 @@ func request_spawn_floor_item(
 		return
 	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability)
 
+# Removes a floor item on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
 func sync_remove_floor_item(item_id: int):
 	remove_floor_item(item_id)
 
+# Sent by a client. The host removes the item everywhere.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -885,6 +973,7 @@ func request_remove_floor_item(item_id: int):
 	sync_remove_floor_item.rpc(item_id)
 
 
+# Leaves the Steam lobby when the window is closed.
 func _notification(what):
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		if lobby_id != 0:
@@ -892,14 +981,17 @@ func _notification(what):
 		get_tree().quit()
 
 
+# The host button was pressed.
 func _on_host_button_pressed():
 	host_lobby()
 
 
+# Enables the join button only when a lobby ID has been typed.
 func _on_id_prompt_text_changed(new_text):
 	join_button.disabled = new_text.length() == 0
 
 
+# Leaves any current lobby, clears the world and joins the lobby typed in.
 func _on_join_button_pressed():
 	var new_lobby_id = id_prompt.text.to_int()
 	if lobby_id != 0:
@@ -921,6 +1013,7 @@ func _on_join_button_pressed():
 		_spawn_player(1)
 	join_lobby(new_lobby_id)
 
+# Sent by a client. The host damages the target player.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -933,6 +1026,7 @@ func request_deal_damage(target_id: int, amount: int):
 			deal_damage_to_player.rpc_id(target_id, amount)
 
 
+# Damages a player, on the host directly or by asking the player's own game.
 func apply_damage_to_player(target: Node, amount: int, enemy: Node = null) -> void:
 	if not target or not is_instance_valid(target):
 		return
@@ -947,6 +1041,7 @@ func apply_damage_to_player(target: Node, amount: int, enemy: Node = null) -> vo
 	var enemy_id: int = int(enemy.get("enemy_id")) if enemy and "enemy_id" in enemy else -1
 	enemy_attack_player.rpc_id(target.name.to_int(), amount, enemy_id)
 
+# Sent by the host. The player's game reacts to an enemy attack, including blocking.
 @rpc("authority", "call_remote", "reliable")
 
 
@@ -963,12 +1058,14 @@ func enemy_attack_player(amount: int, enemy_id: int):
 		target.take_damage(amount)
 
 
+# Returns the enemy with the given ID, or null.
 func _find_night_enemy(enemy_id: int) -> Node:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if enemy.get("enemy_id") == enemy_id:
 			return enemy
 	return null
 
+# Sent by a client. The host damages the enemy.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -980,12 +1077,14 @@ func request_damage_night_enemy(enemy_id: int, amount: int):
 		enemy.take_damage(amount)
 
 
+# Returns the boss with the given ID, or null.
 func _find_boss(boss_id: int) -> Node:
 	for boss in get_tree().get_nodes_in_group("bosses"):
 		if is_instance_valid(boss) and int(boss.get("enemy_id")) == boss_id:
 			return boss
 	return null
 
+# Sent by a client. The host damages the boss.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -996,6 +1095,7 @@ func request_damage_boss(boss_id: int, amount: int):
 	if boss and boss.has_method("take_damage"):
 		boss.take_damage(amount)
 
+# Sent by the host. Damages the local player.
 @rpc("authority", "call_remote", "reliable")
 
 
@@ -1005,6 +1105,7 @@ func deal_damage_to_player(amount: int):
 		and target.is_multiplayer_authority():
 		target.take_damage(amount)
 
+# Sent by a client. The host chops the tree.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1022,6 +1123,7 @@ func request_chop_env_tree(env_id: String, held_item: String):
 	var sender_id = multiplayer.get_remote_sender_id()
 	tree.do_chop(sender_id, held_item)
 
+# Sent by the host. Wears down the axe on the player's own game.
 @rpc("authority", "call_remote", "reliable")
 
 
@@ -1038,6 +1140,7 @@ func consume_axe_on_client():
 		else:
 			Inventory.inventory_changed.emit()
 
+# Sent by a client. The host mines the rock.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1055,6 +1158,7 @@ func request_mine_env_rock(env_id: String, held_item: String):
 	var sender_id = multiplayer.get_remote_sender_id()
 	rock.do_mine(sender_id, held_item)
 
+# Sent by the host. Wears down the pickaxe on the player's own game.
 @rpc("authority", "call_remote", "reliable")
 
 
@@ -1071,25 +1175,28 @@ func consume_pickaxe_on_client():
 		else:
 			Inventory.inventory_changed.emit()
 
+# Sent by a client. The host breaks the wardrobe and drops it.
 @rpc("any_peer", "call_remote", "reliable")
 
 
-func request_break_wardrobe(b_id: int, drop_x: float, drop_y: float):
+func request_break_wardrobe(block_number: int, drop_x: float, drop_y: float):
 	if not is_host:
 		return
 	var drop_pos = Vector2(drop_x, drop_y)
 	host_spawn_floor_item(drop_pos, "Wardrobe", 1)
 	for child in get_children():
-		if child.get("block_id") == b_id:
+		if child.get("block_id") == block_number:
 			if child.has_method("remove_wardrobe_rpc"):
-				child.remove_wardrobe_rpc.rpc(b_id)
+				child.remove_wardrobe_rpc.rpc(block_number)
 			break
 
 
+# Host function. Drops many items at once.
 func host_spawn_floor_items_batch(positions: Array, item_type: String, durability: int = 1):
-	for pos in positions:
-		host_spawn_floor_item(pos, item_type, durability)
+	for world_position in positions:
+		host_spawn_floor_item(world_position, item_type, durability)
 
+# Sent by a client. The host drops many items at once.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1105,10 +1212,12 @@ func request_spawn_floor_items_batch(
 		host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, durability)
 
 
-func host_spawn_chicken(pos: Vector2) -> void:
+# Host function. Spawns a chicken near a position.
+func host_spawn_chicken(world_position: Vector2) -> void:
 	if AnimalSpawner:
-		AnimalSpawner._spawn_chicken(_find_safe_spawn(pos))
+		AnimalSpawner._spawn_chicken(_find_safe_spawn(world_position))
 
+# Removes the enemies of a combat room on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -1120,6 +1229,7 @@ func despawn_room_entities_rpc(combat_room_id: int):
 		if is_instance_valid(boss) and int(boss.get_meta("combat_room_id", -999)) == combat_room_id:
 			boss.queue_free()
 
+# Sent by a client. The host resets the cave room where the player died.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1130,6 +1240,7 @@ func request_room_death_reset(px: float, py: float):
 	if cave_gen and cave_gen.has_method("notify_player_died"):
 		cave_gen.notify_player_died(Vector2(px, py))
 
+# Sent by a client. The host spawns a boss.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1138,6 +1249,7 @@ func request_spawn_boss(key: String):
 		return
 	BossManager.spawn_by_key(key)
 
+# Shows or hides the message that the boss room is waiting for players.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -1167,6 +1279,7 @@ func set_boss_wait_ui(waiting: bool, missing_count: int):
 	elif label:
 		label.visible = false
 
+# Sent by a client. The host kills the target player.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1179,6 +1292,7 @@ func request_kill_player(target_id: int):
 			deal_damage_to_player.rpc_id(target_id, target.max_health)
 
 
+# Searches near a position for a spot that is not inside anything solid.
 func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
 	var space = get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
@@ -1199,6 +1313,7 @@ func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
 	return origin + Vector2(randf_range(-200, 200), randf_range(-200, 200))
 
 
+# Sends every chicken and enemy to a player who has just joined.
 func sync_chickens_and_enemies_to_peer(peer_id: int):
 	if not multiplayer.get_peers().has(peer_id):
 		return
@@ -1218,16 +1333,17 @@ func sync_chickens_and_enemies_to_peer(peer_id: int):
 				peer_id, boss.global_position.x, boss.global_position.y, boss.get("enemy_id"),
 			)
 
+# Creates a chicken on a client's game.
 @rpc("authority", "call_remote", "reliable")
 
 
-func spawn_chicken_on_client_rpc(px: float, py: float, cid: int):
-	var node_name = "Chicken_" + str(cid)
+func spawn_chicken_on_client_rpc(px: float, py: float, chicken_number: int):
+	var node_name = "Chicken_" + str(chicken_number)
 	if has_node(node_name):
 		return
 	var chicken_scene = preload("res://Scenes/chicken.tscn")
 	var chicken = chicken_scene.instantiate()
-	chicken.chicken_id = cid
+	chicken.chicken_id = chicken_number
 	chicken.name = node_name
 	chicken.global_position = Vector2(px, py)
 	chicken.set_multiplayer_authority(1)
@@ -1237,16 +1353,17 @@ func spawn_chicken_on_client_rpc(px: float, py: float, cid: int):
 	if is_instance_valid(chicken):
 		chicken.set_meta("sync_ready", true)
 
+# Creates an enemy on a client's game.
 @rpc("authority", "call_remote", "reliable")
 
 
-func spawn_enemy_on_client_rpc(px: float, py: float, eid: int):
-	var node_name = "Enemy_" + str(eid)
+func spawn_enemy_on_client_rpc(px: float, py: float, enemy_number: int):
+	var node_name = "Enemy_" + str(enemy_number)
 	if has_node(node_name):
 		return
 	var enemy_scene = preload("res://Scenes/night_enemy.tscn")
 	var enemy = enemy_scene.instantiate()
-	enemy.enemy_id = eid
+	enemy.enemy_id = enemy_number
 	enemy.name = node_name
 	enemy.global_position = Vector2(px, py)
 	enemy.set_multiplayer_authority(1)
@@ -1256,16 +1373,17 @@ func spawn_enemy_on_client_rpc(px: float, py: float, eid: int):
 	if is_instance_valid(enemy):
 		enemy.set_meta("sync_ready", true)
 
+# Creates a boss on a client's game.
 @rpc("authority", "call_remote", "reliable")
 
 
-func spawn_boss_on_client_rpc(px: float, py: float, bid: int):
-	var node_name = "Boss_" + str(bid)
+func spawn_boss_on_client_rpc(px: float, py: float, boss_number: int):
+	var node_name = "Boss_" + str(boss_number)
 	if has_node(node_name):
 		return
 	var boss_scene = preload("res://Scenes/spider_queen.tscn")
 	var boss = boss_scene.instantiate()
-	boss.set("enemy_id", bid)
+	boss.set("enemy_id", boss_number)
 	boss.name = node_name
 	boss.global_position = Vector2(px, py)
 	boss.set_multiplayer_authority(1)
@@ -1275,6 +1393,7 @@ func spawn_boss_on_client_rpc(px: float, py: float, bid: int):
 	if is_instance_valid(boss):
 		boss.set_meta("sync_ready", true)
 
+# Removes every chicken and enemy on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
@@ -1286,6 +1405,7 @@ func clear_chickens_and_enemies_rpc():
 		if is_instance_valid(enemy):
 			enemy.queue_free()
 
+# Sent by a client. The host finds a safe position and sends it back.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1296,6 +1416,7 @@ func request_respawn(player_id: int):
 	_preload_spawn_area(spawn_pos)
 	send_respawn_position.rpc_id(player_id, spawn_pos.x, spawn_pos.y)
 
+# Sent by the host. Loads the area and moves the player to the respawn position.
 @rpc("authority", "call_remote", "reliable")
 
 
@@ -1308,6 +1429,7 @@ func send_respawn_position(px: float, py: float):
 		target._do_respawn(spawn_pos)
 
 
+# Asks the world generator to paint the chunks around a position.
 func _preload_spawn_area(spawn_pos: Vector2) -> void:
 	var world_gen = get_node_or_null("WorldGen")
 	if world_gen and world_gen.has_method("queue_chunks_around_world_pos"):
@@ -1317,6 +1439,7 @@ func _preload_spawn_area(spawn_pos: Vector2) -> void:
 		env_gen.queue_chunks_around_world_pos(spawn_pos, 2)
 
 
+# Makes floor items that lie in water fade and sink.
 func _update_floor_item_water_sinking(delta: float) -> void:
 	var world_gen = get_node_or_null("WorldGen")
 	var cave_gen = get_node_or_null("CaveWorldGen")
@@ -1338,6 +1461,7 @@ func _update_floor_item_water_sinking(delta: float) -> void:
 			c.a = move_toward(c.a, 1.0, delta)
 		item.modulate = c
 
+# Sent by a client. The host records which Steam account owns the connection.
 @rpc("any_peer", "call_remote", "reliable")
 
 
@@ -1348,17 +1472,19 @@ func register_steam_id(steam_id: int):
 	peer_to_steam_id[sender] = steam_id
 	sync_peer_steam_ids.rpc(peer_to_steam_id)
 
+# Sent by the host. Shares the list of Steam IDs with every player.
 @rpc("authority", "call_local", "reliable")
 
 
 func sync_peer_steam_ids(mapping: Dictionary):
 	peer_to_steam_id = mapping
 
+# Updates a chicken's position and state on a client's game.
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 
 
-func sync_chicken_state_rpc(cid: int, px: float, py: float, s: int) -> void:
-	var chicken = get_node_or_null("Chicken_" + str(cid))
+func sync_chicken_state_rpc(chicken_number: int, px: float, py: float, s: int) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(chicken_number))
 	if not chicken or not is_instance_valid(chicken):
 		return
 	if not chicken.get_meta("sync_ready", false):
@@ -1369,11 +1495,12 @@ func sync_chicken_state_rpc(cid: int, px: float, py: float, s: int) -> void:
 		0, 2: chicken.sprite.play("walk_down")
 		1, 4: chicken.sprite.play("idle")
 
+# Updates an enemy's position, state and health on a client's game.
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 
 
-func sync_enemy_state_rpc(eid: int, px: float, py: float, s: int, h: int) -> void:
-	var enemy = get_node_or_null("Enemy_" + str(eid))
+func sync_enemy_state_rpc(enemy_number: int, px: float, py: float, s: int, h: int) -> void:
+	var enemy = get_node_or_null("Enemy_" + str(enemy_number))
 	if not enemy or not is_instance_valid(enemy):
 		return
 	if not enemy.get_meta("sync_ready", false):
@@ -1386,11 +1513,12 @@ func sync_enemy_state_rpc(eid: int, px: float, py: float, s: int, h: int) -> voi
 	else:
 		enemy.sprite.play("idle")
 
+# Updates a boss's position and health on a client's game.
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 
 
-func sync_boss_state_rpc(bid: int, px: float, py: float, h: int) -> void:
-	var boss = get_node_or_null("Boss_" + str(bid))
+func sync_boss_state_rpc(boss_number: int, px: float, py: float, h: int) -> void:
+	var boss = get_node_or_null("Boss_" + str(boss_number))
 	if not boss or not is_instance_valid(boss):
 		return
 	if not boss.get_meta("sync_ready", false):
@@ -1398,26 +1526,29 @@ func sync_boss_state_rpc(bid: int, px: float, py: float, h: int) -> void:
 	boss.global_position = Vector2(px, py)
 	boss.health = h
 
+# Flashes a chicken red on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
-func chicken_flash_hit_rpc(cid: int) -> void:
-	var chicken = get_node_or_null("Chicken_" + str(cid))
+func chicken_flash_hit_rpc(chicken_number: int) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(chicken_number))
 	if chicken and is_instance_valid(chicken):
 		chicken._flash_hit()
 
+# Plays a chicken's death on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
-func chicken_die_rpc(cid: int) -> void:
-	var chicken = get_node_or_null("Chicken_" + str(cid))
+func chicken_die_rpc(chicken_number: int) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(chicken_number))
 	if chicken and is_instance_valid(chicken):
 		chicken._play_die_sequence()
 
+# Sets how faded a drowning chicken looks on every player's game.
 @rpc("authority", "call_local", "reliable")
 
 
-func chicken_drowning_alpha_rpc(cid: int, alpha: float) -> void:
-	var chicken = get_node_or_null("Chicken_" + str(cid))
+func chicken_drowning_alpha_rpc(chicken_number: int, alpha: float) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(chicken_number))
 	if chicken and is_instance_valid(chicken):
 		chicken._set_drowning_alpha(alpha)

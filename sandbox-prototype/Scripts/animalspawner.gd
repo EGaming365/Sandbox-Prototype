@@ -1,28 +1,53 @@
+# Animal spawner autoload.
+# Spawns chickens around the players and removes them when players move away or enter the cave.
+# It also creates combat room enemies and the boss, and clears them again when a room ends.
+# Only the host spawns creatures. The other players are told about each spawn.
+
 extends Node
 
+# Scene created for each chicken.
 const CHICKEN_SCENE := preload("res://Scenes/chicken.tscn")
+# Scene created for each night enemy.
 const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 
+# Most chickens allowed near the players.
 @export var max_chickens_in_radius: int = 10
+# Night enemy limit. It is not currently used.
 @export var max_night_enemies_in_radius: int = 4
+# Cave night enemy limit. It is not currently used.
 @export var max_cave_night_enemies_in_radius: int = 3
+# Closest distance from the players at which a chicken can spawn.
 @export var spawn_radius_min: float = 1000.0
+# Furthest distance from the players at which a chicken can spawn.
 @export var spawn_radius_max: float = 2000.0
+# Closest cave spawn distance. It is only used by a function that is not currently called.
 @export var cave_spawn_radius_min: float = 450.0
+# Furthest cave spawn distance. It is only used by a function that is not currently called.
 @export var cave_spawn_radius_max: float = 1200.0
+# Creatures further than this from every player can be removed.
 @export var despawn_radius: float = 1600.0
+# Seconds a creature can stay out of range before it is removed.
 @export var despawn_grace_period: float = 2.0
+# Most creatures spawned each time the spawn timer fires.
 @export var max_spawns_per_tick: int = 1
+# Enemies do not spawn where the light level is above this.
 @export var max_enemy_spawn_light_level: float = 0.35
 
+# The main scene, which new creatures are added to.
 var _scene_node: Node = null
+# How long each creature has been out of range.
 var _out_of_range_timers: Dictionary = {}
+# Fires regularly to spawn creatures.
 var _spawn_timer: Timer
+# Fires regularly to remove distant creatures.
 var _despawn_timer: Timer
+# ID given to the next chicken so all players agree on it.
 var _next_chicken_id: int = 0
+# ID given to the next enemy or boss.
 var _next_night_enemy_id: int = 0
 
 
+# Creates the spawn and despawn timers, which start once the scene and a player exist.
 func _ready() -> void:
 	_spawn_timer = Timer.new()
 	_spawn_timer.wait_time = 5.0
@@ -41,6 +66,7 @@ func _ready() -> void:
 	call_deferred("_wait_for_scene")
 
 
+# Waits until the main scene exists, then until a player exists, and then starts the timers.
 func _wait_for_scene() -> void:
 	_scene_node = get_tree().root.get_node_or_null("Scene")
 	if not _scene_node:
@@ -52,14 +78,17 @@ func _wait_for_scene() -> void:
 	_spawn_timer.start()
 
 
+# Waits frame by frame until at least one player is in the game.
 func _wait_for_player() -> void:
 	while get_tree().get_nodes_in_group("players").is_empty():
 		await get_tree().process_frame
 
 
+# Returns how many chickens are close to the players.
 func _count_chickens_in_radius() -> int:
 	var center := _get_player_center()
 	var count := 0
+	# Check every chicken.
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		if is_instance_valid(chicken):
 			if center.distance_to((chicken as Node2D).global_position) <= despawn_radius:
@@ -67,6 +96,7 @@ func _count_chickens_in_radius() -> int:
 	return count
 
 
+# Runs on the host every few seconds. Spawns chickens on the surface until there are enough, and nothing in the cave.
 func _on_spawn_tick() -> void:
 	if not _scene_node:
 		return
@@ -77,20 +107,22 @@ func _on_spawn_tick() -> void:
 	var players := get_tree().get_nodes_in_group("players")
 	if players.is_empty():
 		return
+	# Stop after the maximum number of spawns for this tick.
 	var spawned_this_tick := 0
 	if in_cave:
 		return
 	else:
 		var chicken_count := _count_chickens_in_radius()
 		while chicken_count < max_chickens_in_radius and spawned_this_tick < max_spawns_per_tick:
-			var pos := _random_spawn_pos_near(_get_player_center(), "chickens")
-			if pos == Vector2.ZERO:
+			var spawn_position := _random_spawn_pos_near(_get_player_center(), "chickens")
+			if spawn_position == Vector2.ZERO:
 				break
-			_spawn_chicken(pos)
+			_spawn_chicken(spawn_position)
 			chicken_count += 1
 			spawned_this_tick += 1
 
 
+# Runs on the host. Removes chickens that are far from every player, removes chickens in the cave, and removes surface enemies.
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
@@ -98,55 +130,58 @@ func _check_despawn() -> void:
 	var in_cave: bool = cave_world_gen != null and cave_world_gen.get("in_cave")
 	var players := get_tree().get_nodes_in_group("players")
 	for chicken in get_tree().get_nodes_in_group("chickens"):
-		var c := chicken as Node2D
-		if not is_instance_valid(c):
+		var chicken_node := chicken as Node2D
+		if not is_instance_valid(chicken_node):
 			continue
 		if in_cave:
-			c.queue_free()
+			chicken_node.queue_free()
 			continue
 		var all_out_of_range := true
-		for p in players:
-			if is_instance_valid(p):
-				if (p as Node2D).global_position.distance_to(c.global_position) <= despawn_radius:
+		for player_node in players:
+			if is_instance_valid(player_node):
+				if (player_node as Node2D).global_position.distance_to(chicken_node.global_position) <= despawn_radius:
 					all_out_of_range = false
 					break
 		if all_out_of_range:
-			if not _out_of_range_timers.has(c):
-				_out_of_range_timers[c] = 0.0
-			_out_of_range_timers[c] += 5.0
-			if _out_of_range_timers[c] >= despawn_grace_period:
-				_out_of_range_timers.erase(c)
-				c.queue_free()
+			if not _out_of_range_timers.has(chicken_node):
+				_out_of_range_timers[chicken_node] = 0.0
+			_out_of_range_timers[chicken_node] += 5.0
+			if _out_of_range_timers[chicken_node] >= despawn_grace_period:
+				_out_of_range_timers.erase(chicken_node)
+				chicken_node.queue_free()
 		else:
-			_out_of_range_timers.erase(c)
+			_out_of_range_timers.erase(chicken_node)
+	# Forget timers for creatures that no longer exist.
 	for key in _out_of_range_timers.keys():
 		if not is_instance_valid(key):
 			_out_of_range_timers.erase(key)
+	# Enemies outside the cave are removed. In the cave, enemies that are far away and not chasing anyone are removed.
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
-		var e := enemy as Node2D
-		if not is_instance_valid(e):
+		var enemy_node := enemy as Node2D
+		if not is_instance_valid(enemy_node):
 			continue
 		if not in_cave:
-			e.queue_free()
+			enemy_node.queue_free()
 			continue
-		var all_out := true
-		for p in players:
-			if is_instance_valid(p):
-				if (p as Node2D).global_position.distance_to(e.global_position) <= despawn_radius:
-					all_out = false
+		var all_players_out_of_range := true
+		for player_node in players:
+			if is_instance_valid(player_node):
+				if (player_node as Node2D).global_position.distance_to(enemy_node.global_position) <= despawn_radius:
+					all_players_out_of_range = false
 					break
-		if all_out:
-			var aggressive := int(e.get("state")) != 0
+		if all_players_out_of_range:
+			var aggressive := int(enemy_node.get("state")) != 0
 			if not aggressive:
-				e.queue_free()
+				enemy_node.queue_free()
 
 
-func _spawn_chicken(pos: Vector2) -> void:
+# Creates a chicken on the host and tells the other players to create it too.
+func _spawn_chicken(spawn_position: Vector2) -> void:
 	var chicken = CHICKEN_SCENE.instantiate()
 	chicken.chicken_id = _next_chicken_id
 	chicken.name = "Chicken_" + str(_next_chicken_id)
 	_next_chicken_id += 1
-	chicken.global_position = pos
+	chicken.global_position = spawn_position
 	chicken.set_meta("sync_ready", false)
 	_scene_node.add_child(chicken)
 	chicken.set_multiplayer_authority(1)
@@ -160,14 +195,15 @@ func _spawn_chicken(pos: Vector2) -> void:
 		chicken.set_meta("sync_ready", true)
 
 
-func _spawn_night_enemy(pos: Vector2) -> void:
-	if _is_too_bright_for_enemy_spawn(pos):
+# Creates a night enemy in the same way. It is not currently called.
+func _spawn_night_enemy(spawn_position: Vector2) -> void:
+	if _is_too_bright_for_enemy_spawn(spawn_position):
 		return
 	var enemy = NIGHT_ENEMY_SCENE.instantiate()
 	enemy.enemy_id = _next_night_enemy_id
 	enemy.name = "Enemy_" + str(_next_night_enemy_id)
 	_next_night_enemy_id += 1
-	enemy.global_position = pos
+	enemy.global_position = spawn_position
 	enemy.set_meta("sync_ready", false)
 	_scene_node.add_child(enemy)
 	enemy.set_multiplayer_authority(1)
@@ -181,7 +217,8 @@ func _spawn_night_enemy(pos: Vector2) -> void:
 		enemy.set_meta("sync_ready", true)
 
 
-func spawn_combat_night_enemy(pos: Vector2, combat_room_id: int) -> Node:
+# Creates an enemy for a cave combat room and returns it.
+func spawn_combat_night_enemy(spawn_position: Vector2, combat_room_id: int) -> Node:
 	if not _scene_node:
 		_scene_node = get_tree().root.get_node_or_null("Scene")
 	if not _scene_node:
@@ -190,7 +227,7 @@ func spawn_combat_night_enemy(pos: Vector2, combat_room_id: int) -> Node:
 	enemy.enemy_id = _next_night_enemy_id
 	enemy.name = "Enemy_" + str(_next_night_enemy_id)
 	_next_night_enemy_id += 1
-	enemy.global_position = pos
+	enemy.global_position = spawn_position
 	enemy.set_meta("sync_ready", false)
 	enemy.set_meta("combat_room_id", combat_room_id)
 	_scene_node.add_child(enemy)
@@ -204,7 +241,8 @@ func spawn_combat_night_enemy(pos: Vector2, combat_room_id: int) -> Node:
 	return enemy
 
 
-func spawn_combat_boss(pos: Vector2, combat_room_id: int) -> Node:
+# Creates the Spider Queen for a cave combat room and returns it.
+func spawn_combat_boss(spawn_position: Vector2, combat_room_id: int) -> Node:
 	if not _scene_node:
 		_scene_node = get_tree().root.get_node_or_null("Scene")
 	if not _scene_node:
@@ -215,7 +253,7 @@ func spawn_combat_boss(pos: Vector2, combat_room_id: int) -> Node:
 	var boss: Node = boss_scene.instantiate()
 	boss.set("enemy_id", _next_night_enemy_id)
 	boss.name = "Boss_" + str(_next_night_enemy_id)
-	boss.global_position = pos
+	boss.global_position = spawn_position
 	boss.set_meta("sync_ready", false)
 	boss.set_meta("combat_room_id", combat_room_id)
 	_scene_node.add_child(boss)
@@ -230,6 +268,7 @@ func spawn_combat_boss(pos: Vector2, combat_room_id: int) -> Node:
 	return boss
 
 
+# Returns how many enemies are close to the players. It is not currently called.
 func _count_night_enemies_in_radius() -> int:
 	var center := _get_player_center()
 	var count := 0
@@ -240,75 +279,83 @@ func _count_night_enemies_in_radius() -> int:
 	return count
 
 
+# Returns the average position of all players, or the single player's position when playing alone.
 func _get_player_center() -> Vector2:
 	var players := get_tree().get_nodes_in_group("players")
 	if players.is_empty():
 		return Vector2.ZERO
 	if multiplayer.has_multiplayer_peer():
-		var sum := Vector2.ZERO
-		var valid := 0
-		for p in players:
-			if is_instance_valid(p):
-				sum += (p as Node2D).global_position
-				valid += 1
-		if valid == 0:
+		var position_sum := Vector2.ZERO
+		var valid_player_count := 0
+		for player_node in players:
+			if is_instance_valid(player_node):
+				position_sum += (player_node as Node2D).global_position
+				valid_player_count += 1
+		if valid_player_count == 0:
 			return Vector2.ZERO
-		return sum / valid
+		return position_sum / valid_player_count
 	else:
 		return (players[0] as Node2D).global_position
 
 
-func _is_spawn_pos_clear(pos: Vector2) -> bool:
+# Returns true if nothing solid is at the position, using a small circle test against the physics world.
+func _is_spawn_pos_clear(spawn_position: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = _scene_node.get_world_2d().direct_space_state
 	var query := PhysicsShapeQueryParameters2D.new()
-	var shape := CircleShape2D.new()
-	shape.radius = 14.0
-	query.shape = shape
-	query.transform = Transform2D(0, pos)
+	var circle_shape := CircleShape2D.new()
+	circle_shape.radius = 14.0
+	query.shape = circle_shape
+	query.transform = Transform2D(0, spawn_position)
 	query.collision_mask = 1
 	return space.intersect_shape(query).is_empty()
 
 
-func _is_too_bright_for_enemy_spawn(pos: Vector2) -> bool:
+# Returns true if the position is too well lit for an enemy to spawn.
+func _is_too_bright_for_enemy_spawn(spawn_position: Vector2) -> bool:
 	var lighting = get_tree().root.get_node_or_null("Scene/LightingSystem")
 	if not lighting or not lighting.has_method("get_light_level_at"):
 		return false
-	return lighting.get_light_level_at(pos) > max_enemy_spawn_light_level
+	return lighting.get_light_level_at(spawn_position) > max_enemy_spawn_light_level
 
 
+# Returns true if the weather system says it is night.
 func _is_night() -> bool:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	return weather != null and weather.has_method("is_night") and weather.is_night()
 
 
+# Tries up to 30 random positions in a ring around the centre and returns the first valid one, or zero if none is found.
 func _random_spawn_pos_near(center: Vector2, avoid_group: String = "chickens") -> Vector2:
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
 	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	for i in 30:
 		var angle := randf_range(0.0, TAU)
-		var dist := randf_range(spawn_radius_min, spawn_radius_max)
-		var pos := center + Vector2(cos(angle), sin(angle)) * dist
+		var spawn_distance := randf_range(spawn_radius_min, spawn_radius_max)
+		var spawn_position := center + Vector2(cos(angle), sin(angle)) * spawn_distance
 		if cave_world_gen and cave_world_gen.get("in_cave"):
 			continue
-		if _is_position_on_screen(pos):
+		# Skip anywhere the player could see, so creatures do not appear in front of them.
+		if _is_position_on_screen(spawn_position):
 			continue
-		if world_gen and world_gen.has_method("is_water_at") and world_gen.is_water_at(pos):
+		if world_gen and world_gen.has_method("is_water_at") and world_gen.is_water_at(spawn_position):
 			continue
+		# Keep a gap between creatures of the same kind.
 		var too_close := false
 		for existing in get_tree().get_nodes_in_group(avoid_group):
-			if pos.distance_to((existing as Node2D).global_position) < 100.0:
+			if spawn_position.distance_to((existing as Node2D).global_position) < 100.0:
 				too_close = true
 				break
 		if too_close:
 			continue
-		if not _is_spawn_pos_clear(pos):
+		if not _is_spawn_pos_clear(spawn_position):
 			continue
-		if avoid_group == "night_enemies" and _is_too_bright_for_enemy_spawn(pos):
+		if avoid_group == "night_enemies" and _is_too_bright_for_enemy_spawn(spawn_position):
 			continue
-		return pos
+		return spawn_position
 	return Vector2.ZERO
 
 
+# Finds a random open cave floor tile away from the screen. It is not currently called.
 func _random_cave_spawn_pos(
 	cave_world_gen: Node,
 	avoid_group: String = "night_enemies",
@@ -320,47 +367,49 @@ func _random_cave_spawn_pos(
 	var tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
 	for i in 60:
 		var angle := randf_range(0.0, TAU)
-		var dist := randf_range(cave_spawn_radius_min, cave_spawn_radius_max)
-		var pos := player.global_position + Vector2(cos(angle), sin(angle)) * dist
-		var tc: Vector2i = cave_world_gen.world_to_tile(pos)
-		if not cave_world_gen._carved_tiles.has(tc):
+		var spawn_distance := randf_range(cave_spawn_radius_min, cave_spawn_radius_max)
+		var spawn_position := player.global_position + Vector2(cos(angle), sin(angle)) * spawn_distance
+		var tile_coord: Vector2i = cave_world_gen.world_to_tile(spawn_position)
+		if not cave_world_gen._carved_tiles.has(tile_coord):
 			continue
-		if cave_world_gen._wall_tiles.has(tc):
+		if cave_world_gen._wall_tiles.has(tile_coord):
 			continue
-		if cave_world_gen._water_tiles.has(tc):
+		if cave_world_gen._water_tiles.has(tile_coord):
 			continue
 		if tilemap:
-			pos = tilemap.to_global(tilemap.map_to_local(tc))
-		if _is_position_on_screen(pos):
+			spawn_position = tilemap.to_global(tilemap.map_to_local(tile_coord))
+		if _is_position_on_screen(spawn_position):
 			continue
 		var too_close := false
 		for existing in get_tree().get_nodes_in_group(avoid_group):
-			if pos.distance_to((existing as Node2D).global_position) < 100.0:
+			if spawn_position.distance_to((existing as Node2D).global_position) < 100.0:
 				too_close = true
 				break
 		if too_close:
 			continue
-		if not _is_spawn_pos_clear(pos):
+		if not _is_spawn_pos_clear(spawn_position):
 			continue
-		if avoid_group == "night_enemies" and _is_too_bright_for_enemy_spawn(pos):
+		if avoid_group == "night_enemies" and _is_too_bright_for_enemy_spawn(spawn_position):
 			continue
-		return pos
+		return spawn_position
 	return Vector2.ZERO
 
 
-func _is_position_on_screen(pos: Vector2, margin: float = 160.0) -> bool:
+# Returns true if the position is on screen, plus a margin around the edges.
+func _is_position_on_screen(spawn_position: Vector2, margin: float = 160.0) -> bool:
 	var viewport := get_viewport()
 	if not viewport:
 		return false
 	var camera := viewport.get_camera_2d()
 	if not camera:
 		return false
-	var size := viewport.get_visible_rect().size
-	var top_left := camera.global_position - size * 0.5 - Vector2(margin, margin)
-	var rect := Rect2(top_left, size + Vector2(margin * 2.0, margin * 2.0))
-	return rect.has_point(pos)
+	var screen_size := viewport.get_visible_rect().size
+	var top_left := camera.global_position - screen_size * 0.5 - Vector2(margin, margin)
+	var screen_rect := Rect2(top_left, screen_size + Vector2(margin * 2.0, margin * 2.0))
+	return screen_rect.has_point(spawn_position)
 
 
+# Removes every enemy and boss that belongs to a combat room, and tells the other players to do the same.
 func clear_room_entities(combat_room_id: int) -> void:
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if is_instance_valid(enemy) and int(enemy.get_meta("combat_room_id", -999)) == combat_room_id:
@@ -373,6 +422,7 @@ func clear_room_entities(combat_room_id: int) -> void:
 		_scene_node.despawn_room_entities_rpc.rpc(combat_room_id)
 
 
+# Removes all chickens and enemies, for example when changing world, then pauses spawning for three seconds.
 func clear_all_entities() -> void:
 	_spawn_timer.stop()
 	_despawn_timer.stop()

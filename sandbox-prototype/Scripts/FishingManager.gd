@@ -1,11 +1,21 @@
+# Fishing manager autoload.
+# Handles casting a line, waiting for a bite, choosing a fish, running the catching minigame and giving the fish to the player.
+# It holds the tables of fish, the rules for when each fish appears and the stats of each fishing rod. Other players see the bobber and the catch icon.
+
 extends Node
 
+# Furthest distance in pixels a line can be cast.
 const CAST_RANGE: float = 200.0
+# Path of the catching minigame scene.
 const MINIGAME_SCENE: String = "res://Scenes/fishing_minigame.tscn"
+# Loaded minigame scene.
 var _minigame_packed: PackedScene = preload("res://Scenes/fishing_minigame.tscn")
+# Kind of water the line was cast into: lake, ocean, cave or all.
 var _cast_water_type: String = "all"
+# The fish being caught right now.
 var _active_fish: Dictionary = {}
 
+# How likely each rarity is. Bigger numbers are more common.
 const RARITY_WEIGHTS: Dictionary = {
 	"Trash": 5.0,
 	"Common": 55.0,
@@ -18,6 +28,7 @@ const RARITY_WEIGHTS: Dictionary = {
 	"Exotic": 0.3,
 }
 
+# Every fish in the game. Each entry has a name, rarity, habitat and the difficulty of its minigame, plus its usual weight and the rod strength needed.
 const FISH_TABLE: Array[Dictionary] = [
 	{
 		"name": "Minnow", "rarity": "Common", "habitat": "lake", "zone_height": 10.0, "speed": 0.55,
@@ -94,6 +105,7 @@ const FISH_TABLE: Array[Dictionary] = [
 	},
 ]
 
+# Extra rules for some fish, such as needing night time or a certain weather, and conditions that make them more likely.
 const FISH_CONDITIONS: Array[Dictionary] = [
 	{
 		"name": "Catfish",
@@ -107,16 +119,19 @@ const FISH_CONDITIONS: Array[Dictionary] = [
 	}
 ]
 
+# The conditions table stored by fish name for quick lookup.
 var _conditions_lookup: Dictionary = {}
 
 
+# Builds the lookup table from the conditions list.
 func _ready() -> void:
 	for entry in FISH_CONDITIONS:
-		var n: String = entry.get("name", "")
-		if n != "":
-			_conditions_lookup[n] = entry
+		var entry_name: String = entry.get("name", "")
+		if entry_name != "":
+			_conditions_lookup[entry_name] = entry
 
 
+# Collects the current time, weather, daily event, season and aurora state into one dictionary for the fish rules.
 func _get_world_conditions() -> Dictionary:
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
 	var time_of_day: float = 0.5
@@ -162,6 +177,7 @@ func _get_world_conditions() -> Dictionary:
 	}
 
 
+# Returns true if one condition, such as a weather or time requirement, is met.
 func _check_condition(cond: Dictionary, world: Dictionary) -> bool:
 	var ctype: String = cond.get("type", "")
 	var cval: String = cond.get("value", "")
@@ -179,6 +195,7 @@ func _check_condition(cond: Dictionary, world: Dictionary) -> bool:
 	return false
 
 
+# Returns true if a fish's requirements are all met right now. Fish with no requirements always pass.
 func _fish_passes_requirements(fish_name: String, world: Dictionary) -> bool:
 	if not _conditions_lookup.has(fish_name):
 		return true
@@ -189,6 +206,7 @@ func _fish_passes_requirements(fish_name: String, world: Dictionary) -> bool:
 	return true
 
 
+# Returns how much more likely a fish is when its preferred conditions are met.
 func _fish_preference_multiplier(fish_name: String, world: Dictionary) -> float:
 	if not _conditions_lookup.has(fish_name):
 		return 1.0
@@ -201,6 +219,7 @@ func _fish_preference_multiplier(fish_name: String, world: Dictionary) -> float:
 			multiplier *= 0.5
 	return multiplier
 
+# Stats of each fishing rod: range, minigame difficulty changes, luck, strength and the biggest fish it can catch.
 const ROD_STATS: Dictionary = {
 	"Fishing Rod": {
 		"cast_range":    150.0,
@@ -243,6 +262,7 @@ const ROD_STATS: Dictionary = {
 	},
 }
 
+# Icon shown above the player for each rarity when a fish bites.
 var catch_textures = {
 	"Trash": preload("res://Assets/Catch_Normal.png"),
 	"Common": preload("res://Assets/Catch_Normal.png"),
@@ -255,7 +275,9 @@ var catch_textures = {
 	"Exotic": preload("res://Assets/Catch_Exotic.png"),
 }
 
+# Picture of the bobber.
 var bobber_texture = preload("res://Assets/Fishing_Bobber.png")
+# Picture of each fish.
 const FISH_TEXTURE_PATHS: Dictionary = {
 	"Minnow": "res://Assets/Fish_Minnow_Raw.png",
 	"Perch": "res://Assets/Fish_Perch_Raw.png",
@@ -277,18 +299,28 @@ const FISH_TEXTURE_PATHS: Dictionary = {
 	"Crystal Creeper": "res://Assets/Fish_Crystal_Creeper_Raw.png",
 }
 
+# True while the line is cast and no fish has bitten yet.
 var _waiting_for_bite: bool = false
+# True while the catching minigame is running.
 var _minigame_active: bool = false
+# The bite icon above the player.
 var _catch_icon_scene: Node = null
+# The bobber floating on the water.
 var _bobber: Sprite2D = null
+# The world generator, used to check for water.
 var _world_gen: Node = null
+# The local player.
 var _player: Node = null
+# Seconds until the player can cast again.
 var _cast_cooldown: float = 0.0
+# Counts casts, so a cancelled cast's timer is ignored.
 var _cast_gen: int = 0
 
+# Seconds to wait between casts.
 const CAST_COOLDOWN_TIME: float = 2.5
 
 
+# Returns the name of the fishing rod in the selected hotbar slot, or an empty string.
 func _get_held_rod() -> String:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
@@ -299,6 +331,7 @@ func _get_held_rod() -> String:
 	return ""
 
 
+# Returns the stats of the held rod, or of the basic rod if none is held.
 func _get_rod_stats() -> Dictionary:
 	var rod = _get_held_rod()
 	if rod != "" and ROD_STATS.has(rod):
@@ -306,18 +339,20 @@ func _get_rod_stats() -> Dictionary:
 	return ROD_STATS["Fishing Rod"]
 
 
+# Returns a copy of the fish with the minigame difficulty adjusted by the rod's stats.
 func _apply_rod_to_fish(fish: Dictionary) -> Dictionary:
-	var f := fish.duplicate()
-	var rs := _get_rod_stats()
-	f["zone_height"]   = f["zone_height"]   * rs.get("zone_height",   1.0)
-	f["speed"]         = f["speed"]         * rs.get("speed",         1.0)
-	f["progress_rate"] = f["progress_rate"] * rs.get("progress_rate", 1.0)
-	f["escape_rate"]   = f["escape_rate"]   * rs.get("escape_rate",   1.0)
-	f["player_bar"]    = rs.get("player_bar", 1.0)
-	f["bar_speed"]     = rs.get("bar_speed", 1.0)
-	return f
+	var fish_entry := fish.duplicate()
+	var rod_stats_table := _get_rod_stats()
+	fish_entry["zone_height"]   = fish_entry["zone_height"]   * rod_stats_table.get("zone_height",   1.0)
+	fish_entry["speed"]         = fish_entry["speed"]         * rod_stats_table.get("speed",         1.0)
+	fish_entry["progress_rate"] = fish_entry["progress_rate"] * rod_stats_table.get("progress_rate", 1.0)
+	fish_entry["escape_rate"]   = fish_entry["escape_rate"]   * rod_stats_table.get("escape_rate",   1.0)
+	fish_entry["player_bar"]    = rod_stats_table.get("player_bar", 1.0)
+	fish_entry["bar_speed"]     = rod_stats_table.get("bar_speed", 1.0)
+	return fish_entry
 
 
+# Counts down the cast cooldown and shows it on the cursor.
 func _process(delta: float) -> void:
 	if _cast_cooldown > 0.0:
 		_cast_cooldown -= delta
@@ -326,6 +361,7 @@ func _process(delta: float) -> void:
 			cursor.show_cooldown(clamp(_cast_cooldown / CAST_COOLDOWN_TIME, 0.0, 1.0), "fishing")
 
 
+# Casts the line towards the given screen position if it is over water and in range, or reels it in if already cast.
 func try_cast(screen_pos: Vector2) -> void:
 	if _cast_cooldown > 0.0:
 		return
@@ -366,6 +402,7 @@ func try_cast(screen_pos: Vector2) -> void:
 	_start_minigame()
 
 
+# Chooses a fish at random. The rod's luck, the rarity weights, the habitat and the world conditions all change the odds. It also picks the fish's weight and mutations.
 func _pick_random_fish() -> Dictionary:
 	var luck: float = _get_rod_stats().get("luck", 1.0)
 	var max_weight_kg: float = _get_rod_stats().get("max_weight_kg", 5.0)
@@ -413,13 +450,13 @@ func _pick_random_fish() -> Dictionary:
 	var world := _get_world_conditions()
 
 	var available_rarities: Dictionary = {}
-	for f in FISH_TABLE:
-		var h: String = f.get("habitat", "all")
-		if _has_item_for_fish(f) \
+	for fish_entry in FISH_TABLE:
+		var h: String = fish_entry.get("habitat", "all")
+		if _has_item_for_fish(fish_entry) \
 				and (h == "all" or h == _cast_water_type) \
-				and f.get("tension", 1) <= rod_tension \
-				and _fish_passes_requirements(f["name"], world):
-			available_rarities[f["rarity"]] = true
+				and fish_entry.get("tension", 1) <= rod_tension \
+				and _fish_passes_requirements(fish_entry["name"], world):
+			available_rarities[fish_entry["rarity"]] = true
 
 	var filtered_weights: Dictionary = {}
 	for rarity in weights:
@@ -446,13 +483,13 @@ func _pick_random_fish() -> Dictionary:
 				break
 		if rolled in PRECIOUS:
 			var valid := false
-			for f in FISH_TABLE:
-				var h: String = f.get("habitat", "all")
-				if _has_item_for_fish(f) \
-						and f["rarity"] == rolled \
+			for fish_entry in FISH_TABLE:
+				var h: String = fish_entry.get("habitat", "all")
+				if _has_item_for_fish(fish_entry) \
+						and fish_entry["rarity"] == rolled \
 						and (h == "all" or h == _cast_water_type) \
-						and f.get("tension", 1) <= rod_tension \
-						and _fish_passes_requirements(f["name"], world):
+						and fish_entry.get("tension", 1) <= rod_tension \
+						and _fish_passes_requirements(fish_entry["name"], world):
 					valid = true
 					break
 			if not valid:
@@ -464,22 +501,22 @@ func _pick_random_fish() -> Dictionary:
 
 	var pool: Array = []
 	var pool_weights: Array = []
-	for f in FISH_TABLE:
-		var h: String = f.get("habitat", "all")
-		if _has_item_for_fish(f) \
-				and f["rarity"] == chosen_rarity \
+	for fish_entry in FISH_TABLE:
+		var h: String = fish_entry.get("habitat", "all")
+		if _has_item_for_fish(fish_entry) \
+				and fish_entry["rarity"] == chosen_rarity \
 				and (h == "all" or h == _cast_water_type) \
-				and f.get("tension", 1) <= rod_tension \
-				and _fish_passes_requirements(f["name"], world):
-			var pref_mult: float = _fish_preference_multiplier(f["name"], world)
+				and fish_entry.get("tension", 1) <= rod_tension \
+				and _fish_passes_requirements(fish_entry["name"], world):
+			var pref_mult: float = _fish_preference_multiplier(fish_entry["name"], world)
 			if pref_mult > 0.0:
-				pool.append(f)
+				pool.append(fish_entry)
 				pool_weights.append(pref_mult)
 
 	if pool.is_empty():
-		for f in FISH_TABLE:
-			if _has_item_for_fish(f) and f.get("tension", 1) <= rod_tension:
-				pool.append(f)
+		for fish_entry in FISH_TABLE:
+			if _has_item_for_fish(fish_entry) and fish_entry.get("tension", 1) <= rod_tension:
+				pool.append(fish_entry)
 				pool_weights.append(1.0)
 	if pool.is_empty():
 		return FISH_TABLE[0]
@@ -509,6 +546,7 @@ func _pick_random_fish() -> Dictionary:
 	return fish
 
 
+# Picks a fish, waits about the rod's bite time, shows the bite icon briefly and then starts the minigame, unless the cast was cancelled.
 func _start_minigame() -> void:
 	if _waiting_for_bite:
 		return
@@ -528,22 +566,24 @@ func _start_minigame() -> void:
 	_launch_minigame(fish)
 
 
+# Creates the minigame on screen for the chosen fish and connects its results.
 func _launch_minigame(fish: Dictionary) -> void:
 	_waiting_for_bite = false
 	_active_fish = fish
-	var mg: Control = _minigame_packed.instantiate()
+	var minigame: Control = _minigame_packed.instantiate()
 	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if canvas:
-		canvas.add_child(mg)
+		canvas.add_child(minigame)
 	else:
-		get_tree().root.add_child(mg)
+		get_tree().root.add_child(minigame)
 	_minigame_active = true
 	var modified_fish := _apply_rod_to_fish(fish)
-	mg.fish_caught.connect(_on_fish_caught.bind(fish))
-	mg.fish_escaped.connect(_on_fish_escaped)
-	mg.setup.call_deferred(modified_fish)
+	minigame.fish_caught.connect(_on_fish_caught.bind(fish))
+	minigame.fish_escaped.connect(_on_fish_escaped)
+	minigame.setup.call_deferred(modified_fish)
 
 
+# Reels in the line and removes the bobber.
 func _cancel_cast() -> void:
 	if _minigame_active:
 		return
@@ -559,6 +599,7 @@ func _cancel_cast() -> void:
 		player.is_fishing = false
 
 
+# The minigame was won. Wears down the rod and gives the fish to the player.
 func _on_fish_caught(fish: Dictionary) -> void:
 	_minigame_active = false
 	_despawn_bobber()
@@ -570,6 +611,7 @@ func _on_fish_caught(fish: Dictionary) -> void:
 	_give_fish_to_player(fish)
 
 
+# The minigame was lost. Wears down the rod and shows that the fish got away.
 func _on_fish_escaped() -> void:
 	_minigame_active = false
 	_despawn_bobber()
@@ -582,6 +624,7 @@ func _on_fish_escaped() -> void:
 	_active_fish = {}
 
 
+# Shows a message on screen saying which fish was lost.
 func _show_lost_notification(fish: Dictionary) -> void:
 	if fish.is_empty():
 		return
@@ -625,6 +668,7 @@ func _show_lost_notification(fish: Dictionary) -> void:
 	tween.tween_callback(container.queue_free)
 
 
+# Adds the caught fish to the inventory with its weight, records it in the fish book and shows a notification.
 func _give_fish_to_player(fish: Dictionary) -> void:
 	var weight_kg: float = fish.get("weight_kg", 0.1)
 	var weight_grams: int = int(round(weight_kg * 1000.0))
@@ -648,16 +692,16 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 		_show_catch_notification(display_name, weight_kg, mutations, was_new)
 		return
 
-	var tex: Texture2D = load(texture_path)
+	var icon_texture: Texture2D = load(texture_path)
 	var existing_tex: Texture2D = Inventory.get_texture(display_name)
 	if existing_tex:
-		tex = existing_tex
+		icon_texture = existing_tex
 
 	for i in Inventory.slots.size():
 		if Inventory.slots[i]["item"] == "":
 			Inventory.slots[i]["item"] = display_name
 			Inventory.slots[i]["count"] = weight_grams
-			Inventory.slots[i]["texture"] = tex
+			Inventory.slots[i]["texture"] = icon_texture
 			Inventory._queue_emit()
 			_show_catch_notification(display_name, weight_kg, mutations, was_new)
 			return
@@ -665,15 +709,16 @@ func _give_fish_to_player(fish: Dictionary) -> void:
 		if Inventory.inv_slots[i]["item"] == "":
 			Inventory.inv_slots[i]["item"] = display_name
 			Inventory.inv_slots[i]["count"] = weight_grams
-			Inventory.inv_slots[i]["texture"] = tex
+			Inventory.inv_slots[i]["texture"] = icon_texture
 			Inventory._queue_emit()
 			_show_catch_notification(display_name, weight_kg, mutations, was_new)
 			return
 	_show_catch_notification(display_name, weight_kg, mutations, was_new)
 
 
+# Shows a message with the fish's picture, name, weight and any mutations.
 func _show_catch_notification(
-	name: String,
+	fish_display_name: String,
 	weight_kg: float,
 	mutations: Array,
 	was_new: bool = false,
@@ -688,15 +733,15 @@ func _show_catch_notification(
 	else:
 		weight_str = str(snappedf(weight_kg, 0.01)) + "kg"
 
-	var base_kg := _get_base_weight_for_name(name)
+	var base_kg := _get_base_weight_for_name(fish_display_name)
 	var size_tag := _get_size_tag(weight_kg, base_kg)
 
 	var rarity_color := Color.WHITE
-	for f in FISH_TABLE:
-		if f["name"] == name or "Albino " + f["name"] == name or "Shiny " + f["name"] == name:
+	for fish_entry in FISH_TABLE:
+		if fish_entry["name"] == fish_display_name or "Albino " + fish_entry["name"] == fish_display_name or "Shiny " + fish_entry["name"] == fish_display_name:
 			var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 			if extras:
-				rarity_color = extras._rarity_color(f.get("rarity", "Common"))
+				rarity_color = extras._rarity_color(fish_entry.get("rarity", "Common"))
 			break
 
 	var container := VBoxContainer.new()
@@ -710,9 +755,9 @@ func _show_catch_notification(
 
 	var rarity_label := Label.new()
 	var rarity_name := "Common"
-	for f in FISH_TABLE:
-		if f["name"] == name or "Albino " + f["name"] == name or "Shiny " + f["name"] == name:
-			rarity_name = f.get("rarity", "Common")
+	for fish_entry in FISH_TABLE:
+		if fish_entry["name"] == fish_display_name or "Albino " + fish_entry["name"] == fish_display_name or "Shiny " + fish_entry["name"] == fish_display_name:
+			rarity_name = fish_entry.get("rarity", "Common")
 			break
 	rarity_label.text = "You Caught a " + rarity_name + "!"
 	rarity_label.add_theme_font_size_override("font_size", 26)
@@ -733,7 +778,7 @@ func _show_catch_notification(
 		container.add_child(new_label)
 
 	var fish_label := Label.new()
-	fish_label.text = name + size_tag + "  •  " + weight_str
+	fish_label.text = fish_display_name + size_tag + "  •  " + weight_str
 	fish_label.add_theme_font_size_override("font_size", 22)
 	fish_label.add_theme_color_override("font_color", rarity_color)
 	fish_label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -754,24 +799,28 @@ func _show_catch_notification(
 	tween.tween_callback(container.queue_free)
 
 
+# Returns the usual weight of a fish from its name.
 func _get_base_weight_for_name(fish_name: String) -> float:
-	for f in FISH_TABLE:
-		if f["name"] == fish_name \
-			or "Albino " + f["name"] == fish_name \
-			or "Shiny " + f["name"] == fish_name:
-			return f["base_weight_kg"]
+	for fish_entry in FISH_TABLE:
+		if fish_entry["name"] == fish_name \
+			or "Albino " + fish_entry["name"] == fish_name \
+			or "Shiny " + fish_entry["name"] == fish_name:
+			return fish_entry["base_weight_kg"]
 	return 1.0
 
 
+# Returns the picture path of a fish, ignoring the Albino and Shiny prefixes.
 func _get_fish_texture_path(fish_name: String) -> String:
 	var base_name := fish_name.replace("Albino ", "").replace("Shiny ", "")
 	return FISH_TEXTURE_PATHS.get(base_name, "")
 
 
+# Always returns true. It is a placeholder for a bait check.
 func _has_item_for_fish(_fish: Dictionary) -> bool:
 	return true
 
 
+# Uses up one point of durability on the held rod and removes it when it breaks.
 func _consume_rod_durability() -> void:
 	var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
 	if not hotbar:
@@ -787,6 +836,7 @@ func _consume_rod_durability() -> void:
 		Inventory.inventory_changed.emit()
 
 
+# Returns the local player, remembering it for later.
 func _get_player() -> Node:
 	if _player and is_instance_valid(_player):
 		return _player
@@ -805,6 +855,7 @@ func _get_player() -> Node:
 	return null
 
 
+# Returns the world generator, remembering it for later.
 func _get_world_gen() -> Node:
 	if _world_gen and is_instance_valid(_world_gen):
 		return _world_gen
@@ -812,6 +863,7 @@ func _get_world_gen() -> Node:
 	return _world_gen
 
 
+# Creates a random weight around the fish's usual weight, favouring middle values.
 func _generate_weight(base_kg: float) -> float:
 	var r1 := randf()
 	var r2 := randf()
@@ -822,6 +874,7 @@ func _generate_weight(base_kg: float) -> float:
 	return snappedf(base_kg * multiplier, 0.01)
 
 
+# Randomly adds mutations such as Albino, Shiny, Silver or Darkened. A divine blessing makes them more likely.
 func _generate_mutations() -> Array:
 	var mutations: Array = []
 	var weather = get_tree().root.get_node_or_null("Scene/Weather")
@@ -854,6 +907,7 @@ func _generate_mutations() -> Array:
 	return mutations
 
 
+# Returns a size word such as giant or tiny from how heavy the fish is compared to normal.
 func _get_size_tag(weight_kg: float, base_kg: float) -> String:
 	var ratio := weight_kg / base_kg
 	if ratio >= 2.5:
@@ -869,6 +923,7 @@ func _get_size_tag(weight_kg: float, base_kg: float) -> String:
 	return ""
 
 
+# Creates the bobber at a position and tells the other players.
 func _spawn_bobber(world_pos: Vector2) -> void:
 	_despawn_bobber()
 	var bobber := Sprite2D.new()
@@ -885,6 +940,7 @@ func _spawn_bobber(world_pos: Vector2) -> void:
 			_sync_bobber_spawn.rpc(peer_id, world_pos)
 
 
+# Removes the bobber and tells the other players.
 func _despawn_bobber() -> void:
 	if _bobber and is_instance_valid(_bobber):
 		_bobber.queue_free()
@@ -896,13 +952,14 @@ func _despawn_bobber() -> void:
 			_sync_bobber_despawn.rpc(peer_id)
 
 
+# Shows the bite icon above the player and tells the other players.
 func _show_catch_icon(fish: Dictionary) -> void:
 	var player := _get_player()
 	if not player:
 		return
-	var tex = catch_textures.get(fish["rarity"], catch_textures["Common"])
+	var icon_texture = catch_textures.get(fish["rarity"], catch_textures["Common"])
 	var icon := Sprite2D.new()
-	icon.texture = tex
+	icon.texture = icon_texture
 	icon.position = player.global_position + Vector2(0, -145)
 	icon.z_index = 10
 	get_tree().root.get_node("Scene").add_child(icon)
@@ -912,6 +969,7 @@ func _show_catch_icon(fish: Dictionary) -> void:
 		_sync_catch_icon_show.rpc(peer_id, player.global_position, fish["rarity"])
 
 
+# Removes the bite icon and tells the other players.
 func _hide_catch_icon() -> void:
 	if _catch_icon_scene and is_instance_valid(_catch_icon_scene):
 		_catch_icon_scene.queue_free()
@@ -921,9 +979,11 @@ func _hide_catch_icon() -> void:
 		if player:
 			_sync_catch_icon_hide.rpc(player.get_multiplayer_authority())
 
+# Sent by the host so other players see a bobber.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Creates another player's bobber on this game.
 func _sync_bobber_spawn(owner_peer_id: int, world_pos: Vector2) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -942,9 +1002,11 @@ func _sync_bobber_spawn(owner_peer_id: int, world_pos: Vector2) -> void:
 	bobber.name = key
 	scene.add_child(bobber)
 
+# Sent by the host so other players remove a bobber.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Removes another player's bobber from this game.
 func _sync_bobber_despawn(owner_peer_id: int) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -956,9 +1018,11 @@ func _sync_bobber_despawn(owner_peer_id: int) -> void:
 	if existing:
 		existing.queue_free()
 
+# Sent by the host so other players see a bite icon.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Shows another player's bite icon on this game.
 func _sync_catch_icon_show(owner_peer_id: int, player_pos: Vector2, rarity: String) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -969,17 +1033,19 @@ func _sync_catch_icon_show(owner_peer_id: int, player_pos: Vector2, rarity: Stri
 	var existing = scene.get_node_or_null(key)
 	if existing:
 		existing.queue_free()
-	var tex = catch_textures.get(rarity, catch_textures["Common"])
+	var icon_texture = catch_textures.get(rarity, catch_textures["Common"])
 	var icon := Sprite2D.new()
-	icon.texture = tex
+	icon.texture = icon_texture
 	icon.position = player_pos + Vector2(0, -145)
 	icon.z_index = 10
 	icon.name = key
 	scene.add_child(icon)
 
+# Sent by the host so other players remove a bite icon.
 @rpc("authority", "call_remote", "reliable")
 
 
+# Removes another player's bite icon from this game.
 func _sync_catch_icon_hide(owner_peer_id: int) -> void:
 	if multiplayer.get_unique_id() == owner_peer_id:
 		return
@@ -992,6 +1058,7 @@ func _sync_catch_icon_hide(owner_peer_id: int) -> void:
 		existing.queue_free()
 
 
+# Sends the current bobber to a player who has just joined.
 func sync_fishing_state_to_peer(peer_id: int) -> void:
 	if _bobber and is_instance_valid(_bobber):
 		var player := _get_player()
@@ -999,6 +1066,7 @@ func sync_fishing_state_to_peer(peer_id: int) -> void:
 			_sync_bobber_spawn.rpc_id(peer_id, player.get_multiplayer_authority(), _bobber.position)
 
 
+# Returns true if the hotbar or unlocked inventory has an empty slot.
 func _has_empty_slot() -> bool:
 	for slot in Inventory.slots:
 		if slot["item"] == "":
@@ -1009,6 +1077,7 @@ func _has_empty_slot() -> bool:
 	return false
 
 
+# Shows a message that the inventory is full.
 func _show_full_inventory_notice() -> void:
 	var canvas := get_tree().root.get_node_or_null("Scene/CanvasLayer")
 	if not canvas:

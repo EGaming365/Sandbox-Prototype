@@ -1,20 +1,39 @@
+# Village guide NPC.
+# Shows a prompt when the player is close and opens a typewriter style dialogue box when they right click.
+# The dialogue includes a hint for the player's next achievement.
+
 extends CharacterBody2D
+# Name shown at the top of the dialogue box.
 @export var npc_name: String = "Eric the Guide"
+# Portrait shown beside the dialogue text.
 @export var npc_portrait: Texture2D
+# The greeting the NPC says before any achievement hint.
 @export var dialogue_line: String = "Hello traveller!"
+# Distance in pixels within which the player can talk.
 @export var talk_range: float = 96.0
+# Speed of the typewriter text effect.
 @export var chars_per_second: float = 45.0
+# Prompt telling the player they can talk.
 var _label: Label = null
+# Dialogue box.
 var _talk_panel: PanelContainer = null
+# Label showing the NPC's name.
 var _name_label: Label = null
+# Label showing the dialogue text.
 var _body_label: Label = null
+# Picture of the NPC in the dialogue box.
 var _portrait_rect: TextureRect = null
+# True while the local player is close enough to talk.
 var _player_in_range: bool = false
+# True while the dialogue box is open.
 var _talking: bool = false
+# How many characters of the dialogue are currently revealed.
 var _reveal_chars: float = 0.0
+# Full text of the conversation currently being shown, including the achievement hint.
 var _current_dialogue: String = ""
 
 
+# Joins the village NPC group and builds the body, prompt and dialogue box.
 func _ready() -> void:
 	add_to_group("village_npcs")
 	z_index = 2
@@ -23,6 +42,7 @@ func _ready() -> void:
 	_make_talk_panel()
 
 
+# Updates the prompt and reveals the dialogue text one letter at a time.
 func _process(delta: float) -> void:
 	var player := _get_local_player()
 	_player_in_range = player != null \
@@ -30,6 +50,7 @@ func _process(delta: float) -> void:
 	if _label:
 		_label.visible = _player_in_range and not _talking
 		_label.global_position = global_position + Vector2(-42, -92)
+	# Close the dialogue if the player walks away, otherwise reveal more text each frame, and let the exit key close it.
 	if _talking:
 		if not _player_in_range:
 			_close_talk()
@@ -41,6 +62,7 @@ func _process(delta: float) -> void:
 			_close_talk()
 
 
+# Right click either advances the dialogue or starts it when the player is close.
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if _talking:
@@ -53,27 +75,29 @@ func _unhandled_input(event: InputEvent) -> void:
 			_open_talk()
 
 
+# Draws the NPC from two coloured rectangles and adds a collision shape.
 func _make_body() -> void:
-	var body := ColorRect.new()
-	body.color = Color(0.24, 0.48, 0.82, 1.0)
-	body.size = Vector2(36, 56)
-	body.position = Vector2(-18, -56)
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(body)
-	var head := ColorRect.new()
-	head.color = Color(0.95, 0.74, 0.52, 1.0)
-	head.size = Vector2(30, 28)
-	head.position = Vector2(-15, -84)
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(head)
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(36, 56)
-	shape.shape = rect
-	shape.position = Vector2(0, -28)
-	add_child(shape)
+	var body_rect := ColorRect.new()
+	body_rect.color = Color(0.24, 0.48, 0.82, 1.0)
+	body_rect.size = Vector2(36, 56)
+	body_rect.position = Vector2(-18, -56)
+	body_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(body_rect)
+	var head_rect := ColorRect.new()
+	head_rect.color = Color(0.95, 0.74, 0.52, 1.0)
+	head_rect.size = Vector2(30, 28)
+	head_rect.position = Vector2(-15, -84)
+	head_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(head_rect)
+	var collision_shape := CollisionShape2D.new()
+	var collision_rectangle := RectangleShape2D.new()
+	collision_rectangle.size = Vector2(36, 56)
+	collision_shape.shape = collision_rectangle
+	collision_shape.position = Vector2(0, -28)
+	add_child(collision_shape)
 
 
+# Creates the 'Right-click to talk' label, hidden until needed.
 func _make_prompt() -> void:
 	_label = Label.new()
 	_label.text = "Right-click to talk"
@@ -86,39 +110,41 @@ func _make_prompt() -> void:
 	add_child(_label)
 
 
+# Builds the dialogue box with a portrait on the left and the name and text on the right.
 func _make_talk_panel() -> void:
 	_talk_panel = PanelContainer.new()
 	_talk_panel.visible = false
 	_talk_panel.top_level = true
 	_talk_panel.custom_minimum_size = Vector2(440, 140)
 	add_child(_talk_panel)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	_talk_panel.add_child(margin)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	margin.add_child(row)
+	var margin_container := MarginContainer.new()
+	margin_container.add_theme_constant_override("margin_left", 14)
+	margin_container.add_theme_constant_override("margin_top", 12)
+	margin_container.add_theme_constant_override("margin_right", 14)
+	margin_container.add_theme_constant_override("margin_bottom", 12)
+	_talk_panel.add_child(margin_container)
+	var portrait_and_text_row := HBoxContainer.new()
+	portrait_and_text_row.add_theme_constant_override("separation", 12)
+	margin_container.add_child(portrait_and_text_row)
 	_portrait_rect = TextureRect.new()
 	_portrait_rect.custom_minimum_size = Vector2(80, 80)
 	_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_portrait_rect.texture = npc_portrait
-	row.add_child(_portrait_rect)
-	var box := VBoxContainer.new()
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(box)
+	portrait_and_text_row.add_child(_portrait_rect)
+	var text_column := VBoxContainer.new()
+	text_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	portrait_and_text_row.add_child(text_column)
 	_name_label = Label.new()
 	_name_label.text = npc_name
 	_name_label.add_theme_font_size_override("font_size", 18)
-	box.add_child(_name_label)
+	text_column.add_child(_name_label)
 	_body_label = Label.new()
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body_label.visible_characters = 0
-	box.add_child(_body_label)
+	text_column.add_child(_body_label)
 
 
+# Starts the dialogue with a freshly built message and tells the player they are talking.
 func _open_talk() -> void:
 	var player := _get_local_player()
 	if player:
@@ -132,6 +158,7 @@ func _open_talk() -> void:
 	_talk_panel.global_position = global_position + Vector2(-220, -220)
 
 
+# Returns the greeting followed by the hint for the player's next achievement, or a congratulation if they have them all.
 func _build_dialogue() -> String:
 	var achievements := _get_achievement_manager()
 	if not achievements:
@@ -146,6 +173,7 @@ func _build_dialogue() -> String:
 	return dialogue_line + " Your next goal: " + hint
 
 
+# Finds the achievement manager in the scene, or returns null if there is none.
 func _get_achievement_manager() -> Node:
 	var scene := get_tree().root.get_node_or_null("Scene")
 	if not scene:
@@ -153,6 +181,7 @@ func _get_achievement_manager() -> Node:
 	return scene.get_node_or_null("Achivementmanager")
 
 
+# Shows the full text immediately if it is still being typed, otherwise closes the dialogue.
 func _advance_talk() -> void:
 	if _reveal_chars < _current_dialogue.length():
 		_reveal_chars = _current_dialogue.length()
@@ -161,6 +190,7 @@ func _advance_talk() -> void:
 	_close_talk()
 
 
+# Ends the dialogue and lets the player move again.
 func _close_talk() -> void:
 	var player := _get_local_player()
 	if player:
@@ -169,6 +199,7 @@ func _close_talk() -> void:
 	_talk_panel.visible = false
 
 
+# Returns the player controlled by this game instance, or null.
 func _get_local_player() -> CharacterBody2D:
 	var scene := get_tree().root.get_node_or_null("Scene")
 	if not scene:

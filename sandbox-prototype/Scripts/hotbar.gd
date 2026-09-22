@@ -1,25 +1,47 @@
+# Hotbar.
+# The ten slot bar at the bottom of the screen. It shows the items, selects a slot with number keys or the scroll wheel, and handles dragging, splitting and dropping items, the offhand slot and casting fishing rods.
+# The item data itself is stored in the Inventory autoload.
+
 extends Control
 
+# True while the hotbar is shown.
 var toggle_ui = true
+# Stops the hotbar flickering while the toggle key is held down.
 var can_toggle_ui = true
+# The ten slot nodes on screen.
 var slots = []
+# Panel showing the offhand item.
 var offhand_slot: Panel = null
+# Index of the slot an item is being dragged from, or -1.
 var dragging_from = -1
+# True if the dragged item came from the backpack.
 var dragging_from_inv = false
+# The picture that follows the mouse while dragging.
 var drag_node : Control = null
+# Index of the slot under the mouse, or -1.
 var hovered_hotbar_slot: int = -1
+# False when the dragged item cannot go in the offhand.
 var offhand_drag_valid: bool = true
+# Seconds left to flash the offhand slot red.
 var offhand_flash_timer: float = 0.0
 
+# The selected slot, from 1 to 10.
 var current_slot = 1
+# Style of an unselected slot.
 var hotbar_default: StyleBox = preload("res://Resources/hotbar_default.tres")
+# Style of the selected slot.
 var hotbar_selected: StyleBox = preload("res://Resources/hotbar_selected.tres")
 
+# Seconds the drop key has been held.
 var drop_hold_timer: float = 0.0
+# True once holding the drop key has dropped the whole stack.
 var drop_hold_triggered: bool = false
+# True when dragging half of a stack rather than all of it.
 var split_drag: bool = false
+# The part of the stack currently being carried during a split drag.
 var split_hold: Dictionary = {"item": "", "count": 0, "texture": null}
 
+# Full durability of each tool, used to draw its durability bar.
 const TOOL_MAX_DURABILITY = {
 	"Axe": 80.0,
 	"Sword": 30.0,
@@ -33,6 +55,7 @@ const TOOL_MAX_DURABILITY = {
 }
 
 
+# Finds the slot nodes, creates the offhand slot and updates the display whenever the inventory changes.
 func _ready():
 	for i in range(10):
 		slots.append($HBoxContainer.get_node("Item" + str(i + 1)))
@@ -43,18 +66,20 @@ func _ready():
 	update_hotbar()
 
 
+# Draws each item picture once in a hidden node so it is ready before it is needed.
 func _prewarm_textures():
 	var dummy = TextureRect.new()
 	dummy.visible = false
 	add_child(dummy)
 	for i in range(10):
-		var tex = Inventory.slots[i].get("texture")
-		if tex:
-			dummy.texture = tex
+		var item_texture = Inventory.slots[i].get("texture")
+		if item_texture:
+			dummy.texture = item_texture
 	await get_tree().process_frame
 	dummy.queue_free()
 
 
+# Returns the player controlled by this game instance, or null.
 func get_local_player():
 	for child in get_tree().root.get_node("Scene").get_children():
 		if child is CharacterBody2D and child.is_in_group("players"):
@@ -66,6 +91,7 @@ func get_local_player():
 	return null
 
 
+# Drops a single item on the floor near the player.
 func _spawn_drop(player, item_type: String, spawn_durability: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	var angle = randf_range(0, TAU)
@@ -82,6 +108,7 @@ func _spawn_drop(player, item_type: String, spawn_durability: int):
 		scene_node.host_spawn_floor_item(drop_pos, item_type, spawn_durability)
 
 
+# Drops a whole stack as separate items scattered near the player.
 func _spawn_drop_stack(player, item_type: String, count: int):
 	var scene_node = get_tree().root.get_node("Scene")
 	var positions_x: Array = []
@@ -103,34 +130,35 @@ func _spawn_drop_stack(player, item_type: String, count: int):
 			scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, 1)
 
 
+# Redraws every slot: item picture, stack count, durability bar and the selected highlight.
 func update_hotbar():
 	for i in range(10):
 		var slot = slots[i]
-		var data = Inventory.slots[i]
+		var slot_data = Inventory.slots[i]
 		var prev_item = slot.get_meta("last_item", "")
 		var prev_count = slot.get_meta("last_count", -1)
-		if prev_item == data["item"] and prev_count == data["count"]:
+		if prev_item == slot_data["item"] and prev_count == slot_data["count"]:
 			continue
-		slot.set_meta("last_item", data["item"])
-		slot.set_meta("last_count", data["count"])
+		slot.set_meta("last_item", slot_data["item"])
+		slot.set_meta("last_count", slot_data["count"])
 		for child in slot.get_children():
 			child.queue_free()
-		if data["item"] == "":
+		if slot_data["item"] == "":
 			continue
-		var tex = Inventory.get_texture(data["item"])
-		if tex == null:
-			tex = data["texture"]
+		var item_texture = Inventory.get_texture(slot_data["item"])
+		if item_texture == null:
+			item_texture = slot_data["texture"]
 		var tex_rect = TextureRect.new()
-		tex_rect.texture = tex
+		tex_rect.texture = item_texture
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tex_rect.size = Vector2(slot.size.x - 12, slot.size.y - 12)
 		tex_rect.position = Vector2(6, 6)
 		slot.add_child(tex_rect)
-		if not Inventory.non_stackable_items.has(data["item"]):
+		if not Inventory.non_stackable_items.has(slot_data["item"]):
 			var label = Label.new()
-			label.text = str(min(data["count"], 99))
+			label.text = str(min(slot_data["count"], 99))
 			label.add_theme_font_size_override("font_size", 16)
 			label.add_theme_color_override("font_color", Color.WHITE)
 			label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -139,14 +167,14 @@ func update_hotbar():
 			label.offset_top = -24
 			label.offset_bottom = -16
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			if data["count"] >= 10:
+			if slot_data["count"] >= 10:
 				label.offset_left = -24
 			else:
 				label.offset_left = -14
 			slot.add_child(label)
-		elif _is_fish_item(data["item"]) and data["count"] > 0:
+		elif _is_fish_item(slot_data["item"]) and slot_data["count"] > 0:
 			var label = Label.new()
-			label.text = Inventory.get_fish_weight_display(data["item"], data["count"])
+			label.text = Inventory.get_fish_weight_display(slot_data["item"], slot_data["count"])
 			label.add_theme_font_size_override("font_size", 11)
 			label.add_theme_color_override("font_color", Color.WHITE)
 			label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -158,9 +186,9 @@ func update_hotbar():
 			label.offset_right = -2
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot.add_child(label)
-		if TOOL_MAX_DURABILITY.has(data["item"]):
-			var max_dur = TOOL_MAX_DURABILITY[data["item"]]
-			var pct = clamp(data["count"] / max_dur, 0.0, 1.0)
+		if TOOL_MAX_DURABILITY.has(slot_data["item"]):
+			var max_dur = TOOL_MAX_DURABILITY[slot_data["item"]]
+			var pct = clamp(slot_data["count"] / max_dur, 0.0, 1.0)
 			if pct < 1.0:
 				var bar_bg = ColorRect.new()
 				bar_bg.color = Color(0.2, 0.2, 0.2, 0.8)
@@ -182,6 +210,7 @@ func update_hotbar():
 	_update_offhand_slot()
 
 
+# Creates the offhand slot panel beside the hotbar.
 func _create_offhand_slot():
 	offhand_slot = Panel.new()
 	offhand_slot.name = "OffhandSlot"
@@ -193,25 +222,26 @@ func _create_offhand_slot():
 	offhand_slot.gui_input.connect(_gui_input_for_offhand)
 
 
+# Redraws the offhand slot.
 func _update_offhand_slot():
 	if not offhand_slot:
 		return
-	var data = Inventory.offhand_slot
+	var slot_data = Inventory.offhand_slot
 	var prev_item = offhand_slot.get_meta("last_item", "")
 	var prev_count = offhand_slot.get_meta("last_count", -1)
-	if prev_item == data["item"] and prev_count == data["count"]:
+	if prev_item == slot_data["item"] and prev_count == slot_data["count"]:
 		return
-	offhand_slot.set_meta("last_item", data["item"])
-	offhand_slot.set_meta("last_count", data["count"])
+	offhand_slot.set_meta("last_item", slot_data["item"])
+	offhand_slot.set_meta("last_count", slot_data["count"])
 	for child in offhand_slot.get_children():
 		child.queue_free()
-	if data["item"] == "":
+	if slot_data["item"] == "":
 		return
-	var tex = Inventory.get_texture(data["item"])
-	if tex == null:
-		tex = data["texture"]
+	var item_texture = Inventory.get_texture(slot_data["item"])
+	if item_texture == null:
+		item_texture = slot_data["texture"]
 	var tex_rect = TextureRect.new()
-	tex_rect.texture = tex
+	tex_rect.texture = item_texture
 	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -219,7 +249,7 @@ func _update_offhand_slot():
 	tex_rect.position = Vector2(6, 6)
 	offhand_slot.add_child(tex_rect)
 	var label = Label.new()
-	label.text = str(min(data["count"], 99))
+	label.text = str(min(slot_data["count"], 99))
 	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -227,11 +257,12 @@ func _update_offhand_slot():
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	label.offset_top = -24
 	label.offset_bottom = -16
-	label.offset_left = -24 if data["count"] >= 10 else -14
+	label.offset_left = -24 if slot_data["count"] >= 10 else -14
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	offhand_slot.add_child(label)
 
 
+# Left clicking the offhand item moves it back to the inventory.
 func _gui_input_for_offhand(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		if Inventory.offhand_slot["item"] != "":
@@ -244,17 +275,18 @@ func _gui_input_for_offhand(event):
 				Inventory.clear_offhand()
 
 
-func _start_split_drag(index: int, item_name: String, tex: Texture2D):
+# Starts dragging half of a stack.
+func _start_split_drag(index: int, item_name: String, item_texture: Texture2D):
 	dragging_from = index
 	dragging_from_inv = false
 	split_drag = true
-	split_hold = {"item": item_name, "count": 0, "texture": tex}
+	split_hold = {"item": item_name, "count": 0, "texture": item_texture}
 	var container = Control.new()
 	container.size = Vector2(40, 40)
 	container.z_index = 9
 	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tex_rect = TextureRect.new()
-	tex_rect.texture = tex
+	tex_rect.texture = item_texture
 	tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tex_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -264,7 +296,8 @@ func _start_split_drag(index: int, item_name: String, tex: Texture2D):
 	drag_node = container
 
 
-func _start_full_drag(index: int, tex: Texture2D):
+# Starts dragging a whole slot.
+func _start_full_drag(index: int, item_texture: Texture2D):
 	dragging_from = index
 	dragging_from_inv = false
 	split_drag = false
@@ -273,7 +306,7 @@ func _start_full_drag(index: int, tex: Texture2D):
 	container.z_index = 9
 	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tex_rect = TextureRect.new()
-	tex_rect.texture = tex
+	tex_rect.texture = item_texture
 	tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tex_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -283,18 +316,19 @@ func _start_full_drag(index: int, tex: Texture2D):
 	drag_node = container
 
 
+# Puts the carried items into a slot, stacking with matching items when possible.
 func _merge_or_place(
 	arr: Array,
 	index: int,
 	item_name: String,
-	tex: Texture2D,
+	item_texture: Texture2D,
 	count: int,
 ) -> bool:
 	var slot = arr[index]
 	if slot["item"] == "":
 		slot["item"] = item_name
 		slot["count"] = count
-		slot["texture"] = tex
+		slot["texture"] = item_texture
 		Inventory.discover(item_name)
 		Inventory.inventory_changed.emit()
 		return true
@@ -310,11 +344,12 @@ func _merge_or_place(
 	return false
 
 
-func _merge_split_into_offhand(item_name: String, tex: Texture2D, count: int) -> bool:
+# Adds carried items to the offhand slot if that is allowed.
+func _merge_split_into_offhand(item_name: String, item_texture: Texture2D, count: int) -> bool:
 	if not Inventory.can_item_go_offhand(item_name):
 		return false
 	if Inventory.offhand_slot["item"] == "":
-		Inventory.offhand_slot = {"item": item_name, "count": count, "texture": tex}
+		Inventory.offhand_slot = {"item": item_name, "count": count, "texture": item_texture}
 		Inventory.discover(item_name)
 		Inventory.inventory_changed.emit()
 		return true
@@ -330,6 +365,7 @@ func _merge_split_into_offhand(item_name: String, tex: Texture2D, count: int) ->
 	return false
 
 
+# Puts any carried items back into the slot they came from.
 func _return_split_to_source(leftover: int = -1) -> void:
 	var amount = split_hold["count"] if leftover == -1 else leftover
 	if amount <= 0:
@@ -346,20 +382,21 @@ func _return_split_to_source(leftover: int = -1) -> void:
 	Inventory.inventory_changed.emit()
 
 
+# Places the carried items where the mouse was released: a hotbar slot, a backpack slot or the offhand.
 func _resolve_split_drop() -> void:
 	var dropped_on_hotbar = _get_hovered_slot()
 	var dropped_on_inv = _get_hovered_inv_slot()
 	var item_name = split_hold["item"]
 	var count = split_hold["count"]
-	var tex = split_hold["texture"]
+	var item_texture = split_hold["texture"]
 	if dropped_on_hotbar != -1:
-		if not _merge_or_place(Inventory.slots, dropped_on_hotbar, item_name, tex, count):
+		if not _merge_or_place(Inventory.slots, dropped_on_hotbar, item_name, item_texture, count):
 			_return_split_to_source()
 	elif _is_mouse_over_offhand():
-		if not _merge_split_into_offhand(item_name, tex, count):
+		if not _merge_split_into_offhand(item_name, item_texture, count):
 			_return_split_to_source()
 	elif dropped_on_inv != -1:
-		if not _merge_or_place(Inventory.inv_slots, dropped_on_inv, item_name, tex, count):
+		if not _merge_or_place(Inventory.inv_slots, dropped_on_inv, item_name, item_texture, count):
 			_return_split_to_source()
 	else:
 		var mouse = get_global_mouse_position()
@@ -379,17 +416,18 @@ func _resolve_split_drop() -> void:
 	split_hold = {"item": "", "count": 0, "texture": null}
 
 
+# Handles clicks on a slot: right click starts a split drag and left click starts a full drag.
 func _gui_input_for_slot(event, index):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT \
 			and event.pressed and not drag_node:
-		var data = Inventory.slots[index]
-		if data["item"] != "":
-			var item_name = data["item"]
-			var tex = data["texture"]
+		var slot_data = Inventory.slots[index]
+		if slot_data["item"] != "":
+			var item_name = slot_data["item"]
+			var item_texture = slot_data["texture"]
 			if Inventory.non_stackable_items.has(item_name):
-				_start_full_drag(index, tex)
+				_start_full_drag(index, item_texture)
 			else:
-				var total = data["count"]
+				var total = slot_data["count"]
 				var take = int(ceil(total / 2.0))
 				if take > 0:
 					var remain = total - take
@@ -398,7 +436,7 @@ func _gui_input_for_slot(event, index):
 					else:
 						Inventory.slots[index]["count"] = remain
 					Inventory.inventory_changed.emit()
-					_start_split_drag(index, item_name, tex)
+					_start_split_drag(index, item_name, item_texture)
 					split_hold["count"] = take
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -407,25 +445,25 @@ func _gui_input_for_slot(event, index):
 		if event.pressed and Inventory.slots[index]["item"] != "":
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.slots[index]["item"]
-				var tex = Inventory.slots[index]["texture"]
+				var item_texture = Inventory.slots[index]["texture"]
 				if Input.is_key_pressed(KEY_CTRL):
 					if not Inventory.move_slot_to_offhand(index, false):
 						_flash_offhand_red()
 					return
 				var is_non_stackable = Inventory.non_stackable_items.has(item_name)
 				var remaining = Inventory.slots[index]["count"]
-				var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+				var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 				if _is_fish_item(item_name):
 					for i in 20:
 						if Inventory.inv_slots[i]["item"] == "":
 							Inventory.inv_slots[i]["item"] = item_name
 							Inventory.inv_slots[i]["count"] = remaining
-							Inventory.inv_slots[i]["texture"] = tex
+							Inventory.inv_slots[i]["texture"] = item_texture
 							Inventory.slots[index] = {"item": "", "count": 0, "texture": null}
 							Inventory.inventory_changed.emit()
 							break
 					return
-				if inv_ui:
+				if inventory_ui:
 					if not is_non_stackable:
 						for i in 20:
 							if remaining <= 0:
@@ -442,7 +480,7 @@ func _gui_input_for_slot(event, index):
 							var add = min(99, remaining)
 							Inventory.inv_slots[i]["item"] = item_name
 							Inventory.inv_slots[i]["count"] = add
-							Inventory.inv_slots[i]["texture"] = tex
+							Inventory.inv_slots[i]["texture"] = item_texture
 							remaining -= add
 					if remaining <= 0:
 						Inventory.slots[index] = {"item": "", "count": 0, "texture": null}
@@ -456,63 +494,70 @@ func _gui_input_for_slot(event, index):
 			container.size = Vector2(40, 40)
 			container.z_index = 9
 			container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			var tex = TextureRect.new()
-			tex.texture = Inventory.slots[index]["texture"]
-			tex.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			container.add_child(tex)
+			var item_texture = TextureRect.new()
+			item_texture.texture = Inventory.slots[index]["texture"]
+			item_texture.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+			item_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			item_texture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			item_texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			container.add_child(item_texture)
 			add_child(container)
 			drag_node = container
 
 
+# Connects mouse events to each slot.
 func _ready_slots():
 	for i in range(10):
 		var slot = slots[i]
-		var idx = i
-		slot.gui_input.connect(func(event): _gui_input_for_slot(event, idx))
-		slot.mouse_entered.connect(func(): _on_slot_hover(idx))
-		slot.mouse_exited.connect(func(): _on_slot_unhover(idx))
+		var hotbar_slot_number = i
+		slot.gui_input.connect(func(event): _gui_input_for_slot(event, hotbar_slot_number))
+		slot.mouse_entered.connect(func(): _on_slot_hover(hotbar_slot_number))
+		slot.mouse_exited.connect(func(): _on_slot_unhover(hotbar_slot_number))
 
 
+# Records which slot the mouse is over.
 func _on_slot_hover(index: int):
 	hovered_hotbar_slot = index
 
 
+# Clears the hovered slot when the mouse leaves it.
 func _on_slot_unhover(index: int):
 	if hovered_hotbar_slot == index:
 		hovered_hotbar_slot = -1
 
 
+# Returns the slot nearest to the mouse if it is close enough, or -1.
 func _get_hovered_slot() -> int:
 	var closest = -1
 	var closest_dist = 40.0
 	for i in range(slots.size()):
 		var center = slots[i].get_global_rect().get_center()
-		var dist = get_global_mouse_position().distance_to(center)
-		if dist < closest_dist:
-			closest_dist = dist
+		var distance_to_slot = get_global_mouse_position().distance_to(center)
+		if distance_to_slot < closest_dist:
+			closest_dist = distance_to_slot
 			closest = i
 	return closest
 
 
+# Returns the backpack slot under the mouse while the inventory is open, or -1.
 func _get_hovered_inv_slot():
-	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-	if inv_ui and inv_ui.visible:
-		return inv_ui.get_hovered_slot()
+	var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	if inventory_ui and inventory_ui.visible:
+		return inventory_ui.get_hovered_slot()
 	return -1
 
 
+# Runs every frame: number keys and scroll wheel select slots, the swap key uses the offhand, dragged items are released, and holding the drop key drops the stack.
 func _process(delta: float) -> void:
-	var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
-	if chat and chat.get("is_open"):
+	# Ignore all input while the chat is open.
+	var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+	if chat_box and chat_box.get("is_open"):
 		return
 
-	var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-	var inv_open = inv_ui and inv_ui.visible
-	var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
-	var extras_open = extras and extras.visible
+	var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+	var inv_open = inventory_ui and inventory_ui.visible
+	var extras_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+	var extras_open = extras_ui and extras_ui.visible
 	var block_slot_scroll = inv_open or extras_open
 
 	for i in range(1, 11):
@@ -648,12 +693,12 @@ func _process(delta: float) -> void:
 			if drop_hold_timer >= 1.0 and not drop_hold_triggered:
 				drop_hold_triggered = true
 				var drop_index = current_slot - 1
-				var data = Inventory.slots[drop_index]
-				if data["item"] != "":
+				var slot_data = Inventory.slots[drop_index]
+				if slot_data["item"] != "":
 					var player = get_local_player()
 					if player:
-						var item_type = data["item"]
-						var count = data["count"]
+						var item_type = slot_data["item"]
+						var count = slot_data["count"]
 						var is_tool = Inventory.non_stackable_items.has(item_type)
 						if is_tool:
 							_spawn_drop(player, item_type, count)
@@ -668,12 +713,12 @@ func _process(delta: float) -> void:
 		elif not inv_open:
 			drop_index = current_slot - 1
 		if drop_index != -1:
-			var data = Inventory.slots[drop_index]
-			if data["item"] != "":
+			var slot_data = Inventory.slots[drop_index]
+			if slot_data["item"] != "":
 				var player = get_local_player()
 				if player:
-					var item_type = data["item"]
-					var count = data["count"]
+					var item_type = slot_data["item"]
+					var count = slot_data["count"]
 					var is_tool = Inventory.non_stackable_items.has(item_type)
 					if inv_open:
 						if is_tool:
@@ -691,38 +736,41 @@ func _process(delta: float) -> void:
 							Inventory.inventory_changed.emit()
 
 
+# Right click can cast a fishing rod, or place the offhand item, when no menu is open.
 func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if not drag_node:
-			var inv_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
-			var inv_open = inv_ui and inv_ui.visible
-			var extras = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
-			var extras_open = extras and extras.visible
+			var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
+			var inv_open = inventory_ui and inventory_ui.visible
+			var extras_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
+			var extras_open = extras_ui and extras_ui.visible
 			if inv_open or extras_open:
 				return
 			var slot_index = current_slot - 1
-			var data = Inventory.slots[slot_index]
-			if data["item"] == "Chicken_Raw" and data["count"] > 0:
+			var slot_data = Inventory.slots[slot_index]
+			if slot_data["item"] == "Chicken_Raw" and slot_data["count"] > 0:
 				var hud = get_tree().root.get_node_or_null("Scene/CanvasLayer/RightUI")
 				if hud:
 					hud.hunger = clamp(hud.hunger + 30.0, 0.0, 100.0)
-				if data["count"] <= 1:
+				if slot_data["count"] <= 1:
 					Inventory.remove_item(slot_index, false)
 				else:
 					Inventory.slots[slot_index]["count"] -= 1
 					Inventory.inventory_changed.emit()
-			elif data["item"] == "Fishing Rod" \
-					or data["item"] == "Stone Fishing Rod" \
-					or data["item"] == "Copper Fishing Rod":
+			elif slot_data["item"] == "Fishing Rod" \
+					or slot_data["item"] == "Stone Fishing Rod" \
+					or slot_data["item"] == "Copper Fishing Rod":
 				_try_fish_cast(event.position)
 
 
+# Asks the fishing manager to cast a line towards the given screen position.
 func _try_fish_cast(screen_pos: Vector2) -> void:
 	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
 	if fishing_manager:
 		fishing_manager.try_cast(screen_pos)
 
 
+# Returns true if the item is a fish, including the albino version.
 func _is_fish_item(item_name: String) -> bool:
 	var fishing_manager = get_tree().root.get_node_or_null("FishingManager")
 	if fishing_manager:
@@ -740,14 +788,17 @@ func _is_fish_item(item_name: String) -> bool:
 	return false
 
 
+# Returns true if the mouse is over the offhand slot.
 func _is_mouse_over_offhand() -> bool:
 	return offhand_slot != null \
 		and offhand_slot.get_global_rect().has_point(get_global_mouse_position())
 
 
+# Tells the hotbar whether the dragged item can go in the offhand.
 func set_offhand_drag_valid(is_valid: bool) -> void:
 	offhand_drag_valid = is_valid
 
 
+# Flashes the offhand slot red to show the move is not allowed.
 func _flash_offhand_red() -> void:
 	offhand_flash_timer = 0.22
