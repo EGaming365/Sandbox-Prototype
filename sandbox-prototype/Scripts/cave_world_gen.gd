@@ -157,6 +157,8 @@ var _tilemap: TileMap
 var _world_gen: Node
 # The environment generator.
 var _env_spawner: Node
+# The village manager, hidden while the player is in the cave.
+var _village: Node
 # Tile set source ID of the cave tiles.
 var cave_source_id: int = -1
 # Tile set source ID of the water tiles.
@@ -235,7 +237,7 @@ func _ready() -> void:
 	_packed_cave_exit_scene = load(cave_exit_scene_path)
 
 
-# Finds the tile map, world generator and environment generator.
+# Finds the tile map, world generator, environment generator and village manager.
 func _resolve_refs() -> void:
 	_tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
 	_world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
@@ -247,6 +249,7 @@ func _resolve_refs() -> void:
 				if child.get_script() and child.has_method("_unload_all_chunks"):
 					_env_spawner = child
 					break
+	_village = get_tree().root.get_node_or_null("Scene/Village")
 
 
 # Moves the player into the cave, generating the dungeon from the world seed if needed, and places the player exactly on the cave's linked exit point so the two worlds line up.
@@ -274,6 +277,8 @@ func enter_cave(player: CharacterBody2D) -> void:
 			_env_spawner._unload_all_chunks()
 		if _env_spawner.has_method("_unload_all_cave_regions"):
 			_env_spawner._unload_all_cave_regions()
+	if _village and _village.has_method("set_surface_active"):
+		_village.set_surface_active(false)
 	var seed: int = _world_gen.world_seed if _world_gen else 0
 	_activate(seed)
 	# Move the player to the same spot the exit door will appear at, so entering the cave does not require walking anywhere once inside.
@@ -329,6 +334,8 @@ func exit_cave(player: CharacterBody2D) -> void:
 		for i: int in 8:
 			if _env_spawner.has_method("_process_object_spawn_queue"):
 				_env_spawner._process_object_spawn_queue()
+	if _village and _village.has_method("set_surface_active"):
+		_village.set_surface_active(true)
 	var scene: Node = get_tree().root.get_node_or_null("Scene")
 	if scene and scene.has_method("_refresh_floor_item_visibility"):
 		scene._refresh_floor_item_visibility()

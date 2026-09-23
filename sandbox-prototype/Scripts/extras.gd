@@ -80,7 +80,6 @@ func toggle():
 		show()
 		_just_opened = true
 		_switch_section(current_section)
-		_set_online_ui(true)
 
 
 # Hides the menu, clears the fish details and hides the online buttons.
@@ -339,6 +338,9 @@ func _switch_section(section: String):
 		marks[key].visible = (key == section)
 	if section == "collection":
 		_build_fish_panel()
+	# The online buttons only belong on the Game tab, so they follow it here too.
+	if visible:
+		_set_online_ui(section == "game")
 
 
 # Returns the panel that holds the fish grid.

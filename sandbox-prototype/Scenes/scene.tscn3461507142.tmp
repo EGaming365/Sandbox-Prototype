@@ -186,6 +186,7 @@ offset_left = 263.0
 offset_top = 872.0
 offset_right = 314.0
 offset_bottom = 903.0
+mouse_filter = 2
 text = "HOST"
 script = ExtResource("7_lnogb")
 
@@ -194,6 +195,7 @@ offset_left = 338.0
 offset_top = 872.0
 offset_right = 381.0
 offset_bottom = 903.0
+mouse_filter = 2
 disabled = true
 text = "JOIN"
 script = ExtResource("8_20iik")

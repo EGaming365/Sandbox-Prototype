@@ -21,6 +21,8 @@ extends Node2D
 @export var objects_spawned_per_frame: int = 8
 # Objects are kept this far from water.
 @export var water_clearance_radius: float = 140.0
+# Objects are kept this far from the centre of the village.
+@export var village_clearance_radius: float = 600.0
 
 # Average number of trees in a forest chunk.
 @export var forest_trees_per_chunk: float = 16.0
@@ -340,6 +342,8 @@ func _build_object_pass(
 # Returns true if an object can go at the position, away from water and biome edges.
 func _is_valid_object_position(world_position: Vector2, wants_forest: bool) -> bool:
 	if _is_water_cached(world_position):
+		return false
+	if _is_too_close_to_village(world_position):
 		return false
 	var r := biome_edge_check_radius
 	var offsets := [
@@ -961,3 +965,8 @@ func _is_too_close_to_cave(world_position: Vector2) -> bool:
 		if world_position.distance_to(cave_pos) < 180.0:
 			return true
 	return false
+
+
+# Returns true if the position is within the village's clearance radius.
+func _is_too_close_to_village(world_position: Vector2) -> bool:
+	return world_position.distance_to(VillageManager.global_position) < village_clearance_radius

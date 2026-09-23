@@ -15,6 +15,14 @@ extends Control
 @onready var event_info: Label = $EventInfo
 @onready var weather_info: Label = $WeatherInfo
 
+# Hunger and thirst hover labels, built entirely in code so no scene node is needed for them.
+var hunger_info: Label
+var thirst_info: Label
+
+# How wide the hunger/thirst hover labels are, and how far they sit from the bar.
+@export var hover_label_width: float = 140.0
+@export var hover_label_gap: float = 8.0
+
 # Pictures for each type of weather, in the same order as the weather system's types.
 var tex_clear = preload("res://Assets/Weather_Clear.png")
 var tex_rain = preload("res://Assets/Weather_Rain.png")
@@ -41,33 +49,33 @@ var hunger: float = 100.0
 # Current thirst from 0 to 100. The player dehydrates at zero.
 var thirst: float = 100.0
 # How much hunger is lost per second while moving.
-var hunger_drain: float = 0.2
+@export var hunger_drain: float = 0.2
 # How much thirst is lost per second while moving.
-var thirst_drain: float = 0.25
+@export var thirst_drain: float = 0.25
 # Seconds since the player last took damage from hunger or thirst.
 var damage_timer: float = 0.0
 # Seconds between each point of starvation damage.
-var damage_interval: float = 3.0
+@export var damage_interval: float = 3.0
 # How much thirst is regained per second while standing in water.
-var thirst_refill_rate: float = 18.0
+@export var thirst_refill_rate: float = 18.0
 # Stops the death message being sent more than once.
 var death_message_sent: bool = false
 # Seconds between each point of natural healing.
-var regen_interval: float = 5.0
+@export var regen_interval: float = 5.0
 # Health restored each time the player heals.
-var regen_amount: int = 1
+@export var regen_amount: int = 1
 # Hunger must be at least this high for the player to heal.
-var regen_hunger_min: float = 30.0
+@export var regen_hunger_min: float = 30.0
 # Thirst must be at least this high for the player to heal.
-var regen_thirst_min: float = 20.0
+@export var regen_thirst_min: float = 20.0
 # Seconds since the player last healed.
 var regen_timer: float = 0.0
 # Health value used for regeneration. It is not currently used.
-var regen_max_health: float = 10.0
+@export var regen_max_health: float = 10.0
 # Hunger and thirst drain more slowly while standing still.
-var idle_drain_multiplier: float = 0.1
+@export var idle_drain_multiplier: float = 0.1
 # Hunger and thirst drain much faster while the player is healing.
-var healing_drain_multiplier: float = 10.0
+@export var healing_drain_multiplier: float = 10.0
 # Coloured overlay that glows during an aurora.
 var aurora_glow_rect: ColorRect
 # Position in the aurora colour cycle.
@@ -85,6 +93,7 @@ func _ready():
 	event_info.visible = false
 	weather_info.visible = false
 	$EventDisplay.visible = false
+	_create_hover_labels()
 	_setup_icon_hover()
 	# Wait one frame so the weather system exists before reading the season from it.
 	await get_tree().process_frame
@@ -103,6 +112,31 @@ func _ready():
 	$EffectLabel.visible = false
 
 
+# Builds the hunger and thirst hover labels purely in code, so no scene node needs to exist for them.
+func _create_hover_labels():
+	hunger_info = Label.new()
+	thirst_info = Label.new()
+	for lbl in [hunger_info, thirst_info]:
+		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		lbl.add_theme_constant_override("outline_size", 5)
+		# Right-align so the text grows away from the bar, and top_level so global_position works regardless of the parent layout.
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.clip_text = true
+		lbl.top_level = true
+		lbl.visible = false
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lbl.z_index = 100
+		add_child(lbl)
+
+
+# Places a hover label to the left of the given bar, matching its height so nothing overlaps the bar itself.
+func _position_hover_label(label: Label, bar: Control):
+	var bar_rect = bar.get_global_rect()
+	label.size = Vector2(hover_label_width, bar_rect.size.y)
+	label.global_position = Vector2(bar_rect.position.x - hover_label_gap - hover_label_width, bar_rect.position.y)
+
+
 # Shows an information label while the mouse is over the weather, event or season icon.
 func _setup_icon_hover():
 	weather_icon.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -116,6 +150,16 @@ func _setup_icon_hover():
 	event_icon.mouse_exited.connect(func(): event_info.visible = false)
 	season_icon.mouse_entered.connect(func(): _show_info(season_info, _get_season_text()))
 	season_icon.mouse_exited.connect(func(): season_info.visible = false)
+	hunger_bar.mouse_filter = Control.MOUSE_FILTER_PASS
+	thirst_bar.mouse_filter = Control.MOUSE_FILTER_PASS
+	hunger_bar.mouse_entered.connect(func():
+		_position_hover_label(hunger_info, hunger_bar)
+		_show_info(hunger_info, _get_hunger_text()))
+	hunger_bar.mouse_exited.connect(func(): hunger_info.visible = false)
+	thirst_bar.mouse_entered.connect(func():
+		_position_hover_label(thirst_info, thirst_bar)
+		_show_info(thirst_info, _get_thirst_text()))
+	thirst_bar.mouse_exited.connect(func(): thirst_info.visible = false)
 	$WeatherDispay.mouse_entered.connect(func(): _show_info(weather_info, _get_weather_text()))
 	$WeatherDispay.mouse_exited.connect(func(): weather_info.visible = false)
 	$EventDisplay.mouse_entered.connect(func(): _show_info(event_info, _get_event_text()))
@@ -170,6 +214,16 @@ func _get_event_text() -> String:
 	if weather and weather.aurora_active:
 		return "Aurora Borealis"
 	return ""
+
+
+# Returns the current hunger as a percentage.
+func _get_hunger_text() -> String:
+	return "Hunger: " + str(int(round(hunger))) + "%"
+
+
+# Returns the current thirst as a percentage.
+func _get_thirst_text() -> String:
+	return "Thirst: " + str(int(round(thirst))) + "%"
 
 
 # Returns the name of the current season.
@@ -255,6 +309,14 @@ func _process(delta):
 		hunger_bar.value = hunger
 	if is_instance_valid(thirst_bar):
 		thirst_bar.value = thirst
+
+	# Keep the hover labels glued to their bars and up to date while they're showing.
+	if hunger_info.visible:
+		_position_hover_label(hunger_info, hunger_bar)
+		hunger_info.text = _get_hunger_text()
+	if thirst_info.visible:
+		_position_hover_label(thirst_info, thirst_bar)
+		thirst_info.text = _get_thirst_text()
 
 	# Work out the luck bonuses from the weather and events, and list them in the effects label.
 	var weather_system = get_tree().root.get_node_or_null("Scene/Weather")

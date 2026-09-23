@@ -61,6 +61,9 @@ const EGG_SCENE := preload("res://Scenes/spider_queen_egg.tscn")
 # Enemy that hatches from each egg.
 const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 
+# Picture used to draw the boss, forced to draw_size regardless of its native resolution.
+const BOSS_TEXTURE := preload("res://Assets/Spider_Queen.png")
+
 # Width of the boss health bar in pixels.
 const BAR_WIDTH: float = 640.0
 # Height of the boss health bar in pixels.
@@ -72,7 +75,7 @@ const BAR_HEIGHT: float = 32.0
 @export var boss_visual_scale: float = 3.0
 # Size multiplier for the boss's bullets.
 @export var bullet_visual_scale: float = 3.0
-# Size of the square drawn for the boss.
+# Size of the square the boss sprite is drawn into.
 @export var draw_size: float = 40.0
 
 # Current health.
@@ -218,10 +221,10 @@ func _setup_health_bar() -> void:
 	_bar_container.visible = true
 
 
-# Draws the boss as a white square.
+# Draws the boss as the Spider_Queen sprite, forced into a draw_size square no matter the image's native resolution.
 func _draw() -> void:
 	var half := draw_size * 0.5
-	draw_rect(Rect2(-half, -half, draw_size, draw_size), Color.WHITE)
+	draw_texture_rect(BOSS_TEXTURE, Rect2(-half, -half, draw_size, draw_size), false)
 
 
 # Runs the boss each physics frame: updates the health bar, then the host handles movement, damage and attacks.

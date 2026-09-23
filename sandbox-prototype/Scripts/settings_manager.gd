@@ -13,7 +13,7 @@ signal render_distance_changed(new_value)
 # Starting master volume from 0 to 100.
 const DEFAULT_VOLUME := 70.0
 # Starting darkness strength from 0 to 100.
-const DEFAULT_DARKNESS := 100.0
+const DEFAULT_DARKNESS := 80.0
 # Starting render distance in chunks.
 const DEFAULT_RENDER_DISTANCE := 3
 

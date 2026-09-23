@@ -31,7 +31,7 @@ extends Node2D
 @export var water_source_fallback_id: int = 1
 # Position of the water tile in its source.
 @export var water_atlas: Vector2i = Vector2i(0, 0)
-# No water is generated this close to the world centre, so players spawn on land.
+# No water is generated this close to the village, so players spawn on land.
 @export var spawn_water_safe_radius: float = 900.0
 
 # Size in tiles of each region that may contain lakes.
@@ -325,7 +325,7 @@ func _calculate_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 
 # Returns an ocean tile, an island tile or plains for the tile, based on the oceans in its region.
 func _get_ocean_biome(tile_coord: Vector2i) -> BiomeType:
-	if tile_to_world_center(tile_coord).length() < spawn_water_safe_radius:
+	if tile_to_world_center(tile_coord).distance_to(VillageManager.global_position) < spawn_water_safe_radius:
 		return BiomeType.PLAINS
 
 	var region := Vector2i(
@@ -367,7 +367,7 @@ func _calculate_land_biome_for_tile(tile_coord: Vector2i) -> BiomeType:
 
 # Returns true if the tile is inside a lake in its region.
 func _is_forest_lake_tile(tile_coord: Vector2i) -> bool:
-	if tile_to_world_center(tile_coord).length() < spawn_water_safe_radius:
+	if tile_to_world_center(tile_coord).distance_to(VillageManager.global_position) < spawn_water_safe_radius:
 		return false
 	if _get_ocean_biome(tile_coord) != BiomeType.PLAINS:
 		return false

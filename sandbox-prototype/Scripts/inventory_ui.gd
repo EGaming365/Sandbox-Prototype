@@ -557,7 +557,7 @@ func _process(_delta):
 	var extras_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 	if Input.is_action_just_pressed("inventory"):
 		if extras_ui and extras_ui.visible:
-			extras_ui.hide()
+			extras_ui.close_ui()
 		if visible and current_tab == "inventory":
 			toggle()
 		elif visible and current_tab == "recipes":
@@ -568,7 +568,7 @@ func _process(_delta):
 		return
 	if Input.is_action_just_pressed("crafting"):
 		if extras_ui and extras_ui.visible:
-			extras_ui.hide()
+			extras_ui.close_ui()
 		if visible and current_tab == "recipes":
 			toggle()
 		elif visible and current_tab == "inventory":

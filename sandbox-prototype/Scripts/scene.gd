@@ -55,6 +55,13 @@ var last_placed_texture: Texture2D = null
 # Text box for the lobby ID.
 @onready var id_prompt: LineEdit = $CanvasLayer/id_prompt
 
+# Bottom right button that shows the current lobby code and copies it when clicked.
+var lobby_code_display: Button = null
+# Counts down while the button is showing "Copied!", so its text can be restored afterwards.
+var _lobby_code_copied_timer: float = 0.0
+# Bottom right label showing the local player's Steam name.
+var username_display: Label = null
+
 # Which world the player is in: overworld or cave.
 var current_world_layer: String = "overworld"
 # Which world each floor item belongs to.
@@ -384,6 +391,7 @@ func _ready():
 	print("My Steam ID: ", Steam.getSteamID())
 	_spawn_player(1)
 	_show_steam_status_warning()
+	_create_online_status_display()
 	set_online_ui_visible(false)
 	_init_village()
 
@@ -408,6 +416,84 @@ func set_online_ui_visible(should_show: bool) -> void:
 		id_prompt.visible = show_it
 
 
+# Creates the bottom right stack showing the online username and, once in a lobby, the lobby code.
+# Uses a VBoxContainer with a bottom right anchor preset so Godot handles the stacking and screen
+# corner placement itself, instead of hand rolled anchor and offset math.
+func _create_online_status_display() -> void:
+	var canvas: CanvasLayer = get_node_or_null("CanvasLayer")
+	if not canvas:
+		return
+
+	var container := VBoxContainer.new()
+	container.name = "OnlineStatusDisplay"
+	container.alignment = BoxContainer.ALIGNMENT_END
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.z_index = 4096
+	canvas.add_child(container)
+	# Anchors the container's bottom right corner 14 pixels in from the screen's bottom right corner,
+	# and keeps it there as its content (and therefore its size) changes.
+	container.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_KEEP_SIZE, 14)
+
+	username_display = Label.new()
+	username_display.name = "UsernameDisplay"
+	username_display.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	username_display.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	username_display.add_theme_font_size_override("font_size", 18)
+	username_display.add_theme_color_override("font_color", Color.WHITE)
+	username_display.add_theme_color_override("font_outline_color", Color.BLACK)
+	username_display.add_theme_constant_override("outline_size", 4)
+	container.add_child(username_display)
+
+	lobby_code_display = Button.new()
+	lobby_code_display.name = "LobbyCodeDisplay"
+	lobby_code_display.flat = true
+	lobby_code_display.mouse_filter = Control.MOUSE_FILTER_STOP
+	lobby_code_display.add_theme_font_size_override("font_size", 20)
+	lobby_code_display.add_theme_color_override("font_color", Color.WHITE)
+	lobby_code_display.add_theme_color_override("font_hover_color", Color(0.85, 0.85, 0.85, 1.0))
+	lobby_code_display.add_theme_color_override("font_outline_color", Color.BLACK)
+	lobby_code_display.add_theme_constant_override("outline_size", 4)
+	lobby_code_display.visible = false
+	lobby_code_display.pressed.connect(_on_lobby_code_display_pressed)
+	container.add_child(lobby_code_display)
+
+	_update_username_display()
+
+
+# Shows the player's Steam name, or a fallback if Steam is not connected.
+func _update_username_display() -> void:
+	if not username_display:
+		return
+	if steam_connected:
+		username_display.text = Steam.getFriendPersonaName(Steam.getSteamID())
+	else:
+		username_display.text = "Player (offline)"
+
+
+# Shows the lobby code button with the current code, for the host or a player who just joined.
+func _show_lobby_code_display() -> void:
+	if not lobby_code_display:
+		return
+	_lobby_code_copied_timer = 0.0
+	lobby_code_display.text = "Code: " + str(lobby_id) + "  (click to copy)"
+	lobby_code_display.visible = true
+
+
+# Hides the lobby code button, for example when leaving a lobby to join another.
+func _hide_lobby_code_display() -> void:
+	if lobby_code_display:
+		lobby_code_display.visible = false
+
+
+# Copies the lobby code to the clipboard and briefly shows a confirmation.
+func _on_lobby_code_display_pressed() -> void:
+	if lobby_id == 0 or not lobby_code_display:
+		return
+	DisplayServer.clipboard_set(str(lobby_id))
+	lobby_code_display.text = "Copied!"
+	_lobby_code_copied_timer = 1.2
+
+
 # Shows a warning on screen if Steam did not connect.
 func _show_steam_status_warning() -> void:
 	if steam_connected:
@@ -429,7 +515,7 @@ func _show_steam_status_warning() -> void:
 
 
 # Runs Steam callbacks, finds the local player and updates floor items each frame.
-func _process(_delta):
+func _process(delta):
 	Steam.run_callbacks()
 	local_player = null
 	for child in get_children():
@@ -437,7 +523,11 @@ func _process(_delta):
 			if not multiplayer.has_multiplayer_peer() or child.is_multiplayer_authority():
 				local_player = child
 				break
-	_update_floor_item_water_sinking(_delta)
+	_update_floor_item_water_sinking(delta)
+	if _lobby_code_copied_timer > 0.0:
+		_lobby_code_copied_timer -= delta
+		if _lobby_code_copied_timer <= 0.0 and lobby_code_display and lobby_id != 0:
+			lobby_code_display.text = "Code: " + str(lobby_id) + "  (click to copy)"
 
 
 # Sends the world seed, settings and destroyed objects to a joining player.
@@ -546,6 +636,7 @@ func _on_lobby_created(result: int, new_lobby_id: int):
 		is_host = false
 		return
 	lobby_id = new_lobby_id
+	_show_lobby_code_display()
 	peer = SteamMultiplayerPeer.new()
 	peer.create_host()
 	multiplayer.multiplayer_peer = peer
@@ -583,6 +674,7 @@ func _on_lobby_joined(new_lobby_id: int, _permissions: int, _locked: bool, respo
 	if not is_joining:
 		return
 	lobby_id = new_lobby_id
+	_show_lobby_code_display()
 	_clear_world_state()
 	_clear_inventory()
 	await get_tree().create_timer(1.0).timeout
@@ -997,6 +1089,7 @@ func _on_join_button_pressed():
 	if lobby_id != 0:
 		Steam.leaveLobby(lobby_id)
 		lobby_id = 0
+		_hide_lobby_code_display()
 		if multiplayer.multiplayer_peer:
 			multiplayer.multiplayer_peer = null
 		is_host = false
