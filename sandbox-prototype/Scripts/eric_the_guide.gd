@@ -49,7 +49,7 @@ func _process(delta: float) -> void:
 		and player.global_position.distance_to(global_position) <= talk_range
 	if _label:
 		_label.visible = _player_in_range and not _talking
-		_label.global_position = global_position + Vector2(-42, -92)
+		_label.global_position = global_position + Vector2(-42, -108)
 	# Close the dialogue if the player walks away, otherwise reveal more text each frame, and let the exit key close it.
 	if _talking:
 		if not _player_in_range:
@@ -64,7 +64,7 @@ func _process(delta: float) -> void:
 
 # Right click either advances the dialogue or starts it when the player is close.
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if event.is_action_pressed("right_click"):
 		if _talking:
 			if _player_in_range:
 				_advance_talk()
@@ -107,6 +107,8 @@ func _make_prompt() -> void:
 	_label.add_theme_constant_override("outline_size", 4)
 	_label.visible = false
 	_label.top_level = true
+	_label.z_as_relative = false
+	_label.z_index = 4096
 	add_child(_label)
 
 

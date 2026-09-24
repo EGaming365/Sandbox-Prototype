@@ -56,7 +56,7 @@ func _setup_area():
 func setup_placed(new_block_id: int):
 	block_id = new_block_id
 	is_placed = true
-	$Sprite2D.scale = Vector2(3.2, 3.2)
+	$Sprite2D.scale = Vector2(2, 2)
 	$Sprite2D.offset = Vector2.ZERO
 	call_deferred("_setup_area")
 
@@ -72,7 +72,7 @@ func setup_floor(new_item_id: int):
 func _input(event):
 	if not is_placed:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if event.is_action_pressed("right_click"):
 		# Ignore clicks while the inventory or chat is open.
 		var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 		var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
@@ -86,7 +86,7 @@ func _input(event):
 		if player.global_position.distance_to(global_position) > 300.0:
 			return
 		_toggle_wardrobe_ui()
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	elif event.is_action_pressed("click"):
 		var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 		var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 		if (inventory_ui and inventory_ui.visible) or (chat_box and chat_box.is_open):

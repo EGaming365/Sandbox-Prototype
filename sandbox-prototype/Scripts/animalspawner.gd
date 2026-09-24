@@ -12,7 +12,7 @@ const NIGHT_ENEMY_SCENE := preload("res://Scenes/night_enemy.tscn")
 
 # Most chickens allowed near the players.
 @export var max_chickens_in_radius: int = 10
-# Night enemy limit. It is not currently used.
+# Most spiders allowed near the players at night.
 @export var max_night_enemies_in_radius: int = 4
 # Cave night enemy limit. It is not currently used.
 @export var max_cave_night_enemies_in_radius: int = 3
@@ -120,6 +120,17 @@ func _on_spawn_tick() -> void:
 			_spawn_chicken(spawn_position)
 			chicken_count += 1
 			spawned_this_tick += 1
+		# Spiders only come out at night, same idea as the chicken loop above but capped by max_night_enemies_in_radius.
+		if _is_night():
+			var night_enemy_count := _count_night_enemies_in_radius()
+			var spawned_night_enemies_this_tick := 0
+			while night_enemy_count < max_night_enemies_in_radius and spawned_night_enemies_this_tick < max_spawns_per_tick:
+				var enemy_spawn_position := _random_spawn_pos_near(_get_player_center(), "night_enemies")
+				if enemy_spawn_position == Vector2.ZERO:
+					break
+				_spawn_night_enemy(enemy_spawn_position)
+				night_enemy_count += 1
+				spawned_night_enemies_this_tick += 1
 
 
 # Runs on the host. Removes chickens that are far from every player, removes chickens in the cave, and removes surface enemies.
@@ -195,7 +206,7 @@ func _spawn_chicken(spawn_position: Vector2) -> void:
 		chicken.set_meta("sync_ready", true)
 
 
-# Creates a night enemy in the same way. It is not currently called.
+# Creates a night enemy (a spider) in the same way as a chicken.
 func _spawn_night_enemy(spawn_position: Vector2) -> void:
 	if _is_too_bright_for_enemy_spawn(spawn_position):
 		return
@@ -268,7 +279,7 @@ func spawn_combat_boss(spawn_position: Vector2, combat_room_id: int) -> Node:
 	return boss
 
 
-# Returns how many enemies are close to the players. It is not currently called.
+# Returns how many enemies are close to the players.
 func _count_night_enemies_in_radius() -> int:
 	var center := _get_player_center()
 	var count := 0

@@ -418,8 +418,7 @@ func _resolve_split_drop() -> void:
 
 # Handles clicks on a slot: right click starts a split drag and left click starts a full drag.
 func _gui_input_for_slot(event, index):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT \
-			and event.pressed and not drag_node:
+	if event.is_action_pressed("right_click") and not drag_node:
 		var slot_data = Inventory.slots[index]
 		if slot_data["item"] != "":
 			var item_name = slot_data["item"]
@@ -439,10 +438,9 @@ func _gui_input_for_slot(event, index):
 					_start_split_drag(index, item_name, item_texture)
 					split_hold["count"] = take
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			current_slot = index + 1
-		if event.pressed and Inventory.slots[index]["item"] != "":
+	if event.is_action_pressed("click"):
+		current_slot = index + 1
+		if Inventory.slots[index]["item"] != "":
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.slots[index]["item"]
 				var item_texture = Inventory.slots[index]["texture"]

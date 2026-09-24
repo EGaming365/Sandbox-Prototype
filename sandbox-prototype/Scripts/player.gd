@@ -335,7 +335,7 @@ func _physics_process(delta):
 		if block_cooldown > 0.0:
 			block_cooldown = max(block_cooldown - delta, 0.0)
 
-		if is_blocking and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		if is_blocking and not Input.is_action_pressed("right_click"):
 			_stop_blocking()
 
 		if Input.is_action_just_pressed("roll") and roll_cooldown <= 0.0 and not is_blocking:
@@ -400,17 +400,17 @@ func _input(event):
 		return
 	if not (is_multiplayer_authority() or not multiplayer.has_multiplayer_peer()):
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event.is_action_pressed("click"):
 		if _is_holding_sword() and chop_cooldown_timer <= 0.0 and attack_cooldown <= 0.0:
 			_try_attack()
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
-		if event.pressed and _is_holding_raw_fish():
+	if event.is_action_pressed("right_click"):
+		if _is_holding_raw_fish():
 			_send_fish_pun()
-		elif event.pressed and _is_holding_sword():
+		elif _is_holding_sword():
 			if block_cooldown <= 0.0:
 				_start_blocking()
-		elif not event.pressed:
-			_stop_blocking()
+	elif event.is_action_released("right_click"):
+		_stop_blocking()
 
 
 # Swings the sword at the nearest enemy, boss, egg or chicken in range and starts the attack cooldown.
@@ -770,11 +770,15 @@ func heal(amount: int):
 # Handles death: drops items, sends a message and starts the respawn sequence.
 func die():
 	is_dead = true
+	# Remember where and in which world the player actually died, before exit_cave() (if it runs) moves them and switches the world layer out from under us.
+	var death_position: Vector2 = global_position
+	var death_layer: String = "overworld"
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 		if cave_gen and cave_gen.get("in_cave"):
+			death_layer = "cave"
 			if cave_gen.has_method("request_player_died"):
-				cave_gen.request_player_died(global_position)
+				cave_gen.request_player_died(death_position)
 			cave_gen.exit_cave(self)
 	var scene_node = get_tree().root.get_node("Scene")
 	var drops: Array = []
@@ -819,36 +823,36 @@ func die():
 		if is_tool:
 			var angle = randf_range(0, TAU)
 			var radius = randf_range(40, 80)
-			var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
+			var drop_pos = death_position + Vector2(cos(angle), sin(angle)) * radius
 			if multiplayer.has_multiplayer_peer():
 				if multiplayer.is_server():
-					scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
+					scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"], death_layer)
 				else:
 					scene_node.request_spawn_floor_item.rpc_id(
-						1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"],
+						1, drop_pos.x, drop_pos.y, drop["item"], drop["durability"], death_layer,
 					)
 			else:
-				scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"])
+				scene_node.host_spawn_floor_item(drop_pos, drop["item"], drop["durability"], death_layer)
 		else:
 			var positions_x: Array = []
 			var positions_y: Array = []
 			for i in drop["count"]:
 				var angle = randf_range(0, TAU)
 				var radius = randf_range(40, 80)
-				var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius
+				var drop_pos = death_position + Vector2(cos(angle), sin(angle)) * radius
 				positions_x.append(drop_pos.x)
 				positions_y.append(drop_pos.y)
 			if multiplayer.has_multiplayer_peer():
 				if multiplayer.is_server():
 					for i in positions_x.size():
-						scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1)
+						scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1, death_layer)
 				else:
 					scene_node.request_spawn_floor_items_batch.rpc_id(
-						1, positions_x, positions_y, drop["item"], 1,
+						1, positions_x, positions_y, drop["item"], 1, death_layer,
 					)
 			else:
 				for i in positions_x.size():
-					scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1)
+					scene_node.host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), drop["item"], 1, death_layer)
 	for i in Inventory.slots.size():
 		if Inventory.slots[i]["item"] != "":
 			Inventory.remove_item(i, false)

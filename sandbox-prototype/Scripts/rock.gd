@@ -40,7 +40,7 @@ func _process(_delta):
 		return
 	if not player_in_range:
 		return
-	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if not Input.is_action_pressed("click"):
 		return
 	# The mouse must be over the rock's collision area.
 	var mouse_world_position = get_global_mouse_position()
@@ -89,10 +89,7 @@ func do_mine(miner_id: int = 1, held_item: String = ""):
 	var scene_node = get_tree().root.get_node("Scene")
 	hits += 1
 	_consume_pickaxe(miner_id)
-	# Choose a random spot around the rock for the drop.
-	var angle = randf_range(0, TAU)
-	var radius = randf_range(75, 95) + 40
-	var drop_pos = global_position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
+	var drop_pos = _find_drop_position()
 	# Drop coal with a chance based on the average coal per rock, otherwise drop stone.
 	if randf() < clamp(average_coal_per_rock / float(max_hits), 0.0, 1.0):
 		scene_node.host_spawn_floor_item(drop_pos, "Coal", 1)
@@ -100,6 +97,19 @@ func do_mine(miner_id: int = 1, held_item: String = ""):
 		scene_node.host_spawn_floor_item(drop_pos, "Stone", 1)
 	if hits >= max_hits:
 		_destroy_self(scene_node)
+
+
+# Picks a random spot around the rock for the drop, retrying if it lands inside a cave wall. Falls back to the rock's own position, which is always valid, if every attempt fails. Outside a cave dungeon there are no solid tiles to dodge, so this always succeeds on the first try.
+func _find_drop_position() -> Vector2:
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	for attempt in 8:
+		var angle = randf_range(0, TAU)
+		var radius = randf_range(75, 95) + 40
+		var candidate = global_position + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, -40)
+		if cave_gen and cave_gen.has_method("is_tile_solid") and cave_gen.is_tile_solid(candidate):
+			continue
+		return candidate
+	return global_position
 
 
 # Removes the rock from the world, using the correct system for cave rocks, generated rocks and loose rocks.

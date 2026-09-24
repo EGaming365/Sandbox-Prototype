@@ -118,7 +118,7 @@ func get_global_rect() -> Rect2:
 
 # Left clicking the block while close to it damages it.
 func _input(event):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event.is_action_pressed("click"):
 		# Ignore clicks while the inventory or chat is open.
 		var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 		var chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")

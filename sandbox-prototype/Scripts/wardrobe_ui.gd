@@ -169,7 +169,7 @@ func _input(event):
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		close()
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event.is_action_pressed("click"):
 		var panel = $PanelContainer
 		var panel_rect = Rect2(panel.global_position, panel.size)
 		if not panel_rect.has_point(event.position):

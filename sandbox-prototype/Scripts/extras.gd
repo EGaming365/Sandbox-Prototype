@@ -123,7 +123,7 @@ func _process(_delta):
 func _input(event):
 	if _just_opened or not visible:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event.is_action_pressed("click"):
 		var mouse = get_global_mouse_position()
 		var panel_rect = $PanelContainer.get_global_rect()
 		var nav_rect = $PanelContainer/VBoxContainer/HBoxContainer.get_global_rect()
@@ -313,7 +313,7 @@ func _connect_nav():
 func _update_mark(btn_name: String):
 	var button = $PanelContainer/VBoxContainer/HBoxContainer.get_node(btn_name) as Button
 	var mark = button.get_node(btn_name + "Mark") as ColorRect
-	if button.button_pressed or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and button.is_hovered():
+	if button.button_pressed or Input.is_action_pressed("click") and button.is_hovered():
 		mark.color = mark_base_colors[btn_name].darkened(0.3)
 	elif button.is_hovered():
 		mark.color = mark_base_colors[btn_name].lightened(0.3)

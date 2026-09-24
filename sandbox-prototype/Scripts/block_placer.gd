@@ -69,7 +69,7 @@ func _process(_delta):
 func _unhandled_input(event):
 	if _is_ui_open():
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if event.is_action_pressed("right_click"):
 		if current_item == "" or not preview or not preview.active:
 			return
 		# Do nothing if the preview says the spot is blocked.

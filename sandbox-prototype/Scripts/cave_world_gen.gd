@@ -157,8 +157,6 @@ var _tilemap: TileMap
 var _world_gen: Node
 # The environment generator.
 var _env_spawner: Node
-# The village manager, hidden while the player is in the cave.
-var _village: Node
 # Tile set source ID of the cave tiles.
 var cave_source_id: int = -1
 # Tile set source ID of the water tiles.
@@ -237,7 +235,7 @@ func _ready() -> void:
 	_packed_cave_exit_scene = load(cave_exit_scene_path)
 
 
-# Finds the tile map, world generator, environment generator and village manager.
+# Finds the tile map, world generator and environment generator. The village manager is a global autoload (VillageManager), referenced directly wherever it's needed instead of being looked up here.
 func _resolve_refs() -> void:
 	_tilemap = get_tree().root.get_node_or_null("Scene/TileMap")
 	_world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
@@ -249,7 +247,6 @@ func _resolve_refs() -> void:
 				if child.get_script() and child.has_method("_unload_all_chunks"):
 					_env_spawner = child
 					break
-	_village = get_tree().root.get_node_or_null("Scene/Village")
 
 
 # Moves the player into the cave, generating the dungeon from the world seed if needed, and places the player exactly on the cave's linked exit point so the two worlds line up.
@@ -277,8 +274,7 @@ func enter_cave(player: CharacterBody2D) -> void:
 			_env_spawner._unload_all_chunks()
 		if _env_spawner.has_method("_unload_all_cave_regions"):
 			_env_spawner._unload_all_cave_regions()
-	if _village and _village.has_method("set_surface_active"):
-		_village.set_surface_active(false)
+	VillageManager.set_surface_active(false)
 	var seed: int = _world_gen.world_seed if _world_gen else 0
 	_activate(seed)
 	# Move the player to the same spot the exit door will appear at, so entering the cave does not require walking anywhere once inside.
@@ -334,8 +330,7 @@ func exit_cave(player: CharacterBody2D) -> void:
 		for i: int in 8:
 			if _env_spawner.has_method("_process_object_spawn_queue"):
 				_env_spawner._process_object_spawn_queue()
-	if _village and _village.has_method("set_surface_active"):
-		_village.set_surface_active(true)
+	VillageManager.set_surface_active(true)
 	var scene: Node = get_tree().root.get_node_or_null("Scene")
 	if scene and scene.has_method("_refresh_floor_item_visibility"):
 		scene._refresh_floor_item_visibility()
@@ -891,11 +886,12 @@ func _place_door_pair(
 		var tile_position: Vector2i = pair[0]
 		var rid: int = pair[1]
 		var room: RoomData = _rooms[rid]
+		# Every room gets its own doorway at each corridor threshold, so every room reads as a separate space rather than an open extension of the corridor. Only fight and boss rooms can actually lock theirs shut.
+		_door_tile_data[tile_position] = {"room_id": rid, "is_closed": false}
+		room.door_tiles.append(tile_position)
 		if room.room_type == RoomType.NOVICE_FIGHT \
 		or room.room_type == RoomType.BASIC_FIGHT \
 		or room.room_type == RoomType.BOSS:
-			_door_tile_data[tile_position] = {"room_id": rid, "is_closed": false}
-			room.door_tiles.append(tile_position)
 			var wall_set: Array[Vector2i] = _get_corridor_entrance_wall_tiles(tile_position, is_horizontal)
 			for wt: Vector2i in wall_set:
 				if not room.wall_tiles_on_lock.has(wt):

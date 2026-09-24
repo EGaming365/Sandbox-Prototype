@@ -21,10 +21,14 @@ var split_drag: bool = false
 # The part of the stack currently being carried during a split drag.
 var split_hold: Dictionary = {"item": "", "count": 0, "texture": null}
 
-# Number of backpack slots the player can use.
-const UNLOCKED_SLOTS = 20
-# Total number of backpack slots, including locked ones.
+# Backpack slots the player can use with no achievements unlocked.
+const BASE_UNLOCKED_SLOTS = 20
+# Extra backpack slots granted per achievement unlocked.
+const SLOTS_PER_ACHIEVEMENT = 10
+# Total number of backpack slots, including locked ones. With every achievement unlocked, BASE_UNLOCKED_SLOTS plus all the per-achievement slots reaches exactly this.
 const TOTAL_SLOTS = 80
+# Backpack slots currently usable, recomputed as achievements unlock.
+var unlocked_slots: int = BASE_UNLOCKED_SLOTS
 # Full durability of each tool, used to draw its durability bar.
 const TOOL_MAX_DURABILITY = {
 	"Axe": 80.0,
@@ -57,11 +61,92 @@ var tab_buttons: Array = []
 func _ready():
 	hide()
 	Inventory.inventory_changed.connect(update_inventory)
+	_recompute_unlocked_slots()
+	var achievement_manager = get_tree().root.get_node_or_null("Scene/Achivementmanager")
+	if achievement_manager:
+		achievement_manager.achievement_unlocked.connect(_on_achievement_unlocked)
 	_build_slots()
 	_build_tabs()
+	_build_equipped_preview()
 	update_inventory()
 	_switch_tab("inventory")
 	call_deferred("_create_overlay")
+
+
+# Builds the character preview shown in the Equipped panel: one TextureRect per body layer, stacked in the same order the player's own sprites layer in (body, pants, shirt, hair).
+var _equipped_preview_rects: Dictionary = {}
+func _build_equipped_preview() -> void:
+	var equipped_section = $PanelContainer/VBoxContainer/HBoxContainer/Equipped
+	var preview_holder = Control.new()
+	preview_holder.name = "CharacterPreview"
+	preview_holder.custom_minimum_size = Vector2(140, 160)
+	preview_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	equipped_section.add_child(preview_holder)
+	equipped_section.move_child(preview_holder, 1)
+	for layer_name in ["Body", "Pants", "Shirt", "Hair"]:
+		var rect = TextureRect.new()
+		rect.name = layer_name
+		rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview_holder.add_child(rect)
+		_equipped_preview_rects[layer_name] = rect
+
+
+# Copies the local player's current idle frame and hair/shirt/pants visibility into the Equipped panel's preview.
+func _update_equipped_preview() -> void:
+	if _equipped_preview_rects.is_empty():
+		return
+	var player = _get_local_player_for_preview()
+	if not player:
+		return
+	var layer_sprites = {
+		"Body": player.get_node_or_null("AnimatedSprite2D"),
+		"Pants": player.get_node_or_null("Pants_Sprite"),
+		"Shirt": player.get_node_or_null("Shirt_Sprite"),
+		"Hair": player.get_node_or_null("Hair_Sprite"),
+	}
+	for layer_name in layer_sprites:
+		var rect: TextureRect = _equipped_preview_rects[layer_name]
+		var sprite: AnimatedSprite2D = layer_sprites[layer_name]
+		if not sprite or not sprite.visible or not sprite.sprite_frames:
+			rect.texture = null
+			continue
+		var anim_name = sprite.animation if sprite.sprite_frames.has_animation(sprite.animation) else "idle"
+		if not sprite.sprite_frames.has_animation(anim_name):
+			rect.texture = null
+			continue
+		rect.texture = sprite.sprite_frames.get_frame_texture(anim_name, 0)
+
+
+# Finds the CharacterBody2D controlled by this game instance, the same way other systems in this file already look for the local player.
+func _get_local_player_for_preview() -> CharacterBody2D:
+	for player_node in get_tree().get_nodes_in_group("players"):
+		if player_node is CharacterBody2D:
+			if not multiplayer.has_multiplayer_peer() or player_node.is_multiplayer_authority():
+				return player_node
+	return null
+
+
+# Works out how many backpack slots the local player has earned: the base amount plus SLOTS_PER_ACHIEVEMENT for every achievement they've unlocked, capped at TOTAL_SLOTS. Unlocking every achievement reaches the cap exactly.
+func _recompute_unlocked_slots() -> void:
+	var achievement_manager = get_tree().root.get_node_or_null("Scene/Achivementmanager")
+	var unlocked_count := 0
+	if achievement_manager:
+		for achievement_id in achievement_manager.ACHIEVEMENT_DATA:
+			if achievement_manager.is_unlocked(achievement_id):
+				unlocked_count += 1
+	unlocked_slots = min(TOTAL_SLOTS, BASE_UNLOCKED_SLOTS + unlocked_count * SLOTS_PER_ACHIEVEMENT)
+
+
+# Called whenever anyone unlocks an achievement. Only the local player's own unlocks grow their backpack, and the slot grid is rebuilt so the newly freed slots show up immediately.
+func _on_achievement_unlocked(peer_id: int, _achievement_id: String) -> void:
+	if peer_id != multiplayer.get_unique_id():
+		return
+	_recompute_unlocked_slots()
+	_build_slots()
+	update_inventory()
 
 
 # Creates the dark background shown behind the menu.
@@ -170,7 +255,7 @@ func _build_slots():
 		panel.add_theme_stylebox_override("panel", style)
 		grid.add_child(panel)
 		inv_slots_ui.append(panel)
-		if i >= UNLOCKED_SLOTS:
+		if i >= unlocked_slots:
 			var overlay = ColorRect.new()
 			overlay.color = Color(0.0, 0.0, 0.0, 0.4)
 			overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -204,7 +289,7 @@ func _on_slot_unhover(index: int):
 
 # Redraws every unlocked slot with its item picture, stack count and durability bar.
 func update_inventory():
-	for i in UNLOCKED_SLOTS:
+	for i in unlocked_slots:
 		var slot = inv_slots_ui[i]
 		var slot_data = Inventory.inv_slots[i]
 		var prev_item = slot.get_meta("last_item", "")
@@ -537,7 +622,7 @@ func _gui_input_for_slot(event, index):
 func get_hovered_slot() -> int:
 	var closest = -1
 	var closest_dist = 40.0
-	for i in UNLOCKED_SLOTS:
+	for i in unlocked_slots:
 		var center = inv_slots_ui[i].get_global_rect().get_center()
 		var dist = get_global_mouse_position().distance_to(center)
 		if dist < closest_dist:
@@ -902,6 +987,7 @@ func toggle_to(tab: String):
 			overlay.show()
 		_switch_tab(tab)
 		update_inventory()
+		_update_equipped_preview()
 
 
 # Returns true if the item is a fish, including the albino version.

@@ -108,29 +108,25 @@ func _on_body_exited(body: Node) -> void:
 func _input(event: InputEvent) -> void:
 	if state == State.DEAD:
 		return
-	if not event is InputEventMouseButton:
-		return
-	# Right click. Holding a sword does nothing here, otherwise start petting when close, and stop when the button is released.
-	if (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
+	# Right click (or its controller equivalent). Holding a sword does nothing here, otherwise start petting when close, and stop when the button is released.
+	if event.is_action_pressed("right_click"):
 		var mouse_world: Vector2 = get_global_mouse_position()
-		if (event as InputEventMouseButton).pressed:
-			var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
-			if hotbar:
-				var slot = Inventory.slots[hotbar.current_slot - 1]
-				if slot["item"] == "Sword" or slot["item"] == "Stone Sword":
-					return
-			if global_position.distance_to(mouse_world) > click_radius:
+		var hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")
+		if hotbar:
+			var slot = Inventory.slots[hotbar.current_slot - 1]
+			if slot["item"] == "Sword" or slot["item"] == "Stone Sword":
 				return
-			if _player_in_range:
-				_start_petting()
-		else:
-			if state == State.PETTED:
-				state = State.IDLE
-				_idle_timer = randf_range(1.0, 2.0)
+		if global_position.distance_to(mouse_world) > click_radius:
+			return
+		if _player_in_range:
+			_start_petting()
 		return
-	if not (event as InputEventMouseButton).pressed:
+	if event.is_action_released("right_click"):
+		if state == State.PETTED:
+			state = State.IDLE
+			_idle_timer = randf_range(1.0, 2.0)
 		return
-	if (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
+	if not event.is_action_pressed("click"):
 		return
 	var mouse_world: Vector2 = get_global_mouse_position()
 	if global_position.distance_to(mouse_world) > click_radius:

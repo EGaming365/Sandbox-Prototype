@@ -46,6 +46,8 @@ func add_house(local_position: Vector2, house_dimensions: Vector2 = house_size) 
 	house.name = "VillageHouse"
 	house.position = local_position
 	house.z_index = 1
+	house.add_to_group("village_houses")
+	house.set_meta("footprint_size", house_dimensions)
 	add_child(house)
 
 	# Brown floor rectangle centred on the house.

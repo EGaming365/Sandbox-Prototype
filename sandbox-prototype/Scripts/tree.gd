@@ -64,7 +64,7 @@ func _process(delta):
 		return
 	if is_instance_valid(_inventory_ui) and _inventory_ui.visible:
 		return
-	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if not Input.is_action_pressed("click"):
 		return
 	# The mouse must be over the tree's collision area.
 	var mouse_world_position = get_global_mouse_position()

@@ -93,8 +93,9 @@ func _refresh_floor_item_visibility():
 
 
 # Host function. Drops an item on the floor, joining an existing pile if one is close, and tells the other players.
-func host_spawn_floor_item(world_position: Vector2, item_type: String = "Wood", durability: int = 60) -> int:
-	var layer = _get_current_world_layer()
+# forced_layer overrides the current world layer, for drops that should stay tied to the world the player was in when they happened (for example a death in the cave).
+func host_spawn_floor_item(world_position: Vector2, item_type: String = "Wood", durability: int = 60, forced_layer: String = "") -> int:
+	var layer = forced_layer if forced_layer != "" else _get_current_world_layer()
 	if not item_type in NON_STACKABLE_FLOOR_ITEMS and not _is_fish_item_name(item_type):
 		for item_id in floor_items:
 			var item = floor_items[item_id]
@@ -1043,10 +1044,11 @@ func request_spawn_floor_item(
 	pos_y: float,
 	item_type: String = "Wood",
 	durability: int = 1,
+	forced_layer: String = "",
 ):
 	if not is_host:
 		return
-	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability)
+	host_spawn_floor_item(Vector2(pos_x, pos_y), item_type, durability, forced_layer)
 
 # Removes a floor item on every player's game.
 @rpc("authority", "call_local", "reliable")
@@ -1285,9 +1287,9 @@ func request_break_wardrobe(block_number: int, drop_x: float, drop_y: float):
 
 
 # Host function. Drops many items at once.
-func host_spawn_floor_items_batch(positions: Array, item_type: String, durability: int = 1):
+func host_spawn_floor_items_batch(positions: Array, item_type: String, durability: int = 1, forced_layer: String = ""):
 	for world_position in positions:
-		host_spawn_floor_item(world_position, item_type, durability)
+		host_spawn_floor_item(world_position, item_type, durability, forced_layer)
 
 # Sent by a client. The host drops many items at once.
 @rpc("any_peer", "call_remote", "reliable")
@@ -1298,11 +1300,12 @@ func request_spawn_floor_items_batch(
 	positions_y: Array,
 	item_type: String,
 	durability: int = 1,
+	forced_layer: String = "",
 ):
 	if not is_host:
 		return
 	for i in positions_x.size():
-		host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, durability)
+		host_spawn_floor_item(Vector2(positions_x[i], positions_y[i]), item_type, durability, forced_layer)
 
 
 # Host function. Spawns a chicken near a position.

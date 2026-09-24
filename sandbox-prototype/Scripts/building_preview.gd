@@ -8,7 +8,7 @@ const PLACE_RANGE = 300.0
 # Per-item scale overrides applied to the preview/placed sprite.
 # Anything not listed here falls back to DEFAULT_PLACED_SCALE.
 const ITEM_PLACED_SCALE = {
-	"Wardrobe": Vector2(3.2, 3.2),
+	"Wardrobe": Vector2(2, 2),
 	"Crafting_Bench": Vector2(2, 2),
 	"Torch": Vector2(0.42, 0.42),
 }
@@ -17,7 +17,7 @@ const DEFAULT_PLACED_SCALE = Vector2(1, 1)
 # Per-item offset applied on top of the snapped grid position, so
 # sprites with off-center art still line up with the grid cell.
 const ITEM_SPAWN_OFFSET = {
-	"Wardrobe": Vector2(0, -48),
+	"Wardrobe": Vector2(0, -30),
 	"Crafting_Bench": Vector2(0, -34),
 	"Torch": Vector2(0, -14),
 }
@@ -131,7 +131,7 @@ func _process(_delta):
 
 
 # Checks whether a given position is blocked by an existing placed block,
-# a tree, a player, a night enemy, or a chicken.
+# a tree, a player, a night enemy, a chicken, a village house, or a village NPC.
 func _is_occupied(pos: Vector2) -> bool:
 	# Existing placed blocks: blocked if essentially on the same spot.
 	for block in get_tree().get_nodes_in_group("placed_blocks"):
@@ -159,5 +159,20 @@ func _is_occupied(pos: Vector2) -> bool:
 	for chicken in get_tree().get_nodes_in_group("chickens"):
 		if is_instance_valid(chicken):
 			if (chicken as Node2D).global_position.distance_to(pos) < 24.0:
+				return true
+	# Village houses: blocked if the position falls inside the house's footprint rect.
+	for house in get_tree().get_nodes_in_group("village_houses"):
+		if is_instance_valid(house):
+			var footprint: Vector2 = house.get_meta("footprint_size", Vector2(220, 160))
+			var house_rect = Rect2(
+				(house as Node2D).global_position - footprint * 0.5,
+				footprint
+			)
+			if house_rect.has_point(pos):
+				return true
+	# Village NPCs: blocked if too close, same as a player or chicken.
+	for npc in get_tree().get_nodes_in_group("village_npcs"):
+		if is_instance_valid(npc):
+			if (npc as Node2D).global_position.distance_to(pos) < 32.0:
 				return true
 	return false
