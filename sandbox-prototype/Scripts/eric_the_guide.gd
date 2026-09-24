@@ -13,6 +13,13 @@ extends CharacterBody2D
 @export var talk_range: float = 96.0
 # Speed of the typewriter text effect.
 @export var chars_per_second: float = 45.0
+# Height of the middle of the NPC's body above its feet.
+const BODY_MIDDLE_HEIGHT: float = 28.0
+# The NPC only swaps its depth against the player while the player is this close.
+const DEPTH_SWAP_RANGE: float = 160.0
+# Draw order values for the NPC in front of and behind the player.
+const FRONT_Z_INDEX: int = 3
+const BEHIND_Z_INDEX: int = 2
 # Prompt telling the player they can talk.
 var _label: Label = null
 # Dialogue box.
@@ -42,9 +49,20 @@ func _ready() -> void:
 	_make_talk_panel()
 
 
+# Draws the whole NPC in front of the player while the player is above the middle of the NPC's body, and behind the player while the player is at or below it.
+func _update_depth(player: CharacterBody2D) -> void:
+	var in_front := false
+	if player:
+		var body_middle_y := global_position.y - BODY_MIDDLE_HEIGHT
+		var is_near := player.global_position.distance_to(global_position) <= DEPTH_SWAP_RANGE
+		in_front = is_near and player.global_position.y < body_middle_y
+	z_index = FRONT_Z_INDEX if in_front else BEHIND_Z_INDEX
+
+
 # Updates the prompt and reveals the dialogue text one letter at a time.
 func _process(delta: float) -> void:
 	var player := _get_local_player()
+	_update_depth(player)
 	_player_in_range = player != null \
 		and player.global_position.distance_to(global_position) <= talk_range
 	if _label:
@@ -118,6 +136,8 @@ func _make_talk_panel() -> void:
 	_talk_panel.visible = false
 	_talk_panel.top_level = true
 	_talk_panel.custom_minimum_size = Vector2(440, 140)
+	_talk_panel.z_as_relative = false
+	_talk_panel.z_index = 4096
 	add_child(_talk_panel)
 	var margin_container := MarginContainer.new()
 	margin_container.add_theme_constant_override("margin_left", 14)

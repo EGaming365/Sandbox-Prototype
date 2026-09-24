@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dmoccbc5cffu6"]
 
 [ext_resource type="Script" uid="uid://cgi082q4vesuw" path="res://Scripts/extras.gd" id="1_neogw"]
+[ext_resource type="Texture2D" uid="uid://buxs4umh7xxrm" path="res://Assets/Controls.png" id="2_3gvfb"]
 [ext_resource type="Texture2D" uid="uid://dkhjdpxil22j6" path="res://Assets/Button_Fish.png" id="2_pnj3x"]
 [ext_resource type="Texture2D" uid="uid://bd6vtamqx1grg" path="res://Assets/Display_Fish.png" id="3_rkvux"]
 
@@ -51,6 +52,18 @@ bg_color = Color(0.41960785, 0.19607843, 0.007843138, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gkbcv"]
 bg_color = Color(0.8, 0.49019608, 0.23137255, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0v7ki"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.36078432, 0.17254902, 0, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+corner_detail = 5
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pnj3x"]
 content_margin_left = 0.0
 content_margin_top = 0.0
@@ -62,18 +75,6 @@ border_width_top = 20
 border_width_right = 20
 border_width_bottom = 20
 border_color = Color(0.36078432, 0.17254902, 0, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0v7ki"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
-bg_color = Color(0.36078432, 0.17254902, 0, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
@@ -326,6 +327,24 @@ offset_left = -31.533401
 offset_top = 771.70886
 offset_right = 115.62251
 offset_bottom = 831.70886
+
+[node name="Panel3" type="Panel" parent="PanelContainer/MarginContainer/GameSection" unique_id=219969649]
+layout_mode = 0
+offset_left = 461.32208
+offset_top = -75.14322
+offset_right = 501.32208
+offset_bottom = 574.8568
+scale = Vector2(0.33781114, 1.4491501)
+theme_override_styles/panel = SubResource("StyleBoxFlat_0v7ki")
+
+[node name="TextureRect" type="TextureRect" parent="PanelContainer/MarginContainer/GameSection" unique_id=1002567046]
+layout_mode = 0
+offset_left = 489.93576
+offset_top = -40.553482
+offset_right = 1513.9358
+offset_bottom = 1495.4465
+scale = Vector2(0.29989046, 0.55966103)
+texture = ExtResource("2_3gvfb")
 
 [node name="CollectionSection" type="Control" parent="PanelContainer/MarginContainer" unique_id=148449411]
 custom_minimum_size = Vector2(0, 300)

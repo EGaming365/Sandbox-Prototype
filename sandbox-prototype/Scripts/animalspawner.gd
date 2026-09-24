@@ -133,7 +133,7 @@ func _on_spawn_tick() -> void:
 				spawned_night_enemies_this_tick += 1
 
 
-# Runs on the host. Removes chickens that are far from every player, removes chickens in the cave, and removes surface enemies.
+# Runs on the host. Removes chickens that are far from every player and in the cave, removes cave room enemies that end up on the surface, and removes enemies that are left far behind.
 func _check_despawn() -> void:
 	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
 		return
@@ -166,18 +166,19 @@ func _check_despawn() -> void:
 	for key in _out_of_range_timers.keys():
 		if not is_instance_valid(key):
 			_out_of_range_timers.erase(key)
-	# Enemies outside the cave are removed. In the cave, enemies that are far away and not chasing anyone are removed.
+	# Cave room enemies that end up on the surface are removed. Any enemy that is far from every player and not chasing anyone is removed. Surface night enemies otherwise stay until day breaks.
+	var enemy_despawn_radius := despawn_radius if in_cave else _surface_enemy_radius()
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		var enemy_node := enemy as Node2D
 		if not is_instance_valid(enemy_node):
 			continue
-		if not in_cave:
+		if not in_cave and enemy_node.has_meta("combat_room_id"):
 			enemy_node.queue_free()
 			continue
 		var all_players_out_of_range := true
 		for player_node in players:
 			if is_instance_valid(player_node):
-				if (player_node as Node2D).global_position.distance_to(enemy_node.global_position) <= despawn_radius:
+				if (player_node as Node2D).global_position.distance_to(enemy_node.global_position) <= enemy_despawn_radius:
 					all_players_out_of_range = false
 					break
 		if all_players_out_of_range:
@@ -279,13 +280,19 @@ func spawn_combat_boss(spawn_position: Vector2, combat_room_id: int) -> Node:
 	return boss
 
 
+# Returns how far from every player a surface enemy can be before it is removed. It is further out than the furthest spawn distance so new spawns are not removed straight away.
+func _surface_enemy_radius() -> float:
+	return maxf(despawn_radius, spawn_radius_max) + 600.0
+
+
 # Returns how many enemies are close to the players.
 func _count_night_enemies_in_radius() -> int:
 	var center := _get_player_center()
 	var count := 0
+	var count_radius := _surface_enemy_radius()
 	for enemy in get_tree().get_nodes_in_group("night_enemies"):
 		if is_instance_valid(enemy):
-			if center.distance_to((enemy as Node2D).global_position) <= despawn_radius:
+			if center.distance_to((enemy as Node2D).global_position) <= count_radius:
 				count += 1
 	return count
 

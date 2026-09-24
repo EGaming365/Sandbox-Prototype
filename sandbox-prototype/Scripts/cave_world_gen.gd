@@ -356,6 +356,10 @@ func _update_room_presence(delta: float) -> void:
 		if not _tile_to_room.has(tile_position):
 			continue
 		var rid: int = _tile_to_room[tile_position]
+		var presence_room: RoomData = _rooms[rid]
+		var presence_rect: Rect2i = Rect2i(presence_room.tile_origin, Vector2i(presence_room.tile_size, presence_room.tile_size))
+		if not presence_rect.has_point(tile_position):
+			continue
 		if not present_by_room.has(rid):
 			present_by_room[rid] = []
 		present_by_room[rid].append(p)
@@ -558,6 +562,7 @@ func _generate_dungeon() -> void:
 	var placed_grid_positions: Array[Vector2i] = []
 	var center: Vector2i = Vector2i(grid_cols / 2, grid_rows / 2)
 	placed_grid_positions.append(center)
+	_room_grid[center] = 0
 
 	var frontier: Array[Vector2i] = [center]
 	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
@@ -646,6 +651,8 @@ func _generate_dungeon() -> void:
 	var boss_idx: int = 0
 	var max_depth: int = -1
 	for i: int in bfs_depth.keys():
+		if i == spawn_idx:
+			continue
 		if bfs_depth[i] > max_depth:
 			max_depth = bfs_depth[i]
 			boss_idx = i

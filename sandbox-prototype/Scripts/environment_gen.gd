@@ -193,6 +193,7 @@ func _process(delta):
 	update_timer = update_interval
 	if not _refresh_references():
 		return
+	_adopt_generated_world_seed()
 
 	var cave_world_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	var in_cave: bool = cave_world_gen != null and cave_world_gen.get("in_cave") == true
@@ -584,6 +585,19 @@ func apply_env_state(destroyed: Dictionary, hits: Dictionary):
 		_despawn_object(env_id)
 	for env_id in env_object_hits.keys():
 		set_object_hits(env_id, env_object_hits[env_id])
+
+
+# Uses the seed the world generator picked. Without this a single player game keeps seed 0, which puts the same caves and trees in the same places every time.
+func _adopt_generated_world_seed() -> void:
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		return
+	if not world_gen or world_gen.get("world_seed") == null:
+		return
+	var generated_seed: int = world_gen.world_seed
+	if generated_seed == 0 or generated_seed == world_seed:
+		return
+	_unload_all_cave_regions()
+	set_world_seed(generated_seed)
 
 
 # Sets the seed and unloads everything so the world is rebuilt.

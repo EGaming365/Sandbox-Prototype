@@ -7,17 +7,24 @@ const PLACE_RANGE = 300.0
 
 # Per-item scale overrides applied to the preview/placed sprite.
 # Anything not listed here falls back to DEFAULT_PLACED_SCALE.
+const WARDROBE_SCRIPT = preload("res://Scripts/wardrobe.gd")
+
 const ITEM_PLACED_SCALE = {
-	"Wardrobe": Vector2(1.5, 1.5),
+	"Wardrobe": WARDROBE_SCRIPT.DISPLAY_SCALE,
 	"Crafting_Bench": Vector2(2, 2),
 	"Torch": Vector2(0.42, 0.42),
 }
 const DEFAULT_PLACED_SCALE = Vector2(1, 1)
 
+# Pictures used by the preview instead of the resized inventory icon, so the preview is drawn from the same picture as the placed item.
+const ITEM_PREVIEW_TEXTURES = {
+	"Wardrobe": preload("res://Assets/Wardrobe.png"),
+}
+
 # Per-item offset applied on top of the snapped grid position, so
 # sprites with off-center art still line up with the grid cell.
 const ITEM_SPAWN_OFFSET = {
-	"Wardrobe": Vector2(0, -22),
+	"Wardrobe": WARDROBE_SCRIPT.PLACE_OFFSET,
 	"Crafting_Bench": Vector2(0, -34),
 	"Torch": Vector2(0, -14),
 }
@@ -60,7 +67,7 @@ func _ready():
 func activate(texture: Texture2D, item_name: String = ""):
 	current_item_name = item_name
 	current_rotation_deg = 0.0
-	preview_sprite.texture = texture
+	preview_sprite.texture = ITEM_PREVIEW_TEXTURES.get(item_name, texture)
 	preview_sprite.scale = ITEM_PLACED_SCALE.get(item_name, DEFAULT_PLACED_SCALE)
 	preview_sprite.offset = Vector2.ZERO
 	preview_sprite.rotation_degrees = 0.0

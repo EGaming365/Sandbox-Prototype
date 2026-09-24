@@ -405,10 +405,9 @@ func _init_village() -> void:
 	VillageManager.preload_village()
 
 
-# Shows or hides the host and join controls, but keeps them hidden once already connected to a lobby, regardless of what is asked for.
+# Shows or hides the host and join controls, but keeps them hidden when not logged into Steam or once already connected to a lobby, regardless of what is asked for.
 func set_online_ui_visible(should_show: bool) -> void:
-	# Only actually show the controls if the game is not already in a lobby.
-	var show_it: bool = should_show and lobby_id == 0
+	var show_it: bool = should_show and steam_connected and lobby_id == 0
 	if host_button:
 		host_button.visible = show_it
 	if join_button:
@@ -434,6 +433,9 @@ func _create_online_status_display() -> void:
 	# Anchors the container's bottom right corner 14 pixels in from the screen's bottom right corner,
 	# and keeps it there as its content (and therefore its size) changes.
 	container.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_KEEP_SIZE, 14)
+	container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	container.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	container.offset_bottom = -60.0
 
 	username_display = Label.new()
 	username_display.name = "UsernameDisplay"
@@ -448,6 +450,7 @@ func _create_online_status_display() -> void:
 	lobby_code_display = Button.new()
 	lobby_code_display.name = "LobbyCodeDisplay"
 	lobby_code_display.flat = true
+	lobby_code_display.focus_mode = Control.FOCUS_NONE
 	lobby_code_display.mouse_filter = Control.MOUSE_FILTER_STOP
 	lobby_code_display.add_theme_font_size_override("font_size", 20)
 	lobby_code_display.add_theme_color_override("font_color", Color.WHITE)
@@ -465,6 +468,8 @@ func _create_online_status_display() -> void:
 func _update_username_display() -> void:
 	if not username_display:
 		return
+	if username_display.get_parent():
+		username_display.get_parent().visible = steam_connected
 	if steam_connected:
 		username_display.text = Steam.getFriendPersonaName(Steam.getSteamID())
 	else:

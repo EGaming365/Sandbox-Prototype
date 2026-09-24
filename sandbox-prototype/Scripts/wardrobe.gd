@@ -3,6 +3,13 @@
 
 extends StaticBody2D
 
+# Size of the wardrobe picture. The placement preview reads this too, so both are always the same size.
+const DISPLAY_SCALE: Vector2 = Vector2(3.2, 3.2)
+# Where the placement preview and the placed wardrobe are drawn relative to the grid point, so the base sits on the grid.
+const PLACE_OFFSET: Vector2 = Vector2(0, -49)
+# Wardrobe picture size in pixels before scaling.
+const ART_SIZE: float = 32.0
+
 # ID used to refer to this block across the network once it is placed.
 var block_id: int = -1
 # ID used to refer to this item across the network while it lies on the floor.
@@ -24,12 +31,13 @@ func _ready():
 	add_to_group("placed_blocks")
 	add_to_group("trees")
 	$Sprite2D.texture = wardrobe_texture
+	$Sprite2D.scale = DISPLAY_SCALE
 	var collision_rectangle = RectangleShape2D.new()
-	collision_rectangle.size = Vector2(30, 8)
+	collision_rectangle.size = Vector2(ART_SIZE * DISPLAY_SCALE.x * 0.6, 12)
 	$CollisionShape2D.shape = collision_rectangle
-	$CollisionShape2D.position = Vector2(0, 24)
+	$CollisionShape2D.position = Vector2(0, ART_SIZE * 0.5 * DISPLAY_SCALE.y - 4.0)
 	var pickup_area_rectangle = RectangleShape2D.new()
-	pickup_area_rectangle.size = Vector2(72, 72)
+	pickup_area_rectangle.size = Vector2(ART_SIZE * DISPLAY_SCALE.x, ART_SIZE * DISPLAY_SCALE.y)
 	$Area2D/CollisionShape2D.shape = pickup_area_rectangle
 	$Area2D/CollisionShape2D.position = Vector2.ZERO
 	# Configure the collision after the scene has finished loading.
@@ -56,7 +64,7 @@ func _setup_area():
 func setup_placed(new_block_id: int):
 	block_id = new_block_id
 	is_placed = true
-	$Sprite2D.scale = Vector2(1.5, 1.5)
+	$Sprite2D.scale = DISPLAY_SCALE
 	$Sprite2D.offset = Vector2.ZERO
 	call_deferred("_setup_area")
 
@@ -65,7 +73,7 @@ func setup_placed(new_block_id: int):
 func setup_floor(new_item_id: int):
 	item_id = new_item_id
 	is_placed = false
-	$Sprite2D.scale = Vector2(1.5, 1.5)
+	$Sprite2D.scale = DISPLAY_SCALE
 
 
 # Right click opens or closes the menu and left click breaks the wardrobe, when the player is close enough.
@@ -189,7 +197,8 @@ func _pickup():
 
 # Returns a 64 by 64 pixel box around the wardrobe, used for mouse hit tests.
 func _get_rect() -> Rect2:
-	return Rect2(global_position - Vector2(32, 32), Vector2(64, 64))
+	var rect_size := Vector2(ART_SIZE, ART_SIZE) * DISPLAY_SCALE
+	return Rect2(global_position - rect_size * 0.5, rect_size)
 
 
 # Returns the player controlled by this game instance, or null.
