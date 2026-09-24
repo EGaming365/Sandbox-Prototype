@@ -8,7 +8,7 @@ const PLACE_RANGE = 300.0
 # Per-item scale overrides applied to the preview/placed sprite.
 # Anything not listed here falls back to DEFAULT_PLACED_SCALE.
 const ITEM_PLACED_SCALE = {
-	"Wardrobe": Vector2(2, 2),
+	"Wardrobe": Vector2(1.5, 1.5),
 	"Crafting_Bench": Vector2(2, 2),
 	"Torch": Vector2(0.42, 0.42),
 }
@@ -17,7 +17,7 @@ const DEFAULT_PLACED_SCALE = Vector2(1, 1)
 # Per-item offset applied on top of the snapped grid position, so
 # sprites with off-center art still line up with the grid cell.
 const ITEM_SPAWN_OFFSET = {
-	"Wardrobe": Vector2(0, -30),
+	"Wardrobe": Vector2(0, -22),
 	"Crafting_Bench": Vector2(0, -34),
 	"Torch": Vector2(0, -14),
 }

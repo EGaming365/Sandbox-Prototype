@@ -533,8 +533,7 @@ func _resolve_split_drop() -> void:
 
 # Handles clicks on a slot: right click starts a split drag and left click starts a full drag.
 func _gui_input_for_slot(event, index):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT \
-			and event.pressed and not drag_node:
+	if event.is_action_pressed("right_click") and not drag_node:
 		var slot_data = Inventory.inv_slots[index]
 		if slot_data["item"] != "":
 			var item_name = slot_data["item"]
@@ -554,8 +553,8 @@ func _gui_input_for_slot(event, index):
 					_start_split_drag(index, item_name, item_texture)
 					split_hold["count"] = take
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed and Inventory.inv_slots[index]["item"] != "":
+	if event.is_action_pressed("click"):
+		if Inventory.inv_slots[index]["item"] != "":
 			if Input.is_key_pressed(KEY_SHIFT):
 				var item_name = Inventory.inv_slots[index]["item"]
 				var item_texture = Inventory.inv_slots[index]["texture"]
@@ -725,8 +724,8 @@ func _process(_delta):
 				and hotbar.has_method("set_offhand_drag_valid"):
 			var over_offhand = hotbar._is_mouse_over_offhand()
 			hotbar.set_offhand_drag_valid(not over_offhand or Inventory.can_item_go_offhand(held_item_name))
-		var release_button = MOUSE_BUTTON_RIGHT if split_drag else MOUSE_BUTTON_LEFT
-		if not Input.is_mouse_button_pressed(release_button):
+		var release_action = "right_click" if split_drag else "click"
+		if not Input.is_action_pressed(release_action):
 			if split_drag:
 				_resolve_split_drop()
 			else:
@@ -858,7 +857,7 @@ func _add_recipe_icon(grid: GridContainer, recipe: Dictionary, detail: VBoxConta
 	var r = recipe
 	var state = {"last_click": 0.0, "timer": null}
 	button.gui_input.connect(func(event):
-		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if event.is_action_pressed("click"):
 			var now = Time.get_ticks_msec() / 1000.0
 			var is_double = (now - state["last_click"]) < 0.2
 			state["last_click"] = now

@@ -56,7 +56,7 @@ func _setup_area():
 func setup_placed(new_block_id: int):
 	block_id = new_block_id
 	is_placed = true
-	$Sprite2D.scale = Vector2(2, 2)
+	$Sprite2D.scale = Vector2(1.5, 1.5)
 	$Sprite2D.offset = Vector2.ZERO
 	call_deferred("_setup_area")
 

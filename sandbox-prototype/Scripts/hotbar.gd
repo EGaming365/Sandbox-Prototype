@@ -264,7 +264,7 @@ func _update_offhand_slot():
 
 # Left clicking the offhand item moves it back to the inventory.
 func _gui_input_for_offhand(event):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event.is_action_pressed("click"):
 		if Inventory.offhand_slot["item"] != "":
 			var added = Inventory.batch_add_item(
 				Inventory.offhand_slot["item"],
@@ -622,8 +622,8 @@ func _process(delta: float) -> void:
 			set_offhand_drag_valid(Inventory.can_item_go_offhand(held_item_name))
 		else:
 			set_offhand_drag_valid(true)
-		var release_button = MOUSE_BUTTON_RIGHT if split_drag else MOUSE_BUTTON_LEFT
-		if not Input.is_mouse_button_pressed(release_button):
+		var release_action = "right_click" if split_drag else "click"
+		if not Input.is_action_pressed(release_action):
 			if split_drag:
 				_resolve_split_drop()
 			else:
@@ -736,7 +736,7 @@ func _process(delta: float) -> void:
 
 # Right click can cast a fishing rod, or place the offhand item, when no menu is open.
 func _input(event):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if event.is_action_pressed("right_click"):
 		if not drag_node:
 			var inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 			var inv_open = inventory_ui and inventory_ui.visible
@@ -758,7 +758,7 @@ func _input(event):
 			elif slot_data["item"] == "Fishing Rod" \
 					or slot_data["item"] == "Stone Fishing Rod" \
 					or slot_data["item"] == "Copper Fishing Rod":
-				_try_fish_cast(event.position)
+				_try_fish_cast(get_viewport().get_mouse_position())
 
 
 # Asks the fishing manager to cast a line towards the given screen position.

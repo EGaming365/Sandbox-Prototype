@@ -468,7 +468,7 @@ func _update_day_night(delta):
 	time_of_day += delta / day_length_seconds
 	if time_of_day >= 1.0:
 		time_of_day -= 1.0
-	var is_night: bool = time_of_day >= 0.97 or time_of_day < 0.05
+	var is_night: bool = time_of_day >= 0.92 or time_of_day < 0.20
 	if is_night and not _was_night:
 		_was_night = true
 		if not aurora_active and rng.randf() < 0.15:
@@ -482,7 +482,7 @@ func _update_day_night(delta):
 
 # Returns true between just before midnight and early morning.
 func is_night() -> bool:
-	return time_of_day < 0.05 or time_of_day >= 0.97
+	return time_of_day < 0.20 or time_of_day >= 0.92
 
 
 # Starts an aurora. It sometimes brings rain with it.
