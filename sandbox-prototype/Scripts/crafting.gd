@@ -208,8 +208,8 @@ func _has_inventory_space() -> bool:
 	for slot in Inventory.slots:
 		if slot["item"] == "":
 			return true
-	for slot in Inventory.inv_slots:
-		if slot["item"] == "":
+	for i in Inventory.unlocked_inv_slots:
+		if Inventory.inv_slots[i]["item"] == "":
 			return true
 	return false
 
