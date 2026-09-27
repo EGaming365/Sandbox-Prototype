@@ -138,6 +138,7 @@ func _recompute_unlocked_slots() -> void:
 			if achievement_manager.is_unlocked(achievement_id):
 				unlocked_count += 1
 	unlocked_slots = min(TOTAL_SLOTS, BASE_UNLOCKED_SLOTS + unlocked_count * SLOTS_PER_ACHIEVEMENT)
+	Inventory.set_unlocked_inv_slots(unlocked_slots)
 
 
 # Called whenever anyone unlocks an achievement. Only the local player's own unlocks grow their backpack, and the slot grid is rebuilt so the newly freed slots show up immediately.

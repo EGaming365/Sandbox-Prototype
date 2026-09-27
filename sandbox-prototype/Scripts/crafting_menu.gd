@@ -66,11 +66,15 @@ func _build_ui():
 		recipe_list.add_child(row)
 
 
-# Crafts the item if the player has the ingredients and briefly shows the result on the button.
+# Crafts the item if the player has the ingredients and room for it, and briefly shows the result on the button.
 func _on_craft_pressed(recipe: Dictionary, craft_button: Button):
 	if Crafting.can_craft(recipe):
 		Crafting.craft(recipe)
 		craft_button.text = "Done!"
+		await get_tree().create_timer(0.5).timeout
+		craft_button.text = "Craft"
+	elif Crafting.has_ingredients(recipe) and not Crafting.has_room_for_result():
+		craft_button.text = "No space!"
 		await get_tree().create_timer(0.5).timeout
 		craft_button.text = "Craft"
 	else:

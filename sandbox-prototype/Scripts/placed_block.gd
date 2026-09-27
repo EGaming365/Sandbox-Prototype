@@ -87,9 +87,7 @@ func _ready():
 			$CollisionShape2D.shape = collision_rectangle
 			$CollisionShape2D.position = Vector2(0, -4)
 			# Torches give off light, so register a static light with the lighting system.
-			var lighting_system = get_tree().root.get_node_or_null("Scene/LightingSystem")
-			if lighting_system and lighting_system.has_method("add_static_light"):
-				_light_id = lighting_system.add_static_light(global_position, 22, 1.35, true)
+			_register_torch_light()
 		_:
 			if item_texture:
 				$Sprite2D.texture = item_texture
@@ -189,3 +187,17 @@ func _remove_torch_light():
 	if lighting_system and lighting_system.has_method("remove_light_source"):
 		lighting_system.remove_light_source(_light_id)
 	_light_id = -1
+
+
+# Attempts to register the torch's light. If the lighting system has not finished loading yet, tries again a few frames later instead of leaving the torch dark.
+func _register_torch_light(attempts_left: int = 20) -> void:
+	var lighting_system = get_tree().root.get_node_or_null("Scene/LightingSystem")
+	if lighting_system and lighting_system.has_method("add_static_light"):
+		_light_id = lighting_system.add_static_light(global_position, 22, 1.35, true)
+		return
+	if attempts_left <= 0:
+		return
+	await get_tree().process_frame
+	if not is_instance_valid(self) or item_name != "Torch":
+		return
+	_register_torch_light(attempts_left - 1)

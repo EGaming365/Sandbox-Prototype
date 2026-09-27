@@ -9,8 +9,8 @@ extends Node2D
 var player_in_range = false
 # The player who is currently in range.
 var player_in_range_node = null
-# Number of hits needed to fell the tree, chosen at random from 4 to 8.
-var max_hits = randi_range(4, 8)
+# Number of hits needed to fell the tree, chosen from the tree's own id so every player agrees on it.
+var max_hits = 6
 # Hits the tree has taken so far.
 var hits = 0
 # ID used to remove the tree everywhere in multiplayer, or -1 if it has none.
@@ -48,6 +48,7 @@ func _ready():
 	trunk_base_y = global_position.y
 	if has_meta("env_id"):
 		env_id = str(get_meta("env_id"))
+	max_hits = 4 + (hash(env_id if env_id != "" else str(get_instance_id())) % 5)
 	_chat_box = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 	_inventory_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Inventory_UI")
 	_hotbar = get_tree().root.get_node_or_null("Scene/CanvasLayer/Hotbar")

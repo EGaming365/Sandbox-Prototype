@@ -145,7 +145,7 @@ func _check_despawn() -> void:
 		if not is_instance_valid(chicken_node):
 			continue
 		if in_cave:
-			chicken_node.queue_free()
+			_despawn_chicken(chicken_node)
 			continue
 		var all_out_of_range := true
 		for player_node in players:
@@ -159,7 +159,7 @@ func _check_despawn() -> void:
 			_out_of_range_timers[chicken_node] += 5.0
 			if _out_of_range_timers[chicken_node] >= despawn_grace_period:
 				_out_of_range_timers.erase(chicken_node)
-				chicken_node.queue_free()
+				_despawn_chicken(chicken_node)
 		else:
 			_out_of_range_timers.erase(chicken_node)
 	# Forget timers for creatures that no longer exist.
@@ -173,7 +173,7 @@ func _check_despawn() -> void:
 		if not is_instance_valid(enemy_node):
 			continue
 		if not in_cave and enemy_node.has_meta("combat_room_id"):
-			enemy_node.queue_free()
+			_despawn_enemy(enemy_node)
 			continue
 		var all_players_out_of_range := true
 		for player_node in players:
@@ -184,7 +184,23 @@ func _check_despawn() -> void:
 		if all_players_out_of_range:
 			var aggressive := int(enemy_node.get("state")) != 0
 			if not aggressive:
-				enemy_node.queue_free()
+				_despawn_enemy(enemy_node)
+
+
+# Frees a chicken on the host and tells the other players to remove their own copy.
+func _despawn_chicken(chicken_node: Node2D) -> void:
+	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() \
+			and _scene_node.has_method("despawn_chicken_on_client_rpc") and "chicken_id" in chicken_node:
+		_scene_node.despawn_chicken_on_client_rpc.rpc(int(chicken_node.chicken_id))
+	chicken_node.queue_free()
+
+
+# Frees an enemy on the host and tells the other players to remove their own copy.
+func _despawn_enemy(enemy_node: Node2D) -> void:
+	if _scene_node and multiplayer.has_multiplayer_peer() and multiplayer.is_server() \
+			and _scene_node.has_method("despawn_enemy_on_client_rpc") and "enemy_id" in enemy_node:
+		_scene_node.despawn_enemy_on_client_rpc.rpc(int(enemy_node.enemy_id))
+	enemy_node.queue_free()
 
 
 # Creates a chicken on the host and tells the other players to create it too.

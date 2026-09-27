@@ -721,11 +721,10 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 		if overlaps.size() > 0:
 			continue
 		var player_id = player.name.to_int()
-		var player_name = (
-			Steam.getFriendPersonaName(player_id)
-			if multiplayer.has_multiplayer_peer()
-			else "Player"
-		)
+		var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
+		var player_name = "Player"
+		if multiplayer.has_multiplayer_peer() and chat and chat.has_method("_get_steam_name_for_peer"):
+			player_name = chat._get_steam_name_for_peer(player_id)
 		if player_name == "" or player_name == null:
 			player_name = "Player"
 		if multiplayer.has_multiplayer_peer():
@@ -735,7 +734,6 @@ func _kill_players_hit_by_lightning(world_pos: Vector2):
 				scene_node.deal_damage_to_player.rpc_id(player_id, lightning_kill_damage)
 		else:
 			player.take_damage(lightning_kill_damage)
-		var chat = get_tree().root.get_node_or_null("Scene/CanvasLayer/Chat_Box")
 		if chat:
 			if multiplayer.has_multiplayer_peer():
 				chat._broadcast_message.rpc(player_name + " was struck by the gods")

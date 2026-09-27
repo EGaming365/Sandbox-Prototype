@@ -5,6 +5,8 @@ extends StaticBody2D
 
 # Size of the wardrobe picture. The placement preview reads this too, so both are always the same size.
 const DISPLAY_SCALE: Vector2 = Vector2(3.2, 3.2)
+# Size of the wardrobe picture while it is lying on the floor as a pickup, smaller than the placed furniture so it does not clip into trees, rocks and buildings.
+const FLOOR_DISPLAY_SCALE: Vector2 = Vector2(1.6, 1.6)
 # Where the placement preview and the placed wardrobe are drawn relative to the grid point, so the base sits on the grid.
 const PLACE_OFFSET: Vector2 = Vector2(0, -49)
 # Wardrobe picture size in pixels before scaling.
@@ -31,13 +33,14 @@ func _ready():
 	add_to_group("placed_blocks")
 	add_to_group("trees")
 	$Sprite2D.texture = wardrobe_texture
-	$Sprite2D.scale = DISPLAY_SCALE
+	var current_scale := DISPLAY_SCALE if is_placed else FLOOR_DISPLAY_SCALE
+	$Sprite2D.scale = current_scale
 	var collision_rectangle = RectangleShape2D.new()
-	collision_rectangle.size = Vector2(ART_SIZE * DISPLAY_SCALE.x * 0.6, 12)
+	collision_rectangle.size = Vector2(ART_SIZE * current_scale.x * 0.6, 12)
 	$CollisionShape2D.shape = collision_rectangle
-	$CollisionShape2D.position = Vector2(0, ART_SIZE * 0.5 * DISPLAY_SCALE.y - 4.0)
+	$CollisionShape2D.position = Vector2(0, ART_SIZE * 0.5 * current_scale.y - 4.0)
 	var pickup_area_rectangle = RectangleShape2D.new()
-	pickup_area_rectangle.size = Vector2(ART_SIZE * DISPLAY_SCALE.x, ART_SIZE * DISPLAY_SCALE.y)
+	pickup_area_rectangle.size = Vector2(ART_SIZE * current_scale.x, ART_SIZE * current_scale.y)
 	$Area2D/CollisionShape2D.shape = pickup_area_rectangle
 	$Area2D/CollisionShape2D.position = Vector2.ZERO
 	# Configure the collision after the scene has finished loading.
@@ -73,7 +76,7 @@ func setup_placed(new_block_id: int):
 func setup_floor(new_item_id: int):
 	item_id = new_item_id
 	is_placed = false
-	$Sprite2D.scale = DISPLAY_SCALE
+	$Sprite2D.scale = FLOOR_DISPLAY_SCALE
 
 
 # Right click opens or closes the menu and left click breaks the wardrobe, when the player is close enough.
@@ -181,9 +184,10 @@ func _on_body_entered(body):
 			_pickup()
 
 
-# Adds the wardrobe to the inventory and removes the floor item.
+# Adds the wardrobe to the inventory and removes the floor item, unless the inventory is full.
 func _pickup():
-	Inventory.add_item("Wardrobe", wardrobe_texture)
+	if not Inventory.add_item("Wardrobe", wardrobe_texture):
+		return
 	var scene_node = get_tree().root.get_node_or_null("Scene")
 	if scene_node:
 		if multiplayer.has_multiplayer_peer():

@@ -5,6 +5,10 @@ extends Sprite2D
 @export var trigger_release_threshold: float = 0.3
 @export var scroll_step: float = 70.0
 @export var repeat_delay: float = 0.16
+@export var cursor_options: Array[Texture2D] = [
+	preload("res://Assets/Cursor_Basic.png"),
+	preload("res://Assets/Cursor_Highlighted.png"),
+]
 
 var cooldowns: Array = []
 var _virtual_pos: Vector2 = Vector2.ZERO
@@ -15,6 +19,7 @@ var _right_down: bool = false
 var _button_mask: int = 0
 var _injecting: bool = false
 var _repeat_timer: float = 0.0
+var _cursor_index: int = 0
 
 
 func _ready():
@@ -26,16 +31,29 @@ func _ready():
 	_virtual_pos = get_viewport().get_mouse_position()
 	if _virtual_pos == Vector2.ZERO:
 		_virtual_pos = get_viewport().get_visible_rect().size * 0.5
+	_cursor_index = 0
+	if not cursor_options.is_empty():
+		texture = cursor_options[_cursor_index]
 
 
 func _input(event):
 	if _injecting:
+		return
+	if event.is_action_pressed("change_cursor"):
+		_cycle_cursor()
 		return
 	if event is InputEventJoypadMotion:
 		if event.axis == JOY_AXIS_TRIGGER_RIGHT:
 			_left_wanted = _trigger_state(_left_wanted, event.axis_value)
 		elif event.axis == JOY_AXIS_TRIGGER_LEFT:
 			_right_wanted = _trigger_state(_right_wanted, event.axis_value)
+
+
+func _cycle_cursor() -> void:
+	if cursor_options.is_empty():
+		return
+	_cursor_index = (_cursor_index + 1) % cursor_options.size()
+	texture = cursor_options[_cursor_index]
 
 
 func _trigger_state(was_down: bool, value: float) -> bool:

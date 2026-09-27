@@ -212,12 +212,11 @@ func _update_darkness_base():
 	if _cave_gen and is_instance_valid(_cave_gen) and _cave_gen.get("in_cave"):
 		_current_darkness = cave_base_darkness
 		return
-	if _weather and is_instance_valid(_weather):
-		var t: float = _weather.time_of_day
-		# Full night.
+	var time_of_day_value = _weather.get("time_of_day") if (_weather and is_instance_valid(_weather)) else null
+	if time_of_day_value != null:
+		var t: float = time_of_day_value
 		if t >= 0.92 or t < 0.20:
 			_current_darkness = night_base_darkness
-		# Dusk and dawn fade smoothly between day and night.
 		elif (t >= 0.82 and t < 0.92) or (t >= 0.20 and t < 0.35):
 			var blend: float
 			if t >= 0.82 and t < 0.92:
@@ -227,8 +226,7 @@ func _update_darkness_base():
 			_current_darkness = lerp(day_base_darkness, night_base_darkness, blend)
 		else:
 			_current_darkness = day_base_darkness
-		# An aurora makes the night brighter.
-		if _weather.aurora_active:
+		if _weather.get("aurora_active") == true:
 			_current_darkness = lerp(_current_darkness, 0.0, 0.6)
 	else:
 		_current_darkness = day_base_darkness

@@ -182,13 +182,25 @@ func _get_local_player():
 func can_craft(recipe: Dictionary) -> bool:
 	if bench_recipes.has(recipe) and not is_near_bench():
 		return false
+	if not has_ingredients(recipe):
+		return false
+	if not _has_inventory_space():
+		return false
+	return true
 
+
+# Returns true if the player currently holds enough of every ingredient, ignoring whether there is room for the result.
+func has_ingredients(recipe: Dictionary) -> bool:
 	for item in recipe["ingredients"]:
 		var count = recipe["ingredients"][item]
 		if _count_item(item) < count:
 			return false
-
 	return true
+
+
+# Returns true if there is an empty hotbar or inventory slot to hold a crafted result.
+func has_room_for_result() -> bool:
+	return _has_inventory_space()
 
 
 # Returns true if any hotbar or inventory slot is empty.

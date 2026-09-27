@@ -95,6 +95,7 @@ func _refresh_floor_item_visibility():
 # Host function. Drops an item on the floor, joining an existing pile if one is close, and tells the other players.
 # forced_layer overrides the current world layer, for drops that should stay tied to the world the player was in when they happened (for example a death in the cave).
 func host_spawn_floor_item(world_position: Vector2, item_type: String = "Wood", durability: int = 60, forced_layer: String = "") -> int:
+	world_position = _find_safe_drop_position(world_position)
 	var layer = forced_layer if forced_layer != "" else _get_current_world_layer()
 	if not item_type in NON_STACKABLE_FLOOR_ITEMS and not _is_fish_item_name(item_type):
 		for item_id in floor_items:
@@ -183,6 +184,8 @@ func _do_spawn_floor_item(
 				item_scene = preload("res://Scenes/ghost_eel.tscn")
 			"Crystal Creeper", "Albino Crystal Creeper":
 				item_scene = preload("res://Scenes/crystal_creeper.tscn")
+			"Tophat Fish", "Albino Tophat Fish":
+				item_scene = preload("res://Scenes/tophat_fish.tscn")
 			_:
 				return
 	else:
@@ -1203,7 +1206,10 @@ func deal_damage_to_player(amount: int):
 	var target := get_node_or_null(str(multiplayer.get_unique_id()))
 	if target and is_instance_valid(target) and target.is_in_group("players") \
 		and target.is_multiplayer_authority():
-		target.take_damage(amount)
+		if target.has_method("defend_enemy_attack"):
+			target.defend_enemy_attack(amount)
+		else:
+			target.take_damage(amount)
 
 # Sent by a client. The host chops the tree.
 @rpc("any_peer", "call_remote", "reliable")
@@ -1414,6 +1420,27 @@ func _find_safe_spawn(origin: Vector2, max_attempts: int = 30) -> Vector2:
 	return origin + Vector2(randf_range(-200, 200), randf_range(-200, 200))
 
 
+# Nudges a dropped item's spawn point out of trees, rocks and buildings so it never lands stuck inside their collision shape.
+func _find_safe_drop_position(origin: Vector2, max_attempts: int = 12) -> Vector2:
+	var space = get_world_2d().direct_space_state
+	var query = PhysicsShapeQueryParameters2D.new()
+	var shape = CircleShape2D.new()
+	shape.radius = 8.0
+	query.shape = shape
+	query.collision_mask = 1
+	query.transform = Transform2D(0, origin)
+	if space.intersect_shape(query, 1).size() == 0:
+		return origin
+	for i in max_attempts:
+		var angle = randf_range(0, TAU)
+		var radius = 16.0 + i * 8.0
+		var candidate = origin + Vector2(cos(angle), sin(angle)) * radius
+		query.transform = Transform2D(0, candidate)
+		if space.intersect_shape(query, 1).size() == 0:
+			return candidate
+	return origin
+
+
 # Sends every chicken and enemy to a player who has just joined.
 func sync_chickens_and_enemies_to_peer(peer_id: int):
 	if not multiplayer.get_peers().has(peer_id):
@@ -1493,6 +1520,33 @@ func spawn_boss_on_client_rpc(px: float, py: float, boss_number: int):
 	await get_tree().create_timer(2.0).timeout
 	if is_instance_valid(boss):
 		boss.set_meta("sync_ready", true)
+
+# Removes a chicken on a client's game once the host despawns it.
+@rpc("authority", "call_remote", "reliable")
+
+
+func despawn_chicken_on_client_rpc(chicken_number: int) -> void:
+	var chicken = get_node_or_null("Chicken_" + str(chicken_number))
+	if chicken and is_instance_valid(chicken):
+		chicken.queue_free()
+
+# Removes an enemy on a client's game once the host despawns it.
+@rpc("authority", "call_remote", "reliable")
+
+
+func despawn_enemy_on_client_rpc(enemy_number: int) -> void:
+	var enemy = get_node_or_null("Enemy_" + str(enemy_number))
+	if enemy and is_instance_valid(enemy):
+		enemy.queue_free()
+
+# Removes a boss on a client's game once it dies on the host, including its health bar.
+@rpc("authority", "call_remote", "reliable")
+
+
+func despawn_boss_on_client_rpc(boss_number: int) -> void:
+	var boss = get_node_or_null("Boss_" + str(boss_number))
+	if boss and is_instance_valid(boss):
+		boss.queue_free()
 
 # Removes every chicken and enemy on every player's game.
 @rpc("authority", "call_local", "reliable")

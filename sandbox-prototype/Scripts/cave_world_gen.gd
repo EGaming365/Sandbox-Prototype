@@ -987,12 +987,14 @@ func request_player_died(world_pos: Vector2) -> void:
 		scene_node.request_room_death_reset.rpc_id(1, world_pos.x, world_pos.y)
 
 
-# Host only. If the player died in a locked room, removes its enemies and resets the room. The boss room resets after a longer cooldown.
+# Host only. If the player died in a locked room and no one else is still alive in it, removes its enemies and resets the room. The boss room resets after a longer cooldown.
 func notify_player_died(world_pos: Vector2) -> void:
 	if not _is_host():
 		return
 	var room: RoomData = get_room_at_world_pos(world_pos)
 	if not room or not room.is_locked:
+		return
+	if _room_has_living_player(room):
 		return
 	var animal_spawner: Node = get_tree().root.get_node_or_null("AnimalSpawner")
 	if animal_spawner and animal_spawner.has_method("clear_room_entities"):
@@ -1003,6 +1005,20 @@ func notify_player_died(world_pos: Vector2) -> void:
 		_reset_room(room, BOSS_DEATH_COOLDOWN)
 	else:
 		_reset_room(room)
+
+
+# Returns true if any player is both alive and standing inside the room's tiles.
+func _room_has_living_player(room: RoomData) -> bool:
+	var room_rect: Rect2i = Rect2i(room.tile_origin, Vector2i(room.tile_size, room.tile_size))
+	for p in get_tree().get_nodes_in_group("players"):
+		if not is_instance_valid(p):
+			continue
+		if bool(p.get("is_dead")):
+			continue
+		var tile_position: Vector2i = world_to_tile((p as Node2D).global_position)
+		if room_rect.has_point(tile_position):
+			return true
+	return false
 
 
 # Counts down the enter cooldown, updates the rooms and loads chunks around the player.
@@ -1314,6 +1330,13 @@ func world_to_tile(world_pos: Vector2) -> Vector2i:
 	if _tilemap:
 		return _tilemap.local_to_map(_tilemap.to_local(world_pos))
 	return Vector2i(floori(world_pos.x / 64), floori(world_pos.y / 64))
+
+
+# Returns true if the world position is a cave lake tile, so surface systems like thirst can recognise cave water too.
+func is_water_at(world_pos: Vector2) -> bool:
+	if not _active:
+		return false
+	return _water_tiles.has(world_to_tile(world_pos))
 
 
 # Returns true if the world position is a wall or a locked door.

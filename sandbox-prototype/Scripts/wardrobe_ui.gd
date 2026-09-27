@@ -51,6 +51,15 @@ func _on_tab_pressed(tab_name: String):
 	_load_tab_contents(tab_name)
 
 
+# Switches to the next or previous category, wrapping around at either end.
+func _cycle_tab(direction: int) -> void:
+	var index = tabs.find(current_tab)
+	if index == -1:
+		index = 0
+	index = (index + direction + tabs.size()) % tabs.size()
+	_on_tab_pressed(tabs[index])
+
+
 # Gives the current tab a highlighted look and resets the others.
 func _highlight_active_tab():
 	for button in tab_buttons.get_children():
@@ -163,9 +172,17 @@ func close():
 			node.close_ui()
 
 
-# Pressing Escape or clicking outside the panel closes the menu.
+# Pressing Escape or clicking outside the panel closes the menu. LB/RB cycle between the Hair, Shirt and Pants tabs.
 func _input(event):
 	if not visible:
+		return
+	if Input.is_action_just_pressed("slot_up"):
+		_cycle_tab(-1)
+		get_viewport().set_input_as_handled()
+		return
+	if Input.is_action_just_pressed("slot_down"):
+		_cycle_tab(1)
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		close()

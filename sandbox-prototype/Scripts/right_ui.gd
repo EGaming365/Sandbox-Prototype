@@ -267,8 +267,9 @@ func _process(delta):
 		var weather = get_tree().root.get_node_or_null("Scene/Weather")
 		event_display.visible = weather != null and weather.aurora_active
 
-	# Find the local player, and check whether they are standing in water.
+	# Find the local player, and check whether they are standing in water, on the surface or in a cave lake.
 	var world_gen = get_tree().root.get_node_or_null("Scene/WorldGen")
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
 	var in_water = false
 	var player: CharacterBody2D = null
 	for candidate_player in get_tree().get_nodes_in_group("players"):
@@ -277,14 +278,16 @@ func _process(delta):
 				player = candidate_player
 				break
 
-	if player and world_gen and world_gen.has_method("is_water_at"):
-		in_water = world_gen.is_water_at(player.global_position)
+	if player:
+		if cave_gen and cave_gen.get("in_cave") and cave_gen.has_method("is_water_at"):
+			in_water = cave_gen.is_water_at(player.global_position)
+		elif world_gen and world_gen.has_method("is_water_at"):
+			in_water = world_gen.is_water_at(player.global_position)
 
 	# Work out whether the player is moving, and whether they are healing.
 	var is_moving = player != null and player.velocity.length() > 0
 	var is_healing = player != null \
 		and hunger >= regen_hunger_min \
-		and thirst >= regen_thirst_min \
 		and player.synced_health < player.max_health
 
 	# Hunger and thirst drain fastest while healing and slowest while standing still.

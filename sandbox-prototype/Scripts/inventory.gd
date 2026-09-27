@@ -104,6 +104,10 @@ var _emit_dirty: bool = false
 var _emit_timer: float = 0.0
 
 
+func set_unlocked_inv_slots(count: int) -> void:
+	unlocked_inv_slots = clamp(count, 0, max_inv_slots)
+
+
 # Resizes every item picture, registers the fish pictures and creates the empty slots.
 func _ready():
 	# Item names and their original pictures. Albino fish share the normal fish picture.
@@ -257,31 +261,32 @@ func add_item(item_name, texture):
 		if offhand_slot["item"] == item_name and offhand_slot["count"] < 99:
 			offhand_slot["count"] += 1
 			_queue_emit()
-			return
+			return true
 		for slot in slots:
 			if slot["item"] == item_name and slot["count"] < 99:
 				slot["count"] += 1
 				_queue_emit()
-				return
+				return true
 		for i in unlocked_inv_slots:
 			if inv_slots[i]["item"] == item_name and inv_slots[i]["count"] < 99:
 				inv_slots[i]["count"] += 1
 				_queue_emit()
-				return
+				return true
 	for slot in slots:
 		if slot["item"] == "":
 			slot["item"] = item_name
 			slot["count"] = 1
 			slot["texture"] = item_texture
 			_queue_emit()
-			return
+			return true
 	for i in unlocked_inv_slots:
 		if inv_slots[i]["item"] == "":
 			inv_slots[i]["item"] = item_name
 			inv_slots[i]["count"] = 1
 			inv_slots[i]["texture"] = item_texture
 			_queue_emit()
-			return
+			return true
+	return false
 
 
 # Adds an item to the first empty slot with a given count, such as a tool's durability.

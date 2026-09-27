@@ -933,11 +933,14 @@ func _spawn_bobber(world_pos: Vector2) -> void:
 	bobber.scale = Vector2(4.5, 4.5)
 	get_tree().root.get_node("Scene").add_child(bobber)
 	_bobber = bobber
-	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
-		var player := _get_player()
-		if player:
-			var peer_id := player.get_multiplayer_authority()
-			_sync_bobber_spawn.rpc(peer_id, world_pos)
+	if multiplayer.has_multiplayer_peer():
+		if multiplayer.is_server():
+			var player := _get_player()
+			if player:
+				var peer_id := player.get_multiplayer_authority()
+				_sync_bobber_spawn.rpc(peer_id, world_pos)
+		else:
+			request_spawn_bobber.rpc_id(1, world_pos)
 
 
 # Removes the bobber and tells the other players.
@@ -945,11 +948,14 @@ func _despawn_bobber() -> void:
 	if _bobber and is_instance_valid(_bobber):
 		_bobber.queue_free()
 	_bobber = null
-	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
-		var player := _get_player()
-		if player:
-			var peer_id := player.get_multiplayer_authority()
-			_sync_bobber_despawn.rpc(peer_id)
+	if multiplayer.has_multiplayer_peer():
+		if multiplayer.is_server():
+			var player := _get_player()
+			if player:
+				var peer_id := player.get_multiplayer_authority()
+				_sync_bobber_despawn.rpc(peer_id)
+		else:
+			request_despawn_bobber.rpc_id(1)
 
 
 # Shows the bite icon above the player and tells the other players.
@@ -964,9 +970,12 @@ func _show_catch_icon(fish: Dictionary) -> void:
 	icon.z_index = 10
 	get_tree().root.get_node("Scene").add_child(icon)
 	_catch_icon_scene = icon
-	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
-		var peer_id := player.get_multiplayer_authority()
-		_sync_catch_icon_show.rpc(peer_id, player.global_position, fish["rarity"])
+	if multiplayer.has_multiplayer_peer():
+		if multiplayer.is_server():
+			var peer_id := player.get_multiplayer_authority()
+			_sync_catch_icon_show.rpc(peer_id, player.global_position, fish["rarity"])
+		else:
+			request_show_catch_icon.rpc_id(1, player.global_position, fish["rarity"])
 
 
 # Removes the bite icon and tells the other players.
@@ -974,10 +983,53 @@ func _hide_catch_icon() -> void:
 	if _catch_icon_scene and is_instance_valid(_catch_icon_scene):
 		_catch_icon_scene.queue_free()
 	_catch_icon_scene = null
-	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
-		var player := _get_player()
-		if player:
-			_sync_catch_icon_hide.rpc(player.get_multiplayer_authority())
+	if multiplayer.has_multiplayer_peer():
+		if multiplayer.is_server():
+			var player := _get_player()
+			if player:
+				_sync_catch_icon_hide.rpc(player.get_multiplayer_authority())
+		else:
+			request_hide_catch_icon.rpc_id(1)
+
+# Sent by a client. The host broadcasts the new bobber to everyone.
+@rpc("any_peer", "call_remote", "reliable")
+
+
+func request_spawn_bobber(world_pos: Vector2) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	_sync_bobber_spawn.rpc(peer_id, world_pos)
+
+# Sent by a client. The host broadcasts the bobber's removal to everyone.
+@rpc("any_peer", "call_remote", "reliable")
+
+
+func request_despawn_bobber() -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	_sync_bobber_despawn.rpc(peer_id)
+
+# Sent by a client. The host broadcasts the bite icon to everyone.
+@rpc("any_peer", "call_remote", "reliable")
+
+
+func request_show_catch_icon(player_pos: Vector2, rarity: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	_sync_catch_icon_show.rpc(peer_id, player_pos, rarity)
+
+# Sent by a client. The host broadcasts the bite icon's removal to everyone.
+@rpc("any_peer", "call_remote", "reliable")
+
+
+func request_hide_catch_icon() -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	_sync_catch_icon_hide.rpc(peer_id)
 
 # Sent by the host so other players see a bobber.
 @rpc("authority", "call_remote", "reliable")

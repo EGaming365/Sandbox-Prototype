@@ -714,7 +714,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 					placed = true
 					break
 			if not placed:
-				for j in 20:
+				for j in Inventory.unlocked_inv_slots:
 					if Inventory.inv_slots[j]["item"] == "":
 						Inventory.inv_slots[j]["item"] = item_name
 						Inventory.inv_slots[j]["count"] = grams
@@ -722,7 +722,6 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 						break
 		Inventory.inventory_changed.emit()
 		return
-	const UNLOCKED_INV_SLOTS = 20
 	if Inventory.non_stackable_items.has(item_name):
 		var item_count := _get_non_stackable_start_count(item_name)
 		for i in amount:
@@ -735,7 +734,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 					added = true
 					break
 			if not added:
-				for j in UNLOCKED_INV_SLOTS:
+				for j in Inventory.unlocked_inv_slots:
 					var slot = Inventory.inv_slots[j]
 					if slot["item"] == "":
 						slot["item"] = item_name
@@ -751,7 +750,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				var add = min(99 - slot["count"], remaining)
 				slot["count"] += add
 				remaining -= add
-		for j in UNLOCKED_INV_SLOTS:
+		for j in Inventory.unlocked_inv_slots:
 			if remaining <= 0:
 				break
 			var slot = Inventory.inv_slots[j]
@@ -768,7 +767,7 @@ func _do_give_item(item_name: String, amount: int, weight_kg: float = 0.0):
 				slot["count"] = add
 				slot["texture"] = item_texture
 				remaining -= add
-		for j in UNLOCKED_INV_SLOTS:
+		for j in Inventory.unlocked_inv_slots:
 			if remaining <= 0:
 				break
 			var slot = Inventory.inv_slots[j]

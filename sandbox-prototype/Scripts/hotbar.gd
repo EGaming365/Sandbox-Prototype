@@ -556,7 +556,9 @@ func _process(delta: float) -> void:
 	var inv_open = inventory_ui and inventory_ui.visible
 	var extras_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Extras")
 	var extras_open = extras_ui and extras_ui.visible
-	var block_slot_scroll = inv_open or extras_open
+	var wardrobe_ui = get_tree().root.get_node_or_null("Scene/CanvasLayer/Wardrobe_UI")
+	var wardrobe_open = wardrobe_ui and wardrobe_ui.visible
+	var block_slot_scroll = inv_open or extras_open or wardrobe_open
 
 	for i in range(1, 11):
 		var panel: Panel = $HBoxContainer.get_node("Item" + str(i))

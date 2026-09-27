@@ -458,9 +458,13 @@ func take_damage(amount: int) -> void:
 		_die()
 
 
-# Hides the health bar, announces the boss has died and removes it.
+# Hides the health bar, announces the boss has died, tells the other players to remove their copy, and removes it.
 func _die() -> void:
 	if _bar_container and is_instance_valid(_bar_container):
 		_bar_container.visible = false
 	emit_signal("boss_died")
+	if _is_host() and multiplayer.has_multiplayer_peer():
+		var scene_node := get_tree().root.get_node_or_null("Scene")
+		if scene_node and scene_node.has_method("despawn_boss_on_client_rpc"):
+			scene_node.despawn_boss_on_client_rpc.rpc(enemy_id)
 	queue_free()

@@ -10,6 +10,8 @@ extends CharacterBody2D
 @export var synced_velocity : Vector2 = Vector2.ZERO
 # Name of the held item, shared so others can see it.
 @export var synced_held_item: String = ""
+@export var synced_offhand_item: String = ""
+@export var synced_in_cave: bool = false
 # Current health, shared with the other players.
 @export var synced_health: int = 10
 # Animated picture of the character's body.
@@ -298,6 +300,7 @@ func _physics_process(delta):
 			== MultiplayerPeer.CONNECTION_CONNECTED:
 			sync_position_rpc.rpc(
 				global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item,
+				Inventory.offhand_slot.get("item", ""), _get_local_in_cave(),
 			)
 		return
 	if multiplayer.has_multiplayer_peer() and not is_multiplayer_authority():
@@ -311,6 +314,7 @@ func _physics_process(delta):
 		shirt_sprite.visible = synced_shirt
 		pants_sprite.visible = synced_pants
 		_update_hand_sprite()
+		_update_torch_light()
 		return
 
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
@@ -383,6 +387,7 @@ func _physics_process(delta):
 		== MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_position_rpc.rpc(
 			global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item,
+			Inventory.offhand_slot.get("item", ""), _get_local_in_cave(),
 		)
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		_update_torch_light()
@@ -615,6 +620,8 @@ func _start_blocking() -> void:
 	if hand_sprite:
 		hand_sprite.rotation_degrees = -35.0
 	_set_parry_highlight(true)
+	if multiplayer.has_multiplayer_peer():
+		sync_block_visual_rpc.rpc(true)
 
 
 # Brightens or resets the character's colour to show the parry window.
@@ -636,6 +643,8 @@ func _stop_blocking() -> void:
 	if hand_sprite:
 		hand_sprite.rotation_degrees = 0.0
 	_set_parry_highlight(false)
+	if multiplayer.has_multiplayer_peer():
+		sync_block_visual_rpc.rpc(false)
 
 
 # Starts a roll in the direction the player is pressing, becoming invulnerable.
@@ -701,6 +710,7 @@ func _process_roll(delta: float) -> void:
 		== MultiplayerPeer.CONNECTION_CONNECTED:
 		sync_position_rpc.rpc(
 			global_position.x, global_position.y, velocity.x, velocity.y, synced_held_item,
+			Inventory.offhand_slot.get("item", ""), _get_local_in_cave(),
 		)
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
 		_update_torch_light()
@@ -818,6 +828,24 @@ func die():
 				"item": slot["item"], "count": slot["count"], "durability": durability,
 				"hotbar": false, "index": i,
 			})
+	if Inventory.offhand_slot["item"] != "":
+		var offhand_item = Inventory.offhand_slot["item"]
+		var is_fish_offhand = (
+			scene_node._is_fish_item_name(offhand_item)
+			if scene_node.has_method("_is_fish_item_name")
+			else offhand_item in scene_node.FISH_ITEM_NAMES
+		)
+		var tool_names3 := [
+			"Axe", "Stone Axe", "Pickaxe", "Stone Pickaxe", "Sword", "Stone Sword",
+		]
+		var offhand_durability = Inventory.offhand_slot.get(
+			"durability",
+			Inventory.offhand_slot["count"] if (offhand_item in tool_names3 or is_fish_offhand) else 60,
+		)
+		drops.append({
+			"item": offhand_item, "count": Inventory.offhand_slot["count"],
+			"durability": offhand_durability, "hotbar": false, "index": -1,
+		})
 	for drop in drops:
 		var is_tool = Inventory.non_stackable_items.has(drop["item"])
 		if is_tool:
@@ -859,6 +887,11 @@ func die():
 	for i in Inventory.inv_slots.size():
 		if Inventory.inv_slots[i]["item"] != "":
 			Inventory.remove_item(i, true)
+	if Inventory.offhand_slot["item"] != "":
+		Inventory.offhand_slot["item"] = ""
+		Inventory.offhand_slot["count"] = 0
+		Inventory.offhand_slot["texture"] = null
+		Inventory.inventory_changed.emit()
 	await _play_death_respawn_sequence(scene_node)
 
 # The item that was last shown in the hand.
@@ -1182,12 +1215,41 @@ func _flash_damage():
 
 
 # Updates another player's position, velocity and held item on this game.
-func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String):
+func sync_position_rpc(px: float, py: float, vx: float, vy: float, held: String, offhand: String = "", in_cave_state: bool = false):
 	if is_multiplayer_authority():
 		return
 	global_position = Vector2(px, py)
 	synced_velocity = Vector2(vx, vy)
 	synced_held_item = held
+	synced_offhand_item = offhand
+	synced_in_cave = in_cave_state
+	_update_cross_world_visibility()
+
+
+# Returns whether the local player is currently in the cave.
+func _get_local_in_cave() -> bool:
+	var cave_gen = get_tree().root.get_node_or_null("Scene/CaveWorldGen")
+	return bool(cave_gen.get("in_cave")) if cave_gen else false
+
+
+# Hides this player if they are in a different world (cave or surface) than the local player.
+func _update_cross_world_visibility() -> void:
+	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
+		return
+	var same_world := synced_in_cave == _get_local_in_cave()
+	visible = same_world
+	$CollisionShape2D.disabled = not same_world
+
+# Sent by the blocking player. Shows the raised sword and parry tint on everyone else's game.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+
+
+func sync_block_visual_rpc(blocking: bool) -> void:
+	if is_multiplayer_authority():
+		return
+	if hand_sprite:
+		hand_sprite.rotation_degrees = -35.0 if blocking else 0.0
+	_set_parry_highlight(blocking)
 
 # ID of the light created when holding a torch.
 var _torch_light_id: int = -1
@@ -1198,10 +1260,12 @@ func _update_torch_light():
 	var lighting_system = get_tree().root.get_node_or_null("Scene/LightingSystem")
 	if not lighting_system:
 		return
-	var offhand_torch := false
+	var offhand_item := ""
 	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer():
-		offhand_torch = Inventory.offhand_slot.get("item", "") == "Torch"
-	var holding_torch = synced_held_item == "Torch" or offhand_torch
+		offhand_item = Inventory.offhand_slot.get("item", "")
+	else:
+		offhand_item = synced_offhand_item
+	var holding_torch = synced_held_item == "Torch" or offhand_item == "Torch"
 	if holding_torch and _torch_light_id == -1:
 		_torch_light_id = lighting_system.add_light_source(self, 22, 1.35, true)
 	elif not holding_torch and _torch_light_id != -1:

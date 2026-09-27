@@ -6,8 +6,8 @@ extends Node2D
 @onready var area = $Area2D
 # True while a player is standing near the rock.
 var player_in_range = false
-# Number of hits needed to destroy the rock, chosen at random from 10 to 15.
-var max_hits = randi_range(10, 15)
+# Number of hits needed to destroy the rock, chosen from the rock's own id so every player agrees on it.
+var max_hits = 12
 # Hits the rock has taken so far.
 var hits = 0
 # ID used to remove the rock everywhere in multiplayer, or -1 if it has none.
@@ -27,6 +27,7 @@ func _ready():
 	trunk_base_y = global_position.y
 	if has_meta("env_id"):
 		env_id = str(get_meta("env_id"))
+	max_hits = 10 + (hash(env_id if env_id != "" else str(get_instance_id())) % 6)
 
 
 # Handles the player clicking the rock with a pickaxe while standing nearby.

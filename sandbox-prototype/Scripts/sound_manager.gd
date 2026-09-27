@@ -10,9 +10,9 @@ extends Node
 	"res://Sounds/Ambience_3.mp3",
 ]
 # Looping rain sound file.
-@export var rain_track: String = "res://Sounds/rain.mp3"
+@export var rain_track: String = "res://Sounds/Rain.mp3"
 # Thunder sound file.
-@export var thunder_track: String = "res://Sounds/thunder.mp3"
+@export var thunder_track: String = "res://Sounds/Thunder.mp3"
 # Ambient music volume in decibels.
 @export var ambient_volume_db: float = 0.0
 # Rain volume in decibels when fully faded in.
